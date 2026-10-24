@@ -1,2 +1,71 @@
 @import "tailwindcss";
-@plugin "daisyui";
+@plugin "daisyui" {
+  themes: light --default;
+}
+
+@theme {
+  --color-plum: #6D4E56;
+  --color-plum-hover: #5A3E45;
+  --color-plum-light: rgba(109, 78, 86, 0.08);
+  --color-plum-border: rgba(109, 78, 86, 0.20);
+  --color-body-dark: #1F2937;
+  --color-muted-label: #6B7280;
+  --font-sans: "Roboto", sans-serif;
+}
+
+/* Custom reusable utility classes */
+@layer utilities {
+  .bg-plum {
+    background-color: #6D4E56;
+  }
+  .bg-plum-hover:hover {
+    background-color: #5A3E45;
+  }
+  .bg-plum-light {
+    background-color: rgba(109, 78, 86, 0.08);
+  }
+  .text-plum {
+    color: #6D4E56;
+  }
+  .text-body-dark {
+    color: #1F2937;
+  }
+  .text-muted-label {
+    color: #6B7280;
+  }
+  .border-plum-border {
+    border-color: rgba(109, 78, 86, 0.20);
+  }
+}
+
+/* Universal Roboto font application */
+* {
+  font-family: "Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #FFFFFF;
+  color: #1F2937;
+  font-family: "Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-optical-sizing: auto;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom minimal scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(109, 78, 86, 0.2);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(109, 78, 86, 0.4);
+}
