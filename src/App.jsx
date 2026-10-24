@@ -1,4 +1,3 @@
-import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import LandingPage from "./pages/LandingPage";
@@ -12,7 +11,7 @@ function ProtectedRoute({ children }) {
   if (loading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-xs text-[#6D4E56] font-medium animate-pulse">
+        <div className="text-md text-plum font-medium animate-pulse">
           Validating Hardware Key...
         </div>
       </div>
@@ -44,8 +43,12 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <div className="min-h-screen bg-white p-8">
-                  <h1 className="text-2xl font-bold text-[#1F2937]">Workspace Ready</h1>
-                  <p className="text-xs text-[#6B7280]">Next step: Floating navigation dock and vocabulary cards.</p>
+                  <h1 className="text-2xl font-bold text-body-dark">
+                    Workspace Ready
+                  </h1>
+                  <p className="text-md text-muted-label">
+                    Next step: Floating navigation dock and vocabulary cards.
+                  </p>
                 </div>
               </ProtectedRoute>
             }
