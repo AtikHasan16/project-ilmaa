@@ -38,9 +38,122 @@
   }
 }
 
-/* Universal Roboto font application */
+/* Universal typography floor & font */
 * {
   font-family: "Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 1rem; /* Universal base floor: 16px (text-base), never smaller than 1rem */
+}
+
+/* Common universal components & design classes */
+@layer components {
+  /* Universal card outline conforming to PRD (rounded-xl, plum border 20% opacity) */
+  .imlaa-card {
+    background-color: #ffffff;
+    border-radius: 0.75rem; /* rounded-xl */
+    border: 1px solid rgba(109, 78, 86, 0.2);
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  }
+
+  /* Universal primary button (Deep Muted Plum) */
+  .imlaa-btn-primary {
+    background-color: #6D4E56;
+    color: #ffffff;
+    font-size: 1rem;
+    font-weight: 500;
+    padding: 0.75rem 1.25rem;
+    border-radius: 0.75rem;
+    transition: all 150ms ease-in-out;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border: none;
+    outline: none;
+  }
+  .imlaa-btn-primary:hover:not(:disabled) {
+    background-color: #5A3E45;
+  }
+  .imlaa-btn-primary:active:not(:disabled) {
+    transform: scale(0.99);
+  }
+  .imlaa-btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Universal secondary / ghost button */
+  .imlaa-btn-secondary {
+    background-color: transparent;
+    color: #6D4E56;
+    font-size: 1rem;
+    font-weight: 500;
+    padding: 0.75rem 1.25rem;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(109, 78, 86, 0.25);
+    transition: all 150ms ease-in-out;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  .imlaa-btn-secondary:hover:not(:disabled) {
+    background-color: rgba(109, 78, 86, 0.06);
+    border-color: #6D4E56;
+  }
+
+  /* Universal text inputs */
+  .imlaa-input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(109, 78, 86, 0.25);
+    background-color: #ffffff;
+    color: #1F2937;
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+    outline: none;
+  }
+  .imlaa-input:focus {
+    border-color: #6D4E56;
+    box-shadow: 0 0 0 1px #6D4E56;
+  }
+  .imlaa-input::placeholder {
+    color: #9CA3AF;
+  }
+
+  /* Universal badge / pill */
+  .imlaa-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 1rem;
+    font-weight: 500;
+    background-color: rgba(109, 78, 86, 0.08);
+    color: #6D4E56;
+    border: 1px solid rgba(109, 78, 86, 0.2);
+  }
+
+  /* Universal horizontal navigation / tab item */
+  .imlaa-tab-btn {
+    padding: 0.625rem 1.25rem;
+    font-size: 1rem;
+    font-weight: 500;
+    border-radius: 0.5rem;
+    color: #6B7280;
+    background-color: transparent;
+    transition: all 150ms ease-in-out;
+    cursor: pointer;
+    border: none;
+  }
+  .imlaa-tab-btn:hover {
+    color: #1F2937;
+    background-color: rgba(109, 78, 86, 0.05);
+  }
+  .imlaa-tab-btn.active {
+    color: #ffffff;
+    background-color: #6D4E56;
+  }
 }
 
 body {

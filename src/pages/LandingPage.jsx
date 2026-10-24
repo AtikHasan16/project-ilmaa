@@ -75,8 +75,8 @@ export default function LandingPage() {
         {/* Left Column: Hero, Framework & Phoneme Sample */}
         <div className="lg:col-span-7 flex flex-col space-y-7">
           <div>
-            <div className="flex items-center space-x-2 text-xs uppercase font-bold tracking-[0.2em] text-plum mb-3">
-              <span className="w-2 h-2 rounded-full bg-plum inline-block"></span>
+            <div className="flex items-center space-x-2 text-base uppercase font-bold tracking-[0.2em] text-plum mb-3">
+              <span className="w-2.5 h-2.5 rounded-full bg-plum inline-block"></span>
               <span>Linguistic Mastery Platform</span>
             </div>
 
@@ -88,7 +88,7 @@ export default function LandingPage() {
               Hear it. Spell it. Own it.
             </h2>
 
-            <p className="text-base sm:text-lg text-muted-label leading-relaxed max-w-xl">
+            <p className="text-lg text-muted-label leading-relaxed max-w-xl">
               A focused orthography and auditory spelling mastery tool. Listen
               to precise pronunciation, test recall without visual bias, and
               achieve instinctive vocabulary retention.
@@ -96,40 +96,40 @@ export default function LandingPage() {
           </div>
 
           {/* Pedagogical Framework Card */}
-          <div className="border border-plum/20 rounded-2xl p-6 sm:p-7 bg-white shadow-xs">
-            <div className="text-xs font-bold uppercase tracking-[0.2em] text-plum mb-5">
+          <div className="imlaa-card p-6 sm:p-7">
+            <div className="text-base font-bold uppercase tracking-[0.2em] text-plum mb-5">
               Pedagogical Framework
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-left">
               <div>
-                <div className="text-lg font-bold text-body-dark mb-1">01</div>
-                <div className="text-sm font-semibold text-body-dark mb-1.5">
+                <div className="text-2xl font-bold text-body-dark mb-1">01</div>
+                <div className="text-lg font-semibold text-body-dark mb-1.5">
                   Zero Distraction
                 </div>
-                <div className="text-xs text-muted-label leading-relaxed">
+                <div className="text-base text-muted-label leading-relaxed">
                   Absence of visual cues forces purely auditory-orthographic
                   neuro-mapping.
                 </div>
               </div>
 
               <div>
-                <div className="text-lg font-bold text-body-dark mb-1">02</div>
-                <div className="text-sm font-semibold text-body-dark mb-1.5">
+                <div className="text-2xl font-bold text-body-dark mb-1">02</div>
+                <div className="text-lg font-semibold text-body-dark mb-1.5">
                   Acoustic Accuracy
                 </div>
-                <div className="text-xs text-muted-label leading-relaxed">
+                <div className="text-base text-muted-label leading-relaxed">
                   Calibrated studio enunciations covering high-friction phonemic
                   transitions.
                 </div>
               </div>
 
               <div>
-                <div className="text-lg font-bold text-body-dark mb-1">03</div>
-                <div className="text-sm font-semibold text-body-dark mb-1.5">
+                <div className="text-2xl font-bold text-body-dark mb-1">03</div>
+                <div className="text-lg font-semibold text-body-dark mb-1.5">
                   Systematic Retention
                 </div>
-                <div className="text-xs text-muted-label leading-relaxed">
+                <div className="text-base text-muted-label leading-relaxed">
                   Targeted spaced repetition rooted in active phoneme
                   reconstruction.
                 </div>
@@ -138,24 +138,24 @@ export default function LandingPage() {
           </div>
 
           {/* Phoneme Sample Banner */}
-          <div className="border border-plum/20 rounded-2xl p-5 flex items-center justify-between bg-white shadow-xs">
+          <div className="imlaa-card p-5 flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <button
                 type="button"
                 onClick={playPhonemeSample}
                 title="Play Phoneme Sample"
-                className="w-12 h-12 rounded-xl bg-plum hover:bg-plum-hover text-white flex items-center justify-center transition shadow-xs cursor-pointer active:scale-95"
+                className="w-14 h-14 rounded-xl bg-plum hover:bg-plum-hover text-white flex items-center justify-center transition shadow-xs cursor-pointer active:scale-95"
               >
                 <HiVolumeUp
-                  className={`w-6 h-6 ${playingAudio ? "animate-pulse" : ""}`}
+                  className={`w-7 h-7 ${playingAudio ? "animate-pulse" : ""}`}
                 />
               </button>
               <div>
-                <div className="text-sm sm:text-base font-bold text-body-dark">
+                <div className="text-lg font-bold text-body-dark">
                   Phoneme Sample:{" "}
                   <span className="font-mono text-plum">/ɪmˈlɑːʔ/</span>
                 </div>
-                <div className="text-xs text-muted-label mt-0.5">
+                <div className="text-base text-muted-label mt-0.5">
                   Isolated articulation • Standard Academic
                 </div>
               </div>
@@ -164,22 +164,22 @@ export default function LandingPage() {
             {/* Audio Wave Graphic Simulation */}
             <div className="flex items-center space-x-1.5 pr-2">
               <span
-                className={`w-1 rounded-full bg-plum transition-all ${playingAudio ? "h-7 animate-pulse" : "h-3"}`}
+                className={`w-1.5 rounded-full bg-plum transition-all ${playingAudio ? "h-8 animate-pulse" : "h-4"}`}
               ></span>
               <span
-                className={`w-1 rounded-full bg-plum transition-all ${playingAudio ? "h-9" : "h-6"}`}
+                className={`w-1.5 rounded-full bg-plum transition-all ${playingAudio ? "h-11" : "h-7"}`}
               ></span>
               <span
-                className={`w-1 rounded-full bg-plum transition-all ${playingAudio ? "h-5" : "h-2"}`}
+                className={`w-1.5 rounded-full bg-plum transition-all ${playingAudio ? "h-6" : "h-3"}`}
               ></span>
               <span
-                className={`w-1 rounded-full bg-plum transition-all ${playingAudio ? "h-8" : "h-5"}`}
+                className={`w-1.5 rounded-full bg-plum transition-all ${playingAudio ? "h-10" : "h-6"}`}
               ></span>
               <span
-                className={`w-1 rounded-full bg-plum transition-all ${playingAudio ? "h-6" : "h-3"}`}
+                className={`w-1.5 rounded-full bg-plum transition-all ${playingAudio ? "h-7" : "h-4"}`}
               ></span>
               <span
-                className={`w-1 rounded-full bg-plum transition-all ${playingAudio ? "h-3" : "h-1.5"}`}
+                className={`w-1.5 rounded-full bg-plum transition-all ${playingAudio ? "h-4" : "h-2"}`}
               ></span>
             </div>
           </div>
@@ -187,29 +187,29 @@ export default function LandingPage() {
 
         {/* Right Column: Access Workspace Card */}
         <div className="lg:col-span-5 flex flex-col justify-center">
-          <div className="border border-plum/20 rounded-2xl p-4 sm:p-9 bg-white shadow-sm">
+          <div className="imlaa-card p-6 sm:p-9">
             <div className="flex items-center justify-between mb-2">
               <h2 className="text-2xl sm:text-3xl font-bold text-body-dark tracking-tight">
                 Access Workspace
               </h2>
-              <span className="text-xs font-mono px-2.5 py-0.5 rounded border border-plum/25 text-plum font-semibold">
+              <span className="text-base font-mono px-3 py-1 rounded-full border border-plum/25 text-plum font-semibold">
                 v2.4
               </span>
             </div>
 
-            <p className="text-sm text-muted-label mb-7 leading-relaxed">
+            <p className="text-base sm:text-lg text-muted-label mb-7 leading-relaxed">
               Authenticate using your registered academic credentials.
             </p>
 
             {errorMessage && (
-              <div className="mb-5 p-3.5 rounded-xl border border-plum/30 bg-plum/5 text-xs sm:text-sm text-plum font-medium leading-relaxed">
+              <div className="mb-5 p-4 rounded-xl border border-plum/30 bg-plum/5 text-base text-plum font-medium leading-relaxed">
                 {errorMessage}
               </div>
             )}
 
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
-                <label className="block text-xs sm:text-sm font-semibold text-body-dark mb-2">
+                <label className="block text-base font-semibold text-body-dark mb-2">
                   Full Name
                 </label>
                 <input
@@ -217,17 +217,17 @@ export default function LandingPage() {
                   placeholder="Full Name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full px-4 py-3.5 text-sm sm:text-base rounded-xl border border-plum/25 focus:outline-none focus:border-plum focus:ring-1 focus:ring-plum placeholder:text-gray-400 text-body-dark transition"
+                  className="imlaa-input py-3.5 px-4 text-base"
                   required
                 />
               </div>
 
               <div>
                 <div className="flex justify-between items-center mb-2">
-                  <label className="block text-xs sm:text-sm font-semibold text-body-dark">
+                  <label className="block text-base font-semibold text-body-dark">
                     10-Digit ID
                   </label>
-                  <span className="text-xs text-muted-label font-medium">
+                  <span className="text-base text-muted-label font-medium">
                     Numeric only
                   </span>
                 </div>
@@ -239,7 +239,7 @@ export default function LandingPage() {
                   onChange={(e) =>
                     setAccessId(e.target.value.replace(/\D/g, ""))
                   }
-                  className="w-full px-4 py-3.5 text-sm sm:text-base font-mono tracking-widest text-center rounded-xl border border-plum/25 focus:outline-none focus:border-plum focus:ring-1 focus:ring-plum placeholder:text-gray-400 text-body-dark transition"
+                  className="imlaa-input py-3.5 px-4 text-base font-mono tracking-widest text-center"
                   required
                 />
               </div>
@@ -247,7 +247,7 @@ export default function LandingPage() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full py-4 px-5 rounded-xl bg-plum hover:bg-plum-hover text-white font-medium text-sm sm:text-base flex items-center justify-center space-x-2 transition shadow-xs cursor-pointer disabled:opacity-50 active:scale-[0.99]"
+                className="imlaa-btn-primary w-full py-4 text-base sm:text-lg space-x-2"
               >
                 <span>
                   {submitting ? "Authenticating..." : "Enter Workspace"}
@@ -261,22 +261,22 @@ export default function LandingPage() {
               <button
                 type="button"
                 onClick={() => setShowIdAccordion(!showIdAccordion)}
-                className="w-full flex items-center justify-between text-xs sm:text-sm text-muted-label hover:text-body-dark transition text-left cursor-pointer"
+                className="w-full flex items-center justify-between text-base text-muted-label hover:text-body-dark transition text-left cursor-pointer"
               >
                 <span>Where to find ID? Request administrator access</span>
                 <HiChevronDown
-                  className={`w-4 h-4 transition-transform duration-200 ${showIdAccordion ? "rotate-180" : ""}`}
+                  className={`w-5 h-5 transition-transform duration-200 ${showIdAccordion ? "rotate-180" : ""}`}
                 />
               </button>
 
               {showIdAccordion && (
-                <div className="mt-3.5 p-4 rounded-xl border border-plum/20 bg-plum/5 text-xs sm:text-sm text-muted-label space-y-2.5 leading-relaxed">
+                <div className="mt-3.5 p-4 rounded-xl border border-plum/20 bg-plum/5 text-base text-muted-label space-y-2.5 leading-relaxed">
                   <p>
                     10-digit IDs are issued directly upon academic enrollment.
                     If you don't have one, please contact your supervisor or
                     course administrator.
                   </p>
-                  <div className="pt-2.5 border-t border-plum/15 font-mono text-xs text-body-dark space-y-1">
+                  <div className="pt-2.5 border-t border-plum/15 font-mono text-base text-body-dark space-y-1">
                     <div>
                       Demo Admin:{" "}
                       <span className="text-plum font-bold">Admin User</span>
@@ -292,12 +292,12 @@ export default function LandingPage() {
           </div>
 
           {/* Under Card Status Indicators */}
-          <div className="mt-4 px-2 flex items-center justify-between text-xs text-muted-label">
+          <div className="mt-4 px-2 flex items-center justify-between text-base text-muted-label">
             <div className="flex items-center space-x-2">
-              <span className="w-2 h-2 rounded-full bg-plum"></span>
+              <span className="w-2.5 h-2.5 rounded-full bg-plum"></span>
               <span>Dictation Node: Online (ASR 44.1kHz)</span>
             </div>
-            <span className="font-mono text-xs">Secure TLS 1.3</span>
+            <span className="font-mono text-base">Secure TLS 1.3</span>
           </div>
         </div>
       </main>
