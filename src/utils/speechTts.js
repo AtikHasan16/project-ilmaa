@@ -22,7 +22,9 @@ export async function speakWithMicrosoftTTS(text, {
   try {
     const encodedText = encodeURIComponent(cleanText);
     const encodedVoice = encodeURIComponent(voice);
-    const backendBase = (typeof import.meta !== "undefined" && import.meta.env?.VITE_BACKEND_URL) || "https://ilmaa-server.vercel.app";
+    const isDev = import.meta.env?.DEV;
+    const defaultBackend = isDev ? "http://localhost:5000" : (import.meta.env?.VITE_BACKEND_URL || "https://ilmaa-server.vercel.app");
+    const backendBase = defaultBackend;
     const audioUrl = `${backendBase}/api/v1/tts?text=${encodedText}&voice=${encodedVoice}`;
 
     const audio = new Audio(audioUrl);
