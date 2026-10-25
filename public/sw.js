@@ -47,7 +47,7 @@ self.addEventListener("fetch", (event) => {
   }
 
   // 1. Audio TTS Requests (/api/v1/tts)
-  // Use Cache-First strategy: If audio for this word is already cached in browser, serve instantly with 0ms latency.
+  // Use Cache-First strategy: If audio for this word is already cached in browser, serve instantly.
   if (url.pathname.includes("/api/v1/tts")) {
     event.respondWith(
       caches.open(AUDIO_CACHE_NAME).then(async (cache) => {
@@ -59,17 +59,12 @@ self.addEventListener("fetch", (event) => {
         try {
           const networkResponse = await fetch(event.request);
           if (networkResponse && networkResponse.status === 200) {
-            // Clone response before caching
             cache.put(event.request, networkResponse.clone());
           }
           return networkResponse;
         } catch {
-          // If offline and not in cache, fallback gracefully
-          return new Response(new Uint8Array(0), {
-            status: 503,
-            statusText: "Audio unavailable offline",
-            headers: { "Content-Type": "audio/mpeg" },
-          });
+          // If network fetch fails, pass through or let browser audio onerror handle fallback
+          return fetch(event.request);
         }
       })
     );

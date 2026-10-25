@@ -33,36 +33,19 @@ export async function speakWithMicrosoftTTS(text, {
       if (onEnd) onEnd();
     };
 
-    audio.onerror = () => {
-      // If local server is not running, seamlessly fallback to browser speech synthesis
+    audio.onerror = (e) => {
+      console.error("[Microsoft TTS Playback Error] Audio element failed to load from:", audioUrl, e);
       activeAudio = null;
-      if (typeof window !== "undefined" && "speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-        const u = new SpeechSynthesisUtterance(cleanText);
-        u.rate = 0.85;
-        u.onend = () => { if (onEnd) onEnd(); };
-        u.onerror = (err) => { if (onError) onError(err); if (onEnd) onEnd(); };
-        window.speechSynthesis.speak(u);
-      } else {
-        if (onError) onError();
-        if (onEnd) onEnd();
-      }
+      if (onError) onError(new Error(`Failed to load Microsoft Edge TTS from ${audioUrl}`));
+      if (onEnd) onEnd();
     };
 
     await audio.play();
   } catch (err) {
+    console.error("[Microsoft TTS Error]", err);
     activeAudio = null;
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(cleanText);
-      u.rate = 0.85;
-      u.onend = () => { if (onEnd) onEnd(); };
-      u.onerror = (e) => { if (onError) onError(e); if (onEnd) onEnd(); };
-      window.speechSynthesis.speak(u);
-    } else {
-      if (onError) onError(err);
-      if (onEnd) onEnd();
-    }
+    if (onError) onError(err);
+    if (onEnd) onEnd();
   }
 }
 
