@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import apiClient from "../services/apiClient";
+import { useAuth } from "../context/AuthContext";
 import { speakWithMicrosoftTTS, stopAudioPlayback } from "../utils/speechTts";
 import {
   HiSpeakerWave,
@@ -26,65 +27,88 @@ export default function VocabularyPage() {
   const [loading, setLoading] = useState(false);
   const [evaluating, setEvaluating] = useState(false);
   const [statusFeedback, setStatusFeedback] = useState(null);
+  const { user } = useAuth();
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [incorrectList, setIncorrectList] = useState([]);
   const [showPracticeIncorrectOnly, setShowPracticeIncorrectOnly] =
     useState(false);
   const [vocabStats, setVocabStats] = useState(null);
+  const [userProgress, setUserProgress] = useState(null);
 
   // Fetch dynamic vocabulary count statistics from backend
-  useEffect(() => {
-    let isMounted = true;
-    const fetchStats = async () => {
-      try {
-        const res = await apiClient.get("/vocabulary/stats");
-        if (isMounted && res.data?.success) {
-          setVocabStats(res.data);
-        }
-      } catch (err) {
-        console.warn("Could not load vocab stats:", err);
+  const fetchStats = useCallback(async () => {
+    try {
+      const res = await apiClient.get("/vocabulary/stats");
+      if (res.data?.success) {
+        setVocabStats(res.data);
       }
-    };
-    fetchStats();
-    return () => {
-      isMounted = false;
-    };
+    } catch (err) {
+      console.warn("Could not load vocab stats:", err);
+    }
   }, []);
 
-  // Compute dynamic groups with real data counts from database
-  // Automatically creates a card for "Academic Word List: Sublist A" plus separate cards for each custom uploaded topic
+  // Fetch candidate's personal saved progress
+  const fetchProgress = useCallback(async () => {
+    if (!user?.accessId) return;
+    try {
+      const res = await apiClient.get("/vocabulary/progress", {
+        params: { accessId: user.accessId },
+      });
+      if (res.data?.success && res.data.data) {
+        setUserProgress(res.data.data);
+      }
+    } catch (err) {
+      console.warn("Could not load user progress:", err);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchStats();
+    fetchProgress();
+  }, [fetchStats, fetchProgress]);
+
+  // Compute dynamic groups with real data counts and candidate's personal progress
   const dynamicGroups = [];
 
   // 1. Primary Academic Word List
   const academicCount = vocabStats?.byTopic?.["Academic Word List: Sublist A"] || 300;
+  const academicMastered = userProgress?.masteredWords?.length || 0;
+  const academicIncorrect = userProgress?.incorrectWords?.length || 0;
+  const academicPercent = academicCount > 0 ? Math.min(100, Math.round((academicMastered / academicCount) * 100)) : 0;
+
   dynamicGroups.push({
     id: "academic-sublist-a",
     part: "All Active",
     title: "Academic Word List: Sublist A",
     description: "High-frequency academic stems, Latin morphemes & IELTS Band 8+ lexicon.",
-    status: "ACTIVE",
+    status: academicMastered === academicCount && academicCount > 0 ? "MASTERED" : academicMastered > 0 ? "IN PROGRESS" : "ACTIVE",
     wordsCount: academicCount,
-    progress: `${academicCount} Words Available`,
-    percent: academicCount > 0 ? Math.min(100, Math.round((academicCount / 300) * 100)) : 0,
-    hasIncorrect: false,
-    incorrectCount: 0,
+    masteredCount: academicMastered,
+    incorrectCount: academicIncorrect,
+    progress: `${academicMastered} / ${academicCount} Mastered`,
+    percent: academicPercent,
+    accuracy: academicMastered + academicIncorrect > 0 ? `${Math.round((academicMastered / (academicMastered + academicIncorrect)) * 100)}% Accuracy` : null,
+    hasIncorrect: academicIncorrect > 0,
   });
 
   // 2. Custom Uploaded Topics (Dynamic titles from user uploads)
   const uploadedList = vocabStats?.uploadedTopics || [];
   if (uploadedList.length > 0) {
     uploadedList.forEach((up, idx) => {
+      const topicStats = userProgress?.progressByTopic?.[up.title] || { mastered: 0, incorrect: 0 };
+      const percent = up.count > 0 ? Math.min(100, Math.round((topicStats.mastered / up.count) * 100)) : 0;
       dynamicGroups.push({
         id: `custom-uploaded-${idx}`,
         part: "Uploaded",
         title: up.title,
         description: `Custom uploaded corpus category with ${up.count} terms.`,
-        status: "UPLOADED",
+        status: topicStats.mastered >= up.count && up.count > 0 ? "MASTERED" : "UPLOADED",
         wordsCount: up.count,
-        progress: `${up.count} Words Available`,
-        percent: Math.min(100, Math.round((up.count / 50) * 100)),
-        hasIncorrect: false,
-        incorrectCount: 0,
+        masteredCount: topicStats.mastered,
+        incorrectCount: topicStats.incorrect,
+        progress: `${topicStats.mastered} / ${up.count} Mastered`,
+        percent,
+        hasIncorrect: topicStats.incorrect > 0,
       });
     });
   } else {
@@ -96,10 +120,11 @@ export default function VocabularyPage() {
       description: "You haven't uploaded any custom topics yet. Go to 'Upload to Study' to add words.",
       status: "EMPTY",
       wordsCount: 0,
+      masteredCount: 0,
+      incorrectCount: 0,
       progress: "0 Words Available",
       percent: 0,
       hasIncorrect: false,
-      incorrectCount: 0,
     });
   }
 
@@ -166,10 +191,43 @@ export default function VocabularyPage() {
     }
   }, []);
 
-  const handleStartGroup = (group, incorrectOnly = false) => {
+  // Reset progress for group
+  const handleResetProgress = async (group) => {
+    if (!user?.accessId) return;
+    try {
+      await apiClient.post("/vocabulary/progress/reset", {
+        accessId: user.accessId,
+        topic: group.title,
+      });
+      fetchProgress();
+      setIncorrectList([]);
+      handleStartGroup(group);
+    } catch (err) {
+      console.error("Failed to reset progress:", err);
+    }
+  };
+
+  const handleStartGroup = async (group, incorrectOnly = false) => {
     setSelectedGroup(group);
     setViewMode("flashcard");
     setShowPracticeIncorrectOnly(incorrectOnly);
+
+    if (incorrectOnly && userProgress?.incorrectWords?.length > 0) {
+      // Find full word objects matching user's incorrect list
+      try {
+        const res = await apiClient.get("/vocabulary", {
+          params: { topic: group.title },
+        });
+        const allLoaded = res.data?.data || [];
+        const filteredIncorrect = allLoaded.filter((w) =>
+          userProgress.incorrectWords.includes(w.word),
+        );
+        setIncorrectList(filteredIncorrect);
+      } catch {
+        // Fallback
+      }
+    }
+
     loadWordsForGroup(group);
   };
 
@@ -179,6 +237,7 @@ export default function VocabularyPage() {
     setIsFlipped(false);
     setSpellingInput("");
     setStatusFeedback(null);
+    fetchProgress();
   };
 
   const activeWords = showPracticeIncorrectOnly ? incorrectList : words;
@@ -212,16 +271,34 @@ export default function VocabularyPage() {
     }
   }, [viewMode, currentIndex, currentWord, isFlipped, speakWord]);
 
-  // Handle spelling check
-  const handleSpellingSubmit = (e) => {
+  // Handle spelling check and persist to backend
+  const handleSpellingSubmit = async (e) => {
     e.preventDefault();
     if (!currentWord || evaluating || !spellingInput.trim()) return;
 
     setEvaluating(true);
     const cleanInput = spellingInput.trim().toLowerCase();
     const cleanTarget = currentWord.word.trim().toLowerCase();
+    const isCorrect = cleanInput === cleanTarget;
 
-    if (cleanInput === cleanTarget) {
+    // Send answer to backend asynchronously to persist progress
+    if (user?.accessId) {
+      apiClient
+        .post("/vocabulary/progress", {
+          accessId: user.accessId,
+          word: currentWord.word,
+          isCorrect,
+          topic: selectedGroup?.title || "Academic Word List: Sublist A",
+        })
+        .then((res) => {
+          if (res.data?.success && res.data.data) {
+            setUserProgress(res.data.data);
+          }
+        })
+        .catch((err) => console.warn("Failed to persist word progress:", err));
+    }
+
+    if (isCorrect) {
       setStatusFeedback("correct");
       setTimeout(() => {
         setIsFlipped(true);
@@ -383,50 +460,42 @@ export default function VocabularyPage() {
 
                     {/* Bottom Action Footer */}
                     <div className="flex items-center justify-between pt-2 border-t border-plum/10">
-                      {isCompleted ? (
+                      {group.masteredCount > 0 || group.hasIncorrect ? (
                         <>
-                          <span className="text-base font-bold text-body-dark">
-                            {group.accuracy}
-                          </span>
+                          <div className="flex flex-col">
+                            <span className="text-sm font-bold text-body-dark">
+                              {group.accuracy || `${group.percent}% Complete`}
+                            </span>
+                            <span className="text-xs text-muted-label">
+                              {group.masteredCount} mastered
+                            </span>
+                          </div>
                           <div className="flex items-center space-x-2">
                             <button
                               type="button"
-                              onClick={() => handleStartGroup(group)}
-                              className="imlaa-btn-secondary py-1.5 px-3 text-base text-body-dark"
+                              onClick={() => handleResetProgress(group)}
+                              title="Reset progress for this topic"
+                              className="imlaa-btn-secondary py-1.5 px-3 text-sm text-body-dark"
                             >
                               Reset
                             </button>
-                            {group.hasIncorrect && (
+                            {group.hasIncorrect ? (
                               <button
                                 type="button"
                                 onClick={() => handleStartGroup(group, true)}
-                                className="imlaa-btn-primary py-1.5 px-3 text-base"
+                                className="imlaa-btn-primary py-1.5 px-3 text-sm"
                               >
                                 Practice Incorrect ({group.incorrectCount})
                               </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleStartGroup(group, false)}
+                                className="imlaa-btn-primary py-1.5 px-3 text-sm"
+                              >
+                                Continue
+                              </button>
                             )}
-                          </div>
-                        </>
-                      ) : isMastered ? (
-                        <>
-                          <span className="text-base font-bold text-body-dark">
-                            {group.accuracy}
-                          </span>
-                          <div className="flex items-center space-x-2">
-                            <button
-                              type="button"
-                              onClick={() => handleStartGroup(group)}
-                              className="imlaa-btn-secondary py-1.5 px-3 text-base text-body-dark"
-                            >
-                              Reset
-                            </button>
-                            <button
-                              type="button"
-                              disabled
-                              className="imlaa-btn-secondary py-1.5 px-3 text-base opacity-40 cursor-not-allowed"
-                            >
-                              Practice Incorrect (0)
-                            </button>
                           </div>
                         </>
                       ) : (
