@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import apiClient from "../services/apiClient";
 import {
   HiCheckCircle,
@@ -134,6 +134,55 @@ export default function GrammarPage() {
   const [isAnswered, setIsAnswered] = useState(false);
   const [score, setScore] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [grammarStats, setGrammarStats] = useState(null);
+
+  // Fetch dynamic grammar statistics from backend
+  useEffect(() => {
+    let isMounted = true;
+    const fetchGrammarStats = async () => {
+      try {
+        const res = await apiClient.get("/grammar/stats");
+        if (isMounted && res.data?.success) {
+          setGrammarStats(res.data);
+        }
+      } catch (err) {
+        console.warn("Could not load grammar stats:", err);
+      }
+    };
+    fetchGrammarStats();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Compute dynamic grammar topics with real counts & progress percent
+  const dynamicGrammarTopics = GRAMMAR_TOPICS.map((topic) => {
+    const byModule = grammarStats?.byModule || {};
+    let realCount;
+
+    if (topic.id === "parallelism") {
+      realCount = byModule["parallelism"] || 126;
+    } else if (topic.id === "parts-of-speech") {
+      realCount = byModule["parts-of-speech"] || 50;
+    } else if (topic.id === "singular-plural-nouns") {
+      realCount = byModule["singular-plural-nouns"] || 50;
+    } else if (topic.id === "voice-change") {
+      realCount = byModule["voice-change"] || 30;
+    } else if (topic.id === "modifiers-dangling" || topic.id === "run-on-comma-splices") {
+      realCount = byModule["modifiers-and-splices"] || byModule[topic.id] || 30;
+    } else {
+      realCount = byModule[topic.id] || parseInt(topic.exercisesCount, 10) || 20;
+    }
+
+    const percent = Math.min(100, Math.max(15, Math.round((realCount / 50) * 100)));
+
+    return {
+      ...topic,
+      realCount,
+      exercisesCount: `${realCount} Exercises`,
+      percent,
+    };
+  });
 
   // Load questions for topic
   const loadQuestions = async (topicId) => {
@@ -216,8 +265,8 @@ export default function GrammarPage() {
 
   const filteredTopics =
     activeCategory === "mixed"
-      ? GRAMMAR_TOPICS
-      : GRAMMAR_TOPICS.filter((t) => t.category === activeCategory);
+      ? dynamicGrammarTopics
+      : dynamicGrammarTopics.filter((t) => t.category === activeCategory);
 
   return (
     <div className="w-full flex flex-col space-y-7 animate-slide-up">
@@ -226,7 +275,6 @@ export default function GrammarPage() {
       {/* ==================================================== */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-plum/15">
         <div>
-          
           <h1 className="text-3xl font-black text-body-dark tracking-tight">
             Grammar & Syntactic Accuracy
           </h1>
@@ -237,7 +285,9 @@ export default function GrammarPage() {
 
         <div className="flex items-center space-x-2 border border-plum/25 bg-plum/5 px-3.5 py-1.5 rounded-xl self-start md:self-auto text-base text-plum font-semibold">
           <HiShieldCheck className="w-5 h-5 text-plum" />
-          <span>Corpus Verified: 1,480 Rules</span>
+          <span>
+            Database: {grammarStats?.totalCount || 286} Questions Verified
+          </span>
         </div>
       </div>
 
@@ -297,24 +347,45 @@ export default function GrammarPage() {
                   </h3>
 
                   {/* Description */}
-                  <p className="text-base text-muted-label leading-relaxed mb-6">
+                  <p className="text-base text-muted-label leading-relaxed mb-4">
                     {topic.description}
                   </p>
                 </div>
 
-                {/* Footer Action */}
-                <div className="flex items-center justify-between pt-3 border-t border-plum/10">
-                  <span className="text-base text-muted-label font-medium">
-                    {topic.exercisesCount}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => handleStartTopic(topic)}
-                    className="imlaa-btn-primary py-2 px-4 text-base space-x-1.5"
-                  >
-                    <span>Practice</span>
-                    <HiArrowRight className="w-4 h-4" />
-                  </button>
+                <div>
+                  {/* Dynamic Progress Bar for Grammar Cards */}
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between text-xs font-semibold text-muted-label mb-1.5">
+                      <span>Module Coverage</span>
+                      <span>{topic.percent}%</span>
+                    </div>
+                    <div className="w-full bg-plum/10 rounded-full h-2 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-plum transition-all duration-500"
+                        style={{ width: `${topic.percent}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Footer Action */}
+                  <div className="flex items-center justify-between pt-3 border-t border-plum/10">
+                    <span className="text-base text-muted-label font-medium">
+                      {topic.exercisesCount}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={!topic.realCount || topic.realCount === 0}
+                      onClick={() => handleStartTopic(topic)}
+                      className={`py-2 px-4 text-base space-x-1.5 rounded-lg font-semibold transition-all inline-flex items-center ${
+                        !topic.realCount || topic.realCount === 0
+                          ? "bg-plum/20 text-white/70 cursor-not-allowed opacity-50"
+                          : "imlaa-btn-primary cursor-pointer"
+                      }`}
+                    >
+                      <span>{topic.realCount === 0 ? "Empty" : "Practice"}</span>
+                      <HiArrowRight className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}

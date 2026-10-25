@@ -268,30 +268,25 @@ export default function UploadStudyPage() {
               </div>
             </div>
 
-            {/* Target Category Selector */}
-            <div className="flex items-center space-x-4">
+            {/* Target Category Selector: Custom Input Box */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
               <label className="text-base font-semibold text-body-dark shrink-0">
-                Default Target Topic:
+                Custom Target Topic Name:
               </label>
-              <select
+              <input
+                type="text"
                 value={bulkTopic}
                 onChange={(e) => {
                   setBulkTopic(e.target.value);
                   if (rawText) {
                     setPreviewItems(
-                      parseDelimitedText(rawText, e.target.value),
+                      parseDelimitedText(rawText, e.target.value || "Custom Study"),
                     );
                   }
                 }}
-                className="imlaa-input text-base py-2 px-3 max-w-xs"
-              >
-                <option value="Uploaded">Uploaded (Custom Study)</option>
-                <option value="Part 1: Basics">Part 1: Basics</option>
-                <option value="Part 2: Intermediate">
-                  Part 2: Intermediate
-                </option>
-                <option value="Part 3: Advanced">Part 3: Advanced</option>
-              </select>
+                placeholder="e.g. My IELTS Vocabulary, Medical Terms..."
+                className="imlaa-input text-base py-2 px-3 flex-1"
+              />
             </div>
 
             {/* Textarea for Direct Copy-Paste */}
@@ -481,20 +476,15 @@ export default function UploadStudyPage() {
 
               <div>
                 <label className="block text-base font-semibold text-body-dark mb-2">
-                  Target Topic
+                  Custom Target Topic Name
                 </label>
-                <select
+                <input
+                  type="text"
                   value={topic}
                   onChange={(e) => setTopic(e.target.value)}
+                  placeholder="e.g. My IELTS Vocabulary, Medical Terms..."
                   className="imlaa-input text-base"
-                >
-                  <option value="Uploaded">Uploaded</option>
-                  <option value="Part 1: Basics">Part 1: Basics</option>
-                  <option value="Part 2: Intermediate">
-                    Part 2: Intermediate
-                  </option>
-                  <option value="Part 3: Advanced">Part 3: Advanced</option>
-                </select>
+                />
               </div>
             </div>
 

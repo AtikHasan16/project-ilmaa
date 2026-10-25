@@ -188,7 +188,7 @@
     -webkit-backface-visibility: hidden;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
     border-radius: 0.75rem;
     overflow-y: auto;
   }

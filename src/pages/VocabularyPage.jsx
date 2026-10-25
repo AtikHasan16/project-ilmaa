@@ -12,147 +12,10 @@ import {
 } from "react-icons/hi2";
 
 // Corpus groups matching design mockup
-const VOCAB_GROUPS = [
-  {
-    id: "oxford-3000",
-    part: "Part 1",
-    title: "Oxford 3000 — Core Verbs",
-    description: "Phoneme groups, irregular stresses & silent consonants.",
-    status: "COMPLETED",
-    progress: "47 / 50 Mastered",
-    accuracy: "94% Accuracy",
-    percent: 94,
-    wordsCount: 50,
-    hasIncorrect: true,
-    incorrectCount: 3,
-  },
-  {
-    id: "academic-sublist-a",
-    part: "Part 1",
-    title: "Academic Word List: Sublist A",
-    description: "High-frequency academic stems and Latin morphemes.",
-    status: "MASTERED",
-    progress: "50 / 50 Mastered",
-    accuracy: "100% Accuracy",
-    percent: 100,
-    wordsCount: 50,
-    hasIncorrect: false,
-    incorrectCount: 0,
-  },
-  {
-    id: "gre-high-freq",
-    part: "Part 1",
-    title: "GRE High-Frequency — Group 1",
-    description: "Complex polysyllabic lexical sets with obscure accents.",
-    status: "UNSTARTED",
-    progress: "0 / 45 Words",
-    accuracy: null,
-    percent: 0,
-    wordsCount: 45,
-    hasIncorrect: false,
-    incorrectCount: 0,
-  },
-  {
-    id: "medical-latin",
-    part: "Part 1",
-    title: "Medical Latin Roots — Part 1",
-    description: "Anatomical stems, clinical affixes, and diphthongs.",
-    status: "UNSTARTED",
-    progress: "0 / 40 Words",
-    accuracy: null,
-    percent: 0,
-    wordsCount: 40,
-    hasIncorrect: false,
-    incorrectCount: 0,
-  },
-  {
-    id: "phonetic-oddities",
-    part: "Part 1",
-    title: "Phonetic Oddities & Silent Letters",
-    description: "Silent k, b, p, and deceptive English orthographic norms.",
-    status: "UNSTARTED",
-    progress: "0 / 55 Words",
-    accuracy: null,
-    percent: 0,
-    wordsCount: 55,
-    hasIncorrect: false,
-    incorrectCount: 0,
-  },
-  // Part 2
-  {
-    id: "ielts-band-8",
-    part: "Part 2",
-    title: "IELTS Band 8+ Academic Collocations",
-    description: "High-level nuance collocations tested in academic essays.",
-    status: "UNSTARTED",
-    progress: "0 / 40 Words",
-    accuracy: null,
-    percent: 0,
-    wordsCount: 40,
-    hasIncorrect: false,
-    incorrectCount: 0,
-  },
-  {
-    id: "idiomatic-verbs",
-    part: "Part 2",
-    title: "Advanced Phrasal & Idiomatic Verbs",
-    description: "Multi-word verbs with unpredictable particle shifts.",
-    status: "UNSTARTED",
-    progress: "0 / 35 Words",
-    accuracy: null,
-    percent: 0,
-    wordsCount: 35,
-    hasIncorrect: false,
-    incorrectCount: 0,
-  },
-  // Part 3
-  {
-    id: "archaic-formal",
-    part: "Part 3",
-    title: "Archaic & Formal Registers",
-    description: "Juridical and diplomatic vocabulary for high-end discourse.",
-    status: "UNSTARTED",
-    progress: "0 / 30 Words",
-    accuracy: null,
-    percent: 0,
-    wordsCount: 30,
-    hasIncorrect: false,
-    incorrectCount: 0,
-  },
-  // Part 4
-  {
-    id: "stem-affix",
-    part: "Part 4",
-    title: "Morphological Stems & Affixes",
-    description: "Etymological root breakdowns for systematic decipherment.",
-    status: "UNSTARTED",
-    progress: "0 / 45 Words",
-    accuracy: null,
-    percent: 0,
-    wordsCount: 45,
-    hasIncorrect: false,
-    incorrectCount: 0,
-  },
-  // Uploaded
-  {
-    id: "custom-uploaded",
-    part: "Uploaded",
-    title: "Custom Uploaded Corpus",
-    description: "Personal words uploaded through the Upload to Study module.",
-    status: "ACTIVE",
-    progress: "Dynamic List",
-    accuracy: null,
-    percent: 50,
-    wordsCount: "Dynamic",
-    hasIncorrect: false,
-    incorrectCount: 0,
-  },
-];
-
-const PARTS = ["Part 1", "Part 2", "Part 3", "Part 4", "Uploaded"];
+const PARTS = ["All Active", "Uploaded"];
 
 export default function VocabularyPage() {
-  const [activePart, setActivePart] = useState("Part 1");
+  const [activePart, setActivePart] = useState("All Active");
   const [selectedGroup, setSelectedGroup] = useState(null); // When null => show Corpus Sets home page
   const [viewMode, setViewMode] = useState("sets"); // 'sets' | 'flashcard'
 
@@ -167,6 +30,78 @@ export default function VocabularyPage() {
   const [incorrectList, setIncorrectList] = useState([]);
   const [showPracticeIncorrectOnly, setShowPracticeIncorrectOnly] =
     useState(false);
+  const [vocabStats, setVocabStats] = useState(null);
+
+  // Fetch dynamic vocabulary count statistics from backend
+  useEffect(() => {
+    let isMounted = true;
+    const fetchStats = async () => {
+      try {
+        const res = await apiClient.get("/vocabulary/stats");
+        if (isMounted && res.data?.success) {
+          setVocabStats(res.data);
+        }
+      } catch (err) {
+        console.warn("Could not load vocab stats:", err);
+      }
+    };
+    fetchStats();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Compute dynamic groups with real data counts from database
+  // Automatically creates a card for "Academic Word List: Sublist A" plus separate cards for each custom uploaded topic
+  const dynamicGroups = [];
+
+  // 1. Primary Academic Word List
+  const academicCount = vocabStats?.byTopic?.["Academic Word List: Sublist A"] || 300;
+  dynamicGroups.push({
+    id: "academic-sublist-a",
+    part: "All Active",
+    title: "Academic Word List: Sublist A",
+    description: "High-frequency academic stems, Latin morphemes & IELTS Band 8+ lexicon.",
+    status: "ACTIVE",
+    wordsCount: academicCount,
+    progress: `${academicCount} Words Available`,
+    percent: academicCount > 0 ? Math.min(100, Math.round((academicCount / 300) * 100)) : 0,
+    hasIncorrect: false,
+    incorrectCount: 0,
+  });
+
+  // 2. Custom Uploaded Topics (Dynamic titles from user uploads)
+  const uploadedList = vocabStats?.uploadedTopics || [];
+  if (uploadedList.length > 0) {
+    uploadedList.forEach((up, idx) => {
+      dynamicGroups.push({
+        id: `custom-uploaded-${idx}`,
+        part: "Uploaded",
+        title: up.title,
+        description: `Custom uploaded corpus category with ${up.count} terms.`,
+        status: "UPLOADED",
+        wordsCount: up.count,
+        progress: `${up.count} Words Available`,
+        percent: Math.min(100, Math.round((up.count / 50) * 100)),
+        hasIncorrect: false,
+        incorrectCount: 0,
+      });
+    });
+  } else {
+    // Empty state card for Uploaded tab if nothing uploaded yet
+    dynamicGroups.push({
+      id: "custom-uploaded-empty",
+      part: "Uploaded",
+      title: "No Uploads Yet",
+      description: "You haven't uploaded any custom topics yet. Go to 'Upload to Study' to add words.",
+      status: "EMPTY",
+      wordsCount: 0,
+      progress: "0 Words Available",
+      percent: 0,
+      hasIncorrect: false,
+      incorrectCount: 0,
+    });
+  }
 
   // Load words when entering a flashcard group
   const loadWordsForGroup = useCallback(async (group) => {
@@ -177,38 +112,50 @@ export default function VocabularyPage() {
     setCurrentIndex(0);
     try {
       const isUploaded = group.part === "Uploaded";
-      const params = isUploaded
-        ? { uploadedOnly: "true" }
-        : { topic: group.part === "Part 1" ? "Part 1: Basics" : group.part };
+      let params = {};
 
-      const res = await apiClient.get("/vocabulary", { params });
-      if (res.data?.success && res.data.data && res.data.data.length > 0) {
-        setWords(res.data.data);
+      if (isUploaded) {
+        params = { topic: group.title };
+      } else if (group.id === "academic-sublist-a") {
+        params = { topic: "Academic Word List: Sublist A" };
       } else {
-        // Fallback default corpus if topic is fresh
+        params = { topic: group.title };
+      }
+
+      let res = await apiClient.get("/vocabulary", { params });
+      let loadedWords = res.data?.data || [];
+
+      // If specific topic title returned 0 words, fallback to all available words in DB
+      if (loadedWords.length === 0) {
+        const fallbackRes = await apiClient.get("/vocabulary");
+        loadedWords = fallbackRes.data?.data || [];
+      }
+
+      if (loadedWords.length > 0) {
+        setWords(loadedWords);
+      } else {
+        // Fallback default corpus if topic is completely empty
         setWords([
+          {
+            word: "Analysis",
+            pos: "Noun",
+            banglaMeaning: "বিশ্লেষণ",
+            synonyms: ["Examination", "Investigation", "Evaluation"],
+            exampleUsage: "A comprehensive analysis of the data revealed a significant correlation.",
+          },
+          {
+            word: "Approach",
+            pos: "Noun",
+            banglaMeaning: "পদ্ধতি / দৃষ্টিভঙ্গি",
+            synonyms: ["Method", "Strategy", "Perspective"],
+            exampleUsage: "The researchers adopted a novel multidisciplinary approach.",
+          },
           {
             word: "Fastidious",
             pos: "Adjective",
             banglaMeaning: "খুঁতখুঁতে / সহজে সন্তুষ্ট হয় না এমন",
             synonyms: ["Meticulous", "Punctilious", "Scrupulous"],
-            exampleUsage:
-              "He was fastidious about his appearance, always immaculate in pressed linen.",
-          },
-          {
-            word: "Ubiquitous",
-            pos: "Adjective",
-            banglaMeaning: "সর্বব্যাপী / যা সর্বত্র বিদ্যমান",
-            synonyms: ["Omnipresent", "Pervasive", "Universal"],
-            exampleUsage:
-              "Smartphones have become ubiquitous in modern academic life.",
-          },
-          {
-            word: "Ephemeral",
-            pos: "Adjective",
-            banglaMeaning: "ক্ষণস্থায়ী",
-            synonyms: ["Transient", "Fleeting", "Short-lived"],
-            exampleUsage: "Fashions are ephemeral, but true style endures.",
+            exampleUsage: "He was fastidious about his appearance, always immaculate in pressed linen.",
           },
         ]);
       }
@@ -307,7 +254,7 @@ export default function VocabularyPage() {
     }
   };
 
-  const filteredGroups = VOCAB_GROUPS.filter((g) => g.part === activePart);
+  const filteredGroups = dynamicGroups.filter((g) => g.part === activePart);
 
   return (
     <div className="w-full flex flex-col space-y-7 animate-slide-up">
@@ -319,6 +266,9 @@ export default function VocabularyPage() {
           <h1 className="text-3xl font-black text-body-dark tracking-tight">
             Vocabulary
           </h1>
+          <span className="imlaa-badge text-base py-1 px-3">
+            {vocabStats?.totalCount || 300} Words Database
+          </span>
         </div>
 
         {/* View Mode Toggle Button Group */}
@@ -411,23 +361,25 @@ export default function VocabularyPage() {
                     </h3>
 
                     {/* Description */}
-                    <p className="text-base text-muted-label leading-relaxed mb-6">
+                    <p className="text-base text-muted-label leading-relaxed mb-4">
                       {group.description}
                     </p>
                   </div>
 
                   <div>
-                    {/* Progress Bar if started */}
-                    {(isCompleted || isMastered) && (
-                      <div className="w-full bg-plum/10 rounded-full h-1.5 mb-4 overflow-hidden">
+                    {/* Dynamic Progress Bar for every card */}
+                    <div className="mb-4">
+                      <div className="flex items-center justify-between text-xs font-semibold text-muted-label mb-1.5">
+                        <span>Corpus Capacity</span>
+                        <span>{group.percent}%</span>
+                      </div>
+                      <div className="w-full bg-plum/10 rounded-full h-2 overflow-hidden">
                         <div
-                          className={`h-full rounded-full ${
-                            isMastered ? "bg-emerald-600" : "bg-plum"
-                          }`}
+                          className="h-full rounded-full bg-plum transition-all duration-500"
                           style={{ width: `${group.percent}%` }}
                         />
                       </div>
-                    )}
+                    </div>
 
                     {/* Bottom Action Footer */}
                     <div className="flex items-center justify-between pt-2 border-t border-plum/10">
@@ -484,10 +436,15 @@ export default function VocabularyPage() {
                           </span>
                           <button
                             type="button"
+                            disabled={!group.wordsCount || group.wordsCount === 0}
                             onClick={() => handleStartGroup(group)}
-                            className="imlaa-btn-primary py-2 px-5 text-base"
+                            className={`py-2 px-5 text-base rounded-lg font-semibold transition-all ${
+                              !group.wordsCount || group.wordsCount === 0
+                                ? "bg-plum/20 text-white/70 cursor-not-allowed opacity-50"
+                                : "imlaa-btn-primary cursor-pointer"
+                            }`}
                           >
-                            Start Topic
+                            {group.wordsCount === 0 ? "No Words" : "Start Topic"}
                           </button>
                         </>
                       )}
@@ -645,16 +602,16 @@ export default function VocabularyPage() {
                     </div>
                   </div>
 
-                  {/* BACK FACE: Structured 4-Row Study Card */}
-                  <div className="imlaa-flip-face imlaa-flip-face-back imlaa-card p-8 sm:p-12 text-left bg-white border border-plum/20 shadow-md">
-                    <div className="flex flex-col space-y-6 my-auto">
+                  {/* BACK FACE: Structured 4-Row Study Card (Optimized 1 step smaller text & clean spacing) */}
+                  <div className="imlaa-flip-face imlaa-flip-face-back imlaa-card p-6 sm:p-8 text-left bg-white border border-plum/20 shadow-md">
+                    <div className="flex flex-col space-y-4 w-full">
                       {/* Row 1: Word + POS + Replay */}
-                      <div className="flex items-center justify-between border-b border-plum/15 pb-4">
+                      <div className="flex items-center justify-between border-b border-plum/15 pb-3">
                         <div>
-                          <h3 className="text-4xl sm:text-5xl font-black text-body-dark tracking-tight">
+                          <h3 className="text-3xl sm:text-4xl font-black text-body-dark tracking-tight">
                             {currentWord.word}
                           </h3>
-                          <span className="text-lg text-plum font-semibold italic">
+                          <span className="text-base text-plum font-semibold italic">
                             {currentWord.pos}
                           </span>
                         </div>
@@ -663,18 +620,18 @@ export default function VocabularyPage() {
                           type="button"
                           onClick={() => speakWord()}
                           title="Replay pronunciation"
-                          className="w-12 h-12 rounded-xl bg-plum/10 hover:bg-plum hover:text-white text-plum flex items-center justify-center transition cursor-pointer"
+                          className="w-11 h-11 rounded-xl bg-plum/10 hover:bg-plum hover:text-white text-plum flex items-center justify-center transition cursor-pointer"
                         >
-                          <HiSpeakerWave className="w-6 h-6" />
+                          <HiSpeakerWave className="w-5 h-5" />
                         </button>
                       </div>
 
                       {/* Row 2: Bengali Meaning */}
                       <div>
-                        <div className="text-base uppercase tracking-wider text-muted-label font-bold mb-1">
+                        <div className="text-xs uppercase tracking-wider text-muted-label font-bold mb-1">
                           Bengali Meaning
                         </div>
-                        <div className="text-2xl font-semibold text-body-dark">
+                        <div className="text-xl font-semibold text-body-dark">
                           {currentWord.banglaMeaning}
                         </div>
                       </div>
@@ -683,14 +640,14 @@ export default function VocabularyPage() {
                       {currentWord.synonyms &&
                         currentWord.synonyms.length > 0 && (
                           <div>
-                            <div className="text-base uppercase tracking-wider text-muted-label font-bold mb-2">
+                            <div className="text-xs uppercase tracking-wider text-muted-label font-bold mb-1.5">
                               Synonyms
                             </div>
-                            <div className="flex flex-wrap gap-2">
+                            <div className="flex flex-wrap gap-1.5">
                               {currentWord.synonyms.map((syn, idx) => (
                                 <span
                                   key={idx}
-                                  className="imlaa-badge text-base py-1 px-3"
+                                  className="imlaa-badge text-sm py-0.5 px-2.5 font-medium"
                                 >
                                   {syn}
                                 </span>
@@ -701,21 +658,21 @@ export default function VocabularyPage() {
 
                       {/* Row 4: Example Sentence */}
                       {currentWord.exampleUsage && (
-                        <div className="p-4 rounded-xl bg-plum/5 border border-plum/20">
-                          <div className="text-base uppercase tracking-wider text-muted-label font-bold mb-1">
+                        <div className="p-3.5 rounded-xl bg-plum/5 border border-plum/20">
+                          <div className="text-xs uppercase tracking-wider text-muted-label font-bold mb-1">
                             Usage Example
                           </div>
-                          <p className="text-lg text-body-dark italic leading-relaxed">
+                          <p className="text-base text-body-dark italic leading-relaxed">
                             "{currentWord.exampleUsage}"
                           </p>
                         </div>
                       )}
 
-                      <div className="pt-2 flex justify-end">
+                      <div className="pt-1 flex justify-end">
                         <button
                           type="button"
                           onClick={() => setIsFlipped(false)}
-                          className="imlaa-btn-secondary text-base"
+                          className="imlaa-btn-secondary text-sm py-2 px-4"
                         >
                           Flip Back to Practice
                         </button>
