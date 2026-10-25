@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import apiClient from "../services/apiClient";
+import { speakWithMicrosoftTTS, stopAudioPlayback } from "../utils/speechTts";
 import {
   HiSpeakerWave,
   HiArrowPath,
@@ -236,23 +237,27 @@ export default function VocabularyPage() {
   const activeWords = showPracticeIncorrectOnly ? incorrectList : words;
   const currentWord = activeWords[currentIndex] || null;
 
-  // Web Speech audio dictation
+  // Microsoft Christopher Neural Speech Audio
   const speakWord = useCallback(
     (targetWord) => {
       const wordToSpeak = targetWord || currentWord?.word;
-      if (!wordToSpeak || !("speechSynthesis" in window)) return;
+      if (!wordToSpeak) return;
 
-      window.speechSynthesis.cancel();
-      setIsSpeaking(true);
-      const utterance = new SpeechSynthesisUtterance(wordToSpeak);
-      utterance.rate = 0.85;
-      utterance.pitch = 1.0;
-      utterance.onend = () => setIsSpeaking(false);
-      utterance.onerror = () => setIsSpeaking(false);
-      window.speechSynthesis.speak(utterance);
+      speakWithMicrosoftTTS(wordToSpeak, {
+        voice: "en-US-ChristopherNeural",
+        onStart: () => setIsSpeaking(true),
+        onEnd: () => setIsSpeaking(false),
+        onError: () => setIsSpeaking(false),
+      });
     },
     [currentWord],
   );
+
+  useEffect(() => {
+    return () => {
+      stopAudioPlayback();
+    };
+  }, []);
 
   useEffect(() => {
     if (viewMode === "flashcard" && currentWord && !isFlipped) {

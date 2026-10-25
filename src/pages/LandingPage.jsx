@@ -3,6 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router";
 import { HiVolumeUp } from "react-icons/hi";
 import { HiChevronDown, HiArrowRight } from "react-icons/hi2";
+import { speakWithMicrosoftTTS } from "../utils/speechTts";
 
 export default function LandingPage() {
   const [name, setName] = useState("");
@@ -58,15 +59,12 @@ export default function LandingPage() {
   };
 
   const playPhonemeSample = () => {
-    if (!("speechSynthesis" in window)) return;
-    setPlayingAudio(true);
-    const utterance = new SpeechSynthesisUtterance("Imlaa");
-    utterance.rate = 0.85;
-    utterance.pitch = 1.0;
-    utterance.onend = () => setPlayingAudio(false);
-    utterance.onerror = () => setPlayingAudio(false);
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(utterance);
+    speakWithMicrosoftTTS("Imlaa", {
+      voice: "en-US-ChristopherNeural",
+      onStart: () => setPlayingAudio(true),
+      onEnd: () => setPlayingAudio(false),
+      onError: () => setPlayingAudio(false),
+    });
   };
 
   return (
