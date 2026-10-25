@@ -12,119 +12,49 @@ import {
 } from "react-icons/hi2";
 
 // Grammar modules and topic categories matching the provided design image
+// Grammar topic categories aligned with actual curriculum modules
 const GRAMMAR_CATEGORIES = [
-  { id: "nouns-prepositions", label: "Nouns & Prepositions", countBadge: "6 Topics" },
-  { id: "sentence-structure", label: "Sentence Structure", countBadge: "4 Topics" },
-  { id: "tenses-voice", label: "Tenses & Voice", countBadge: "5 Topics" },
-  { id: "mixed", label: "Mixed All-in-One", countBadge: "Full Review" },
+  { id: "all", label: "All Modules" },
+  { id: "sentence-structure", label: "Sentence Structure" },
+  { id: "morphology", label: "Morphology & Nouns" },
+  { id: "voice-and-style", label: "Voice & Style" },
 ];
 
 const GRAMMAR_TOPICS = [
   {
-    id: "subject-verb-agreement",
-    category: "nouns-prepositions",
-    num: "01",
-    subtag: "SYNTAX",
-    badge: "Core",
-    badgeColor: "text-plum bg-plum/5 border-plum/25",
-    title: "Subject-Verb Agreement",
-    description: "Inverted sentences, collective nouns & compound subjects.",
-    exercisesCount: "42 Exercises",
-  },
-  {
     id: "parallelism",
-    category: "nouns-prepositions",
-    num: "02",
-    subtag: "BALANCE",
-    badge: "Advanced",
-    badgeColor: "text-indigo-800 bg-indigo-50 border-indigo-200",
+    category: "sentence-structure",
     title: "Parallelism & Correlative Conjunctions",
-    description: "Balancing clauses with 'either/or', 'not only/but also'.",
-    exercisesCount: "36 Exercises",
+    description: "Balancing clauses with either/or, neither/nor, and not only/but also.",
   },
   {
     id: "parts-of-speech",
-    category: "nouns-prepositions",
-    num: "03",
-    subtag: "MORPHOLOGY",
-    badge: "Critical",
-    badgeColor: "text-rose-800 bg-rose-50 border-rose-200",
+    category: "morphology",
     title: "Parts of Speech & Derivations",
-    description: "Nominalization, adjective-adverb confusion.",
-    exercisesCount: "50 Exercises",
-  },
-  {
-    id: "dependent-prepositions",
-    category: "nouns-prepositions",
-    num: "04",
-    subtag: "COLLOCATIONS",
-    badge: "High Error Rate",
-    badgeColor: "text-amber-800 bg-amber-50 border-amber-200",
-    title: "Dependent Prepositions",
-    description: "Fixed collocations, prepositional idioms.",
-    exercisesCount: "64 Exercises",
+    description: "Nominalization, adjective-adverb confusion, and suffix derivations.",
   },
   {
     id: "singular-plural-nouns",
-    category: "nouns-prepositions",
-    num: "05",
-    subtag: "LEXICON",
-    badge: "Memorization",
-    badgeColor: "text-gray-800 bg-gray-100 border-gray-300",
+    category: "morphology",
     title: "500 Singular & Plural Nouns",
-    description: "Irregular plurals, foreign plurals (phenomenon/phenomena).",
-    exercisesCount: "80 Exercises",
+    description: "Irregular plurals, Latin/Greek derivations, and uncountable noun rules.",
   },
   {
     id: "voice-change",
-    category: "nouns-prepositions",
-    num: "06",
-    subtag: "DISCOURSE",
-    badge: "Scholastic",
-    badgeColor: "text-teal-800 bg-teal-50 border-teal-200",
+    category: "voice-and-style",
     title: "Voice Change & Passive Constraints",
-    description: "Agent omission, stative passives, transitive restrictions.",
-    exercisesCount: "38 Exercises",
+    description: "Active vs passive voice, agent omission, and transitive restrictions.",
   },
-  // Sentence Structure Category
   {
-    id: "modifiers-dangling",
+    id: "modifiers-and-splices",
     category: "sentence-structure",
-    num: "01",
-    subtag: "MODIFIERS",
-    badge: "High Error Rate",
-    badgeColor: "text-amber-800 bg-amber-50 border-amber-200",
-    title: "Dangling & Misplaced Modifiers",
-    description: "Participial phrases and elliptical clauses without logical subjects.",
-    exercisesCount: "30 Exercises",
-  },
-  {
-    id: "run-on-comma-splices",
-    category: "sentence-structure",
-    num: "02",
-    subtag: "PUNCTUATION",
-    badge: "Critical",
-    badgeColor: "text-rose-800 bg-rose-50 border-rose-200",
-    title: "Run-On Sentences & Comma Splices",
-    description: "Coordinating conjunctions and semicolon linking mechanisms.",
-    exercisesCount: "44 Exercises",
-  },
-  // Tenses & Voice Category
-  {
-    id: "conditional-clauses",
-    category: "tenses-voice",
-    num: "01",
-    subtag: "CONDITIONALS",
-    badge: "Advanced",
-    badgeColor: "text-indigo-800 bg-indigo-50 border-indigo-200",
-    title: "Subjunctive & Conditional Inversions",
-    description: "Had I known, Were he present, and unreal hypothetical syntax.",
-    exercisesCount: "32 Exercises",
+    title: "Dangling Modifiers & Comma Splices",
+    description: "Participial phrases, logical subjects, coordinating conjunctions, and semicolons.",
   },
 ];
 
 export default function GrammarPage() {
-  const [activeCategory, setActiveCategory] = useState("nouns-prepositions");
+  const [activeCategory, setActiveCategory] = useState("all");
   const [selectedTopic, setSelectedTopic] = useState(null); // When null => show topic grid
   const [viewMode, setViewMode] = useState("overview"); // 'overview' | 'quiz'
 
@@ -160,26 +90,21 @@ export default function GrammarPage() {
     const byModule = grammarStats?.byModule || {};
     let realCount;
 
-    if (topic.id === "parallelism") {
-      realCount = byModule["parallelism"] || 126;
-    } else if (topic.id === "parts-of-speech") {
-      realCount = byModule["parts-of-speech"] || 50;
-    } else if (topic.id === "singular-plural-nouns") {
-      realCount = byModule["singular-plural-nouns"] || 50;
-    } else if (topic.id === "voice-change") {
-      realCount = byModule["voice-change"] || 30;
-    } else if (topic.id === "modifiers-dangling" || topic.id === "run-on-comma-splices") {
-      realCount = byModule["modifiers-and-splices"] || byModule[topic.id] || 30;
+    if (byModule[topic.id] !== undefined) {
+      realCount = byModule[topic.id];
+    } else if (topic.id === "modifiers-and-splices") {
+      realCount = byModule["modifiers-and-splices"] || (byModule["modifiers-dangling"] || 0) + (byModule["run-on-comma-splices"] || 0);
     } else {
-      realCount = byModule[topic.id] || parseInt(topic.exercisesCount, 10) || 20;
+      realCount = 0;
     }
 
-    const percent = Math.min(100, Math.max(15, Math.round((realCount / 50) * 100)));
+    // Dynamic progress percentage based on target module mastery (e.g. 50 exercises target)
+    const percent = realCount > 0 ? Math.min(100, Math.round((realCount / 50) * 100)) : 0;
 
     return {
       ...topic,
       realCount,
-      exercisesCount: `${realCount} Exercises`,
+      exercisesCount: realCount === 1 ? "1 Question" : `${realCount} Questions`,
       percent,
     };
   });
@@ -199,39 +124,18 @@ export default function GrammarPage() {
       if (res.data?.success && res.data.data && res.data.data.length > 0) {
         setQuestions(res.data.data);
       } else {
-        // Fallback default exercises
-        setQuestions([
-          {
-            module: "subject-verb-agreement",
-            questionText: "Neither the teacher nor the students ____ present at yesterday's seminar.",
-            options: ["was", "were", "is", "are"],
-            correctAnswer: "were",
-            explanation: "When subjects are joined by 'neither... nor', the verb agrees with the closer subject ('students').",
-          },
-          {
-            module: "appropriate-prepositions",
-            questionText: "She has always been deeply devoted ____ her scientific research.",
-            options: ["to", "for", "with", "at"],
-            correctAnswer: "to",
-            explanation: "The adjective 'devoted' strictly takes the preposition 'to'.",
-          },
-          {
-            module: "parallelism",
-            questionText: "The professor evaluated the essay not only for its originality but also ____.",
-            options: ["for its coherence", "its coherence", "because it was coherent", "coherently"],
-            correctAnswer: "for its coherence",
-            explanation: "Correlative conjunctions require balanced prepositional phrasing ('for its X... but also for its Y').",
-          },
-        ]);
+        setQuestions([]);
       }
     } catch (err) {
       console.error("Failed to load questions:", err);
+      setQuestions([]);
     } finally {
       setLoading(false);
     }
   };
 
   const handleStartTopic = (topic) => {
+    if (!topic.realCount || topic.realCount === 0) return;
     setSelectedTopic(topic);
     setViewMode("quiz");
     loadQuestions(topic.id);
@@ -264,9 +168,11 @@ export default function GrammarPage() {
   };
 
   const filteredTopics =
-    activeCategory === "mixed"
+    activeCategory === "all"
       ? dynamicGrammarTopics
       : dynamicGrammarTopics.filter((t) => t.category === activeCategory);
+
+  const totalQuestionsInDatabase = grammarStats?.totalCount || 286;
 
   return (
     <div className="w-full flex flex-col space-y-7 animate-slide-up">
@@ -279,14 +185,14 @@ export default function GrammarPage() {
             Grammar & Syntactic Accuracy
           </h1>
           <p className="text-base text-muted-label mt-1">
-            Targeted structural mastery and error elimination.
+            Targeted structural drills and error elimination.
           </p>
         </div>
 
         <div className="flex items-center space-x-2 border border-plum/25 bg-plum/5 px-3.5 py-1.5 rounded-xl self-start md:self-auto text-base text-plum font-semibold">
           <HiShieldCheck className="w-5 h-5 text-plum" />
           <span>
-            Database: {grammarStats?.totalCount || 286} Questions Verified
+            Database: {totalQuestionsInDatabase} Questions Verified
           </span>
         </div>
       </div>
@@ -298,132 +204,151 @@ export default function GrammarPage() {
         <div className="flex flex-col space-y-6">
           {/* Category Tabs */}
           <div className="flex flex-wrap items-center gap-3">
-            {GRAMMAR_CATEGORIES.map((cat) => (
-              <button
-                key={cat.id}
-                type="button"
-                onClick={() => setActiveCategory(cat.id)}
-                className={`imlaa-tab-btn text-base flex items-center space-x-2 px-5 py-2.5 ${
-                  activeCategory === cat.id ? "active" : ""
-                }`}
-              >
-                <span>{cat.label}</span>
-                <span
-                  className={`text-sm px-2 py-0.5 rounded-full font-bold ${
-                    activeCategory === cat.id
-                      ? "bg-white/20 text-white"
-                      : "bg-plum/10 text-plum"
+            {GRAMMAR_CATEGORIES.map((cat) => {
+              const count =
+                cat.id === "all"
+                  ? dynamicGrammarTopics.length
+                  : dynamicGrammarTopics.filter((t) => t.category === cat.id).length;
+
+              return (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setActiveCategory(cat.id)}
+                  className={`imlaa-tab-btn text-base flex items-center space-x-2 px-5 py-2.5 ${
+                    activeCategory === cat.id ? "active" : ""
                   }`}
                 >
-                  {cat.countBadge}
-                </span>
-              </button>
-            ))}
+                  <span>{cat.label}</span>
+                  <span
+                    className={`text-xs px-2 py-0.5 rounded-full font-bold ${
+                      activeCategory === cat.id
+                        ? "bg-white/20 text-white"
+                        : "bg-plum/10 text-plum"
+                    }`}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
           {/* Grammar Topic Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredTopics.map((topic) => (
-              <div
-                key={topic.id}
-                className="imlaa-card p-6 flex flex-col justify-between hover:shadow-md transition-all duration-200 border border-plum/20"
-              >
-                <div>
-                  {/* Top Row: Subtag and Badge */}
-                  <div className="flex items-center justify-between text-base font-semibold mb-3">
-                    <span className="text-muted-label tracking-wider font-mono">
-                      {topic.num} • {topic.subtag}
-                    </span>
-                    <span
-                      className={`text-base font-bold px-2.5 py-0.5 rounded-full border ${topic.badgeColor}`}
-                    >
-                      • {topic.badge}
-                    </span>
-                  </div>
+            {filteredTopics.map((topic) => {
+              const hasQuestions = topic.realCount > 0;
 
-                  {/* Title */}
-                  <h3 className="text-xl font-bold text-body-dark leading-snug mb-2">
-                    {topic.title}
-                  </h3>
-
-                  {/* Description */}
-                  <p className="text-base text-muted-label leading-relaxed mb-4">
-                    {topic.description}
-                  </p>
-                </div>
-
-                <div>
-                  {/* Dynamic Progress Bar for Grammar Cards */}
-                  <div className="mb-4">
-                    <div className="flex items-center justify-between text-xs font-semibold text-muted-label mb-1.5">
-                      <span>Module Coverage</span>
-                      <span>{topic.percent}%</span>
+              return (
+                <div
+                  key={topic.id}
+                  className="imlaa-card p-6 flex flex-col justify-between hover:shadow-lg transition-all duration-200 border border-plum/20 rounded-2xl bg-white"
+                >
+                  <div>
+                    {/* Header: Title and Question Count Tag */}
+                    <div className="flex items-start justify-between gap-3 mb-2">
+                      <h3 className="text-xl font-bold text-body-dark leading-snug">
+                        {topic.title}
+                      </h3>
+                      <span
+                        className={`text-xs font-bold px-2.5 py-1 rounded-full shrink-0 border ${
+                          hasQuestions
+                            ? "bg-plum/10 text-plum border-plum/20"
+                            : "bg-gray-100 text-gray-500 border-gray-200"
+                        }`}
+                      >
+                        {topic.exercisesCount}
+                      </span>
                     </div>
-                    <div className="w-full bg-plum/10 rounded-full h-2 overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-plum transition-all duration-500"
-                        style={{ width: `${topic.percent}%` }}
-                      />
-                    </div>
+
+                    {/* Clean Description */}
+                    <p className="text-base text-muted-label leading-relaxed mb-6">
+                      {topic.description}
+                    </p>
                   </div>
 
-                  {/* Footer Action */}
-                  <div className="flex items-center justify-between pt-3 border-t border-plum/10">
-                    <span className="text-base text-muted-label font-medium">
-                      {topic.exercisesCount}
-                    </span>
-                    <button
-                      type="button"
-                      disabled={!topic.realCount || topic.realCount === 0}
-                      onClick={() => handleStartTopic(topic)}
-                      className={`py-2 px-4 text-base space-x-1.5 rounded-lg font-semibold transition-all inline-flex items-center ${
-                        !topic.realCount || topic.realCount === 0
-                          ? "bg-plum/20 text-white/70 cursor-not-allowed opacity-50"
-                          : "imlaa-btn-primary cursor-pointer"
-                      }`}
-                    >
-                      <span>{topic.realCount === 0 ? "Empty" : "Practice"}</span>
-                      <HiArrowRight className="w-4 h-4" />
-                    </button>
+                  <div>
+                    {/* Dynamic Progress Bar */}
+                    <div className="mb-5">
+                      <div className="flex items-center justify-between text-xs font-semibold text-muted-label mb-1.5">
+                        <span>Target Mastery</span>
+                        <span className="font-mono text-plum font-bold">
+                          {topic.percent}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-plum/10 rounded-full h-2 overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-plum transition-all duration-500"
+                          style={{ width: `${topic.percent}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Footer Action */}
+                    <div className="pt-4 border-t border-plum/10 flex items-center justify-between">
+                      <span className="text-sm font-medium text-muted-label">
+                        {hasQuestions ? "Ready to practice" : "No questions available"}
+                      </span>
+
+                      <button
+                        type="button"
+                        disabled={!hasQuestions}
+                        onClick={() => handleStartTopic(topic)}
+                        className={`py-2 px-5 text-base rounded-xl font-semibold transition-all inline-flex items-center space-x-1.5 ${
+                          !hasQuestions
+                            ? "bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed opacity-60 pointer-events-none"
+                            : "imlaa-btn-primary cursor-pointer hover:shadow-md"
+                        }`}
+                      >
+                        <span>{hasQuestions ? "Practice" : "No Questions"}</span>
+                        {hasQuestions && <HiArrowRight className="w-4 h-4" />}
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
-          {/* Quick Diagnostic Banner */}
-          <div className="imlaa-card p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-plum/25 bg-plum/5">
+          {/* Quick Diagnostic Drill */}
+          <div className="imlaa-card p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-plum/25 bg-plum/5 rounded-2xl">
             <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 rounded-xl bg-plum/10 border border-plum/20 flex items-center justify-center text-plum">
+              <div className="w-12 h-12 rounded-xl bg-plum/10 border border-plum/20 flex items-center justify-center text-plum shrink-0">
                 <HiClock className="w-6 h-6" />
               </div>
               <div>
                 <div className="flex items-center space-x-2">
                   <h4 className="text-lg font-bold text-body-dark">
-                    Quick Diagnostic
+                    Quick Diagnostic Drill
                   </h4>
-                  <span className="text-base font-bold px-2 py-0.5 rounded bg-body-dark text-white">
+                  <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-plum text-white">
                     Adaptive
                   </span>
                 </div>
                 <p className="text-base text-muted-label mt-0.5">
-                  10 random questions from Nouns & Prepositions to calibrate your baseline accuracy.
+                  Full mix drill across all verified grammar categories to test your baseline accuracy.
                 </p>
               </div>
             </div>
 
             <button
               type="button"
+              disabled={totalQuestionsInDatabase === 0}
               onClick={() =>
                 handleStartTopic({
                   id: "all",
                   title: "Quick Diagnostic Drill",
-                  description: "10 random questions",
+                  description: "Full question pool across all modules",
+                  realCount: totalQuestionsInDatabase,
                 })
               }
-              className="imlaa-btn-primary py-3 px-6 text-base whitespace-nowrap self-stretch sm:self-auto"
+              className={`py-3 px-6 text-base whitespace-nowrap self-stretch sm:self-auto rounded-xl font-semibold transition-all ${
+                totalQuestionsInDatabase === 0
+                  ? "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
+                  : "imlaa-btn-primary cursor-pointer"
+              }`}
             >
-              Start Rapid Test (5 min)
+              Start Rapid Drill
             </button>
           </div>
         </div>
