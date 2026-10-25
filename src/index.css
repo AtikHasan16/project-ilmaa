@@ -217,26 +217,33 @@
   .imlaa-swal-popup {
     border-radius: 1rem !important;
     border: 1px solid rgba(109, 78, 86, 0.25) !important;
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+    box-shadow:
+      0 10px 25px -5px rgba(0, 0, 0, 0.1),
+      0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
     padding: 2rem !important;
-    font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+    font-family:
+      "Roboto",
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      sans-serif !important;
   }
 
   .imlaa-swal-title {
     font-size: 1.5rem !important;
     font-weight: 800 !important;
-    color: #1F2937 !important;
+    color: #1f2937 !important;
     margin-bottom: 0.5rem !important;
   }
 
   .imlaa-swal-html {
     font-size: 1.05rem !important;
-    color: #4B5563 !important;
+    color: #4b5563 !important;
     line-height: 1.6 !important;
   }
 
   .imlaa-swal-confirm {
-    background-color: #6D4E56 !important;
+    background-color: #6d4e56 !important;
     color: #ffffff !important;
     font-size: 1rem !important;
     font-weight: 600 !important;
@@ -248,7 +255,7 @@
     transition: all 150ms ease !important;
   }
   .imlaa-swal-confirm:hover {
-    background-color: #5A3E45 !important;
+    background-color: #5a3e45 !important;
   }
 
   .imlaa-swal-danger {
@@ -269,18 +276,18 @@
 
   .imlaa-swal-cancel {
     background-color: transparent !important;
-    color: #4B5563 !important;
+    color: #4b5563 !important;
     font-size: 1rem !important;
     font-weight: 600 !important;
     padding: 0.75rem 1.5rem !important;
     border-radius: 0.75rem !important;
-    border: 1px solid #D1D5DB !important;
+    border: 1px solid #d1d5db !important;
     cursor: pointer !important;
     transition: all 150ms ease !important;
   }
   .imlaa-swal-cancel:hover {
-    background-color: #F3F4F6 !important;
-    color: #1F2937 !important;
+    background-color: #f3f4f6 !important;
+    color: #1f2937 !important;
   }
 }
 

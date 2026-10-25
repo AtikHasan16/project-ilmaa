@@ -38,7 +38,10 @@ export default function UploadStudyPage() {
   const handleSingleSubmit = async (e) => {
     e.preventDefault();
     if (!word.trim() || !banglaMeaning.trim()) {
-      showErrorAlert("Missing Fields", "Target word and Bengali meaning are required.");
+      showErrorAlert(
+        "Missing Fields",
+        "Target word and Bengali meaning are required.",
+      );
       return;
     }
 
@@ -57,14 +60,20 @@ export default function UploadStudyPage() {
       });
 
       if (res.data?.success) {
-        showSuccessToast("Word Added!", `"${word.trim()}" successfully saved to ${topic || "Uploaded"}.`);
+        showSuccessToast(
+          "Word Added!",
+          `"${word.trim()}" successfully saved to ${topic || "Uploaded"}.`,
+        );
         setWord("");
         setBanglaMeaning("");
         setSynonyms("");
         setExampleUsage("");
       }
     } catch (err) {
-      showErrorAlert("Upload Failed", err.response?.data?.message || err.message);
+      showErrorAlert(
+        "Upload Failed",
+        err.response?.data?.message || err.message,
+      );
     } finally {
       setImporting(false);
     }
@@ -91,7 +100,10 @@ export default function UploadStudyPage() {
         setRawText(content);
         const parsed = parseDelimitedText(content, bulkTopic);
         setPreviewItems(parsed);
-        showSuccessToast("File Loaded", `Parsed ${parsed.length} entries from "${file.name}".`);
+        showSuccessToast(
+          "File Loaded",
+          `Parsed ${parsed.length} entries from "${file.name}".`,
+        );
       }
     };
     reader.onerror = () => {
@@ -104,7 +116,10 @@ export default function UploadStudyPage() {
   // Perform bulk array POST to server
   const handleBulkSubmit = async () => {
     if (previewItems.length === 0) {
-      showErrorAlert("Empty Import", "Please paste valid tabular data or upload a CSV file first.");
+      showErrorAlert(
+        "Empty Import",
+        "Please paste valid tabular data or upload a CSV file first.",
+      );
       return;
     }
 
@@ -134,7 +149,10 @@ export default function UploadStudyPage() {
         setPreviewItems([]);
       }
     } catch (err) {
-      showErrorAlert("Bulk Import Error", err.response?.data?.message || err.message);
+      showErrorAlert(
+        "Bulk Import Error",
+        err.response?.data?.message || err.message,
+      );
     } finally {
       setImporting(false);
     }
@@ -143,29 +161,29 @@ export default function UploadStudyPage() {
   return (
     <div className="w-full max-w-4xl mx-auto flex flex-col space-y-8 animate-slide-up">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-plum/15">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between  pb-4 border-b border-plum/15">
         <div>
           <h2 className="text-3xl font-black text-body-dark tracking-tight">
             Upload to Study
           </h2>
           <p className="text-lg text-muted-label mt-1">
-            Import individual terms or bulk copy-paste tables from Google Sheets and CSV files.
+            Import from Google Sheets and CSV files.
           </p>
         </div>
 
         {/* Tab Switcher: Bulk Import vs Single Word */}
-        <div className="flex items-center space-x-2 bg-plum/5 p-1 rounded-xl border border-plum/20">
+        <div className="flex items-center  space-x-2 bg-plum/5 p-1 rounded-xl border border-plum/20">
           <button
             type="button"
             onClick={() => setActiveTab("bulk")}
-            className={`px-4 py-2 rounded-lg text-base font-semibold transition-all cursor-pointer flex items-center space-x-2 ${
+            className={`px-4 py-2 rounded-lg font-semibold transition-all cursor-pointer flex items-center space-x-2 ${
               activeTab === "bulk"
                 ? "bg-plum text-white shadow-xs"
                 : "text-muted-label hover:text-body-dark"
             }`}
           >
             <HiTableCells className="w-5 h-5" />
-            <span>Bulk Import (TSV / CSV)</span>
+            <span>Bulk Import</span>
           </button>
           <button
             type="button"
@@ -193,15 +211,28 @@ export default function UploadStudyPage() {
               Expected Column Order (Database Standard)
             </h4>
             <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 text-sm font-mono text-body-dark">
-              <span className="p-2 rounded bg-white border border-plum/15 font-bold">1. Word *</span>
-              <span className="p-2 rounded bg-white border border-plum/15 font-bold">2. POS</span>
-              <span className="p-2 rounded bg-white border border-plum/15 font-bold">3. Meaning *</span>
-              <span className="p-2 rounded bg-white border border-plum/15">4. Synonyms</span>
-              <span className="p-2 rounded bg-white border border-plum/15">5. Example</span>
-              <span className="p-2 rounded bg-white border border-plum/15">6. Topic</span>
+              <span className="p-2 rounded bg-white border border-plum/15 font-bold">
+                1. Word *
+              </span>
+              <span className="p-2 rounded bg-white border border-plum/15 font-bold">
+                2. POS
+              </span>
+              <span className="p-2 rounded bg-white border border-plum/15 font-bold">
+                3. Meaning *
+              </span>
+              <span className="p-2 rounded bg-white border border-plum/15">
+                4. Synonyms
+              </span>
+              <span className="p-2 rounded bg-white border border-plum/15">
+                5. Example
+              </span>
+              <span className="p-2 rounded bg-white border border-plum/15">
+                6. Topic
+              </span>
             </div>
             <p className="text-sm text-muted-label mt-2">
-              Tip: In Google Sheets or Excel, select your cells and press <strong>Ctrl+C</strong>, then paste directly into the box below.
+              Tip: In Google Sheets or Excel, select your cells and press{" "}
+              <strong>Ctrl+C</strong>, then paste directly into the box below.
             </p>
           </div>
 
@@ -213,7 +244,8 @@ export default function UploadStudyPage() {
                   Paste TSV Data or Upload CSV File
                 </label>
                 <span className="text-sm text-muted-label">
-                  Supports Tab-Separated Values (Google Docs/Sheets) and comma-separated CSV.
+                  Supports Tab-Separated Values (Google Docs/Sheets) and
+                  comma-separated CSV.
                 </span>
               </div>
 
@@ -246,14 +278,18 @@ export default function UploadStudyPage() {
                 onChange={(e) => {
                   setBulkTopic(e.target.value);
                   if (rawText) {
-                    setPreviewItems(parseDelimitedText(rawText, e.target.value));
+                    setPreviewItems(
+                      parseDelimitedText(rawText, e.target.value),
+                    );
                   }
                 }}
                 className="imlaa-input text-base py-2 px-3 max-w-xs"
               >
                 <option value="Uploaded">Uploaded (Custom Study)</option>
                 <option value="Part 1: Basics">Part 1: Basics</option>
-                <option value="Part 2: Intermediate">Part 2: Intermediate</option>
+                <option value="Part 2: Intermediate">
+                  Part 2: Intermediate
+                </option>
                 <option value="Part 3: Advanced">Part 3: Advanced</option>
               </select>
             </div>
@@ -297,7 +333,9 @@ export default function UploadStudyPage() {
                 >
                   <HiCloudArrowUp className="w-5 h-5" />
                   <span>
-                    {importing ? "Importing..." : `Import ${previewItems.length} Words`}
+                    {importing
+                      ? "Importing..."
+                      : `Import ${previewItems.length} Words`}
                   </span>
                 </button>
               </div>
@@ -309,7 +347,8 @@ export default function UploadStudyPage() {
             <div className="p-4 rounded-xl border border-emerald-600/30 bg-emerald-50 text-emerald-800 text-base font-medium flex items-center space-x-2 animate-slide-up">
               <HiCheckCircle className="w-6 h-6 shrink-0 text-emerald-600" />
               <span>
-                {importResult.message} ({importResult.insertedCount} words inserted, {importResult.skippedCount} skipped).
+                {importResult.message} ({importResult.insertedCount} words
+                inserted, {importResult.skippedCount} skipped).
               </span>
             </div>
           )}
@@ -451,7 +490,9 @@ export default function UploadStudyPage() {
                 >
                   <option value="Uploaded">Uploaded</option>
                   <option value="Part 1: Basics">Part 1: Basics</option>
-                  <option value="Part 2: Intermediate">Part 2: Intermediate</option>
+                  <option value="Part 2: Intermediate">
+                    Part 2: Intermediate
+                  </option>
                   <option value="Part 3: Advanced">Part 3: Advanced</option>
                 </select>
               </div>
