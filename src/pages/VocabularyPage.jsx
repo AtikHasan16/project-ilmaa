@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import apiClient from "../services/apiClient";
 import { useAuth } from "../context/AuthContext";
 import { speakWithMicrosoftTTS, stopAudioPlayback } from "../utils/speechTts";
@@ -19,7 +19,6 @@ export default function VocabularyPage() {
   const [activePart, setActivePart] = useState("All Active");
   const [selectedGroup, setSelectedGroup] = useState(null); // When null => show Corpus Sets home page
   const [viewMode, setViewMode] = useState("sets"); // 'sets' | 'flashcard'
-
   const [words, setWords] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [spellingInput, setSpellingInput] = useState("");
@@ -34,6 +33,7 @@ export default function VocabularyPage() {
     useState(false);
   const [vocabStats, setVocabStats] = useState(null);
   const [userProgress, setUserProgress] = useState(null);
+  const vocabSessionStartRef = useRef(null);
 
   // Fetch dynamic vocabulary count statistics from backend
   const fetchStats = useCallback(async () => {
@@ -207,36 +207,53 @@ export default function VocabularyPage() {
     }
   };
 
-  const handleStartGroup = async (group, incorrectOnly = false) => {
-    setSelectedGroup(group);
-    setViewMode("flashcard");
-    setShowPracticeIncorrectOnly(incorrectOnly);
+  const handleStartGroup = useCallback(
+    async (group, incorrectOnly = false) => {
+      setSelectedGroup(group);
+      setViewMode("flashcard");
+      setShowPracticeIncorrectOnly(incorrectOnly);
+      vocabSessionStartRef.current = Date.now();
 
-    if (incorrectOnly && userProgress?.incorrectWords?.length > 0) {
-      // Find full word objects matching user's incorrect list
-      try {
-        const res = await apiClient.get("/vocabulary", {
-          params: { topic: group.title },
-        });
-        const allLoaded = res.data?.data || [];
-        const filteredIncorrect = allLoaded.filter((w) =>
-          userProgress.incorrectWords.includes(w.word),
-        );
-        setIncorrectList(filteredIncorrect);
-      } catch {
-        // Fallback
+      if (incorrectOnly && userProgress?.incorrectWords?.length > 0) {
+        // Find full word objects matching user's incorrect list
+        try {
+          const res = await apiClient.get("/vocabulary", {
+            params: { topic: group.title },
+          });
+          const allLoaded = res.data?.data || [];
+          const filteredIncorrect = allLoaded.filter((w) =>
+            userProgress.incorrectWords.includes(w.word),
+          );
+          setIncorrectList(filteredIncorrect);
+        } catch {
+          // Fallback
+        }
       }
-    }
 
-    loadWordsForGroup(group);
-  };
+      loadWordsForGroup(group);
+    },
+    [userProgress, loadWordsForGroup],
+  );
 
   const handleReturnToSets = () => {
+    // Record study session duration to backend
+    const startTime = vocabSessionStartRef.current;
+    if (user?.accessId && startTime) {
+      const durationSeconds = Math.max(1, Math.round((Date.now() - startTime) / 1000));
+      apiClient
+        .post("/user/study-session", {
+          accessId: user.accessId,
+          durationSeconds,
+        })
+        .catch(() => {});
+    }
+
     setSelectedGroup(null);
     setViewMode("sets");
     setIsFlipped(false);
     setSpellingInput("");
     setStatusFeedback(null);
+    vocabSessionStartRef.current = null;
     fetchProgress();
   };
 

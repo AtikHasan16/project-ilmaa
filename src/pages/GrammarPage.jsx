@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import apiClient from "../services/apiClient";
+import { useAuth } from "../context/AuthContext";
 import {
   HiCheckCircle,
   HiXCircle,
@@ -54,9 +55,11 @@ const GRAMMAR_TOPICS = [
 ];
 
 export default function GrammarPage() {
+  const { user } = useAuth();
   const [activeCategory, setActiveCategory] = useState("all");
   const [selectedTopic, setSelectedTopic] = useState(null); // When null => show topic grid
   const [viewMode, setViewMode] = useState("overview"); // 'overview' | 'quiz'
+  const [drillStartTime, setDrillStartTime] = useState(null);
 
   const [questions, setQuestions] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -110,7 +113,7 @@ export default function GrammarPage() {
   });
 
   // Load questions for topic
-  const loadQuestions = async (topicId) => {
+  const loadQuestions = useCallback(async (topicId) => {
     setLoading(true);
     setSelectedOption(null);
     setIsAnswered(false);
@@ -132,20 +135,38 @@ export default function GrammarPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const handleStartTopic = (topic) => {
-    if (!topic.realCount || topic.realCount === 0) return;
-    setSelectedTopic(topic);
-    setViewMode("quiz");
-    loadQuestions(topic.id);
-  };
+  const handleStartTopic = useCallback(
+    (topic) => {
+      if (!topic.realCount || topic.realCount === 0) return;
+      setSelectedTopic(topic);
+      setViewMode("quiz");
+      setDrillStartTime(Date.now());
+      loadQuestions(topic.id);
+    },
+    [loadQuestions],
+  );
 
   const handleReturnToTopics = () => {
+    // Record study session and highest score to backend if user practiced
+    if (user?.accessId && drillStartTime) {
+      const durationSeconds = Math.max(1, Math.round((Date.now() - drillStartTime) / 1000));
+      apiClient
+        .post("/user/study-session", {
+          accessId: user.accessId,
+          durationSeconds,
+          grammarScore: score,
+          totalQuestions: currentIndex + 1,
+        })
+        .catch(() => {});
+    }
+
     setSelectedTopic(null);
     setViewMode("overview");
     setSelectedOption(null);
     setIsAnswered(false);
+    setDrillStartTime(null);
   };
 
   const currentQ = questions[currentIndex] || null;
