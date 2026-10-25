@@ -10,6 +10,8 @@ import {
   HiArrowDownTray,
   HiTrash,
   HiSignal,
+  HiClipboard,
+  HiClipboardDocumentCheck,
 } from "react-icons/hi2";
 import {
   showConfirmModal,
@@ -23,6 +25,31 @@ export default function AdminDashboardPage() {
   const [candidateRole, setCandidateRole] = useState("general");
   const [generating, setGenerating] = useState(false);
   const [generatedUser, setGeneratedUser] = useState(null);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyInstructions = async () => {
+    if (!generatedUser) return;
+    const origin = typeof window !== "undefined" ? window.location.origin : "https://ilmaa.vercel.app";
+    const text = `🎓 Welcome to Imlaa IELTS Workspace!\n\nCandidate Name: ${generatedUser.name}\n10-Digit Access ID: ${generatedUser.accessId}\nRole: ${generatedUser.role}\n\n👉 Login link: ${origin}\n\nNote: Please use your authorized device when logging in.`;
+
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+      setCopied(true);
+      showSuccessToast("Copied to Clipboard", "Ready to paste into WhatsApp or Email!");
+      setTimeout(() => setCopied(false), 3000);
+    } catch {
+      showErrorAlert("Copy Failed", "Please copy the ID manually.");
+    }
+  };
 
   const [requests, setRequests] = useState([]);
   const [loadingRequests, setLoadingRequests] = useState(true);
@@ -389,17 +416,38 @@ export default function AdminDashboardPage() {
 
             {/* Newly Generated ID Card */}
             {generatedUser && (
-              <div className="mt-6 p-4 rounded-xl border border-plum/25 bg-plum/5 text-base space-y-2 animate-slide-up">
-                <div className="font-bold text-plum text-base">New Access ID Created:</div>
-                <div className="text-body-dark font-medium">
-                  Name: <span className="font-bold">{generatedUser.name}</span>
+              <div className="mt-6 p-5 rounded-xl border border-plum/30 bg-plum/5 text-base space-y-3 animate-slide-up">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-plum text-base">New Access ID Created</span>
+                  <span className="text-xs uppercase font-bold px-2 py-0.5 rounded bg-plum/10 text-plum">
+                    {generatedUser.role}
+                  </span>
                 </div>
-                <div className="text-body-dark font-medium">
-                  Role: <span className="capitalize font-bold">{generatedUser.role}</span>
+                <div className="text-body-dark font-medium text-sm">
+                  Candidate: <span className="font-bold text-base">{generatedUser.name}</span>
                 </div>
-                <div className="pt-2 border-t border-plum/15 text-2xl font-mono font-black text-plum tracking-widest text-center">
+                <div className="p-3 bg-white rounded-lg border border-plum/15 text-2xl font-mono font-black text-plum tracking-widest text-center">
                   {generatedUser.accessId}
                 </div>
+
+                {/* Copy ID & Instructions Button */}
+                <button
+                  type="button"
+                  onClick={handleCopyInstructions}
+                  className="imlaa-btn-secondary w-full py-2.5 px-3 text-sm flex items-center justify-center space-x-2 font-semibold hover:border-plum"
+                >
+                  {copied ? (
+                    <>
+                      <HiClipboardDocumentCheck className="w-5 h-5 text-emerald-600" />
+                      <span className="text-emerald-700">Copied to Clipboard!</span>
+                    </>
+                  ) : (
+                    <>
+                      <HiClipboard className="w-5 h-5 text-plum" />
+                      <span>Copy ID & Instructions (WhatsApp/Email)</span>
+                    </>
+                  )}
+                </button>
               </div>
             )}
           </div>

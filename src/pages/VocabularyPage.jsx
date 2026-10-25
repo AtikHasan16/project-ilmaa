@@ -587,15 +587,50 @@ export default function VocabularyPage() {
             </div>
           ) : (
             <div className="w-full flex flex-col space-y-6">
-              {/* Step indicator */}
-              <div className="flex items-center justify-between text-base text-muted-label px-2">
-                <span className="font-semibold text-body-dark">
-                  Word {currentIndex + 1} of {activeWords.length}
-                </span>
-                {showPracticeIncorrectOnly && (
-                  <span className="text-rose-600 font-bold">
-                    Practice Incorrect Only
+              {/* Step indicator & Drill Filter */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-base text-muted-label px-2">
+                <div className="flex items-center space-x-3">
+                  <span className="font-semibold text-body-dark">
+                    Word {currentIndex + 1} of {activeWords.length}
                   </span>
+                  {showPracticeIncorrectOnly && (
+                    <span className="px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 text-xs font-bold border border-rose-200">
+                      Spelling Drill: Mistakes Only
+                    </span>
+                  )}
+                </div>
+
+                {userProgress?.incorrectWords?.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (showPracticeIncorrectOnly) {
+                        setShowPracticeIncorrectOnly(false);
+                        setCurrentIndex(0);
+                        setIsFlipped(false);
+                        setSpellingInput("");
+                      } else {
+                        // Switch to incorrect only
+                        const filtered = words.filter((w) =>
+                          userProgress.incorrectWords.includes(w.word),
+                        );
+                        if (filtered.length > 0) {
+                          setIncorrectList(filtered);
+                          setShowPracticeIncorrectOnly(true);
+                          setCurrentIndex(0);
+                          setIsFlipped(false);
+                          setSpellingInput("");
+                        }
+                      }
+                    }}
+                    className={`text-xs font-bold px-3 py-1.5 rounded-lg border transition cursor-pointer flex items-center space-x-1.5 self-start sm:self-auto ${
+                      showPracticeIncorrectOnly
+                        ? "bg-rose-100 text-rose-800 border-rose-300 hover:bg-rose-200"
+                        : "bg-white text-muted-label border-plum/20 hover:border-plum hover:text-plum"
+                    }`}
+                  >
+                    <span>{showPracticeIncorrectOnly ? "Exit Mistakes Drill (Show All)" : `Practice Mistakes Only (${userProgress.incorrectWords.length})`}</span>
+                  </button>
                 )}
               </div>
 

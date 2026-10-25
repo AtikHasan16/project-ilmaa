@@ -12,6 +12,7 @@ import ProfilePage from "./pages/ProfilePage";
 
 import AboutPage from "./pages/AboutPage";
 import ContactPage from "./pages/ContactPage";
+import NotFoundPage from "./pages/NotFoundPage";
 
 // Protected Route Guard
 function ProtectedRoute({ children, requiredRole }) {
@@ -92,7 +93,7 @@ export default function App() {
           </Route>
 
           {/* Catch-all 404 */}
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
