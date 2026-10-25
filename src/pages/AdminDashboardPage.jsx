@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import apiClient from "../services/apiClient";
 import {
   HiCheck,
@@ -6,7 +6,12 @@ import {
   HiKey,
   HiUsers,
   HiClock,
+  HiArrowPath,
+  HiArrowDownTray,
+  HiTrash,
+  HiSignal,
 } from "react-icons/hi2";
+import { exportAuditReportPDF } from "../utils/exportReportPdf";
 
 export default function AdminDashboardPage() {
   const [candidateName, setCandidateName] = useState("");
@@ -18,7 +23,18 @@ export default function AdminDashboardPage() {
   const [loadingRequests, setLoadingRequests] = useState(true);
   const [actionMessage, setActionMessage] = useState("");
 
-  const fetchRequests = async () => {
+  // Audit state
+  const [auditStats, setAuditStats] = useState({
+    totalRegistered: 0,
+    approvedCount: 0,
+    activeNowCount: 0,
+  });
+  const [auditUsers, setAuditUsers] = useState([]);
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [loadingAudit, setLoadingAudit] = useState(true);
+
+  // Fetch pending access requests
+  const fetchRequests = useCallback(async () => {
     setLoadingRequests(true);
     try {
       const res = await apiClient.get("/admin/access-requests");
@@ -30,12 +46,49 @@ export default function AdminDashboardPage() {
     } finally {
       setLoadingRequests(false);
     }
-  };
+  }, []);
+
+  // Fetch users audit and activity stats
+  const fetchAuditData = useCallback(async () => {
+    setLoadingAudit(true);
+    try {
+      const [usersRes, logsRes] = await Promise.all([
+        apiClient.get("/admin/users-audit"),
+        apiClient.get("/admin/audit-logs"),
+      ]);
+
+      if (usersRes.data?.success) {
+        setAuditStats({
+          totalRegistered: usersRes.data.totalRegistered,
+          approvedCount: usersRes.data.approvedCount,
+          activeNowCount: usersRes.data.activeNowCount,
+        });
+        setAuditUsers(usersRes.data.users || []);
+      }
+
+      if (logsRes.data?.success) {
+        setAuditLogs(logsRes.data.data || []);
+      }
+    } catch (err) {
+      console.error("Failed to load audit data:", err);
+    } finally {
+      setLoadingAudit(false);
+    }
+  }, []);
 
   useEffect(() => {
     fetchRequests();
-  }, []);
+    fetchAuditData();
 
+    // Auto refresh active user statuses every 45s
+    const interval = setInterval(() => {
+      fetchAuditData();
+    }, 45000);
+
+    return () => clearInterval(interval);
+  }, [fetchRequests, fetchAuditData]);
+
+  // Generate 10-digit ID
   const handleGenerateId = async (e) => {
     e.preventDefault();
     if (!candidateName.trim()) return;
@@ -50,6 +103,7 @@ export default function AdminDashboardPage() {
       if (res.data?.success) {
         setGeneratedUser(res.data.data);
         setCandidateName("");
+        fetchAuditData();
       }
     } catch (err) {
       console.error("Generate ID failed:", err);
@@ -58,41 +112,203 @@ export default function AdminDashboardPage() {
     }
   };
 
+  // Approve pending request
   const handleApprove = async (accessId) => {
     try {
       const res = await apiClient.patch(`/admin/access-requests/${accessId}/approve`, {});
       if (res.data?.success) {
         setActionMessage(`Approved Access ID: ${accessId}`);
         fetchRequests();
+        fetchAuditData();
       }
     } catch (err) {
       console.error("Approve failed:", err);
     }
   };
 
+  // Reject pending request
   const handleReject = async (accessId) => {
     try {
       const res = await apiClient.patch(`/admin/access-requests/${accessId}/reject`, {});
       if (res.data?.success) {
         setActionMessage(`Rejected Access ID: ${accessId}`);
         fetchRequests();
+        fetchAuditData();
       }
     } catch (err) {
       console.error("Reject failed:", err);
     }
   };
 
+  // Reset user device binding (allows logging in from new machine)
+  const handleResetDevice = async (accessId, name) => {
+    if (!window.confirm(`Reset device token for ${name}? The user will be able to bind their new device on their next login.`)) {
+      return;
+    }
+
+    try {
+      const res = await apiClient.patch(`/admin/users/${accessId}/reset-device`);
+      if (res.data?.success) {
+        setActionMessage(res.data.message);
+        fetchAuditData();
+      }
+    } catch (err) {
+      console.error("Reset device failed:", err);
+    }
+  };
+
+  // Delete single log entry
+  const handleDeleteLog = async (logId) => {
+    try {
+      const res = await apiClient.delete(`/admin/audit-logs/${logId}`);
+      if (res.data?.success) {
+        setAuditLogs((prev) => prev.filter((l) => l._id !== logId));
+      }
+    } catch (err) {
+      console.error("Failed to delete log entry:", err);
+    }
+  };
+
+  // Clear all audit logs
+  const handleClearAllLogs = async () => {
+    if (!window.confirm("Are you sure you want to permanently clear all audit logs? This action cannot be undone.")) {
+      return;
+    }
+
+    try {
+      const res = await apiClient.delete("/admin/audit-logs");
+      if (res.data?.success) {
+        setAuditLogs([]);
+        setActionMessage("All audit logs cleared successfully.");
+      }
+    } catch (err) {
+      console.error("Failed to clear logs:", err);
+    }
+  };
+
+  // Trigger PDF export
+  const handleExportPDF = () => {
+    exportAuditReportPDF({
+      users: auditUsers,
+      logs: auditLogs,
+      stats: auditStats,
+    });
+  };
+
   return (
-    <div className="w-full flex flex-col space-y-10">
-      <div>
-        <h2 className="text-3xl font-black text-body-dark tracking-tight">
-          Admin Dashboard
-        </h2>
-        <p className="text-lg text-muted-label mt-1">
-          Generate unique 10-digit IDs, manage permissions, and approve incoming device requests.
-        </p>
+    <div className="w-full flex flex-col space-y-10 animate-slide-up">
+      {/* Header with Export & Refresh Actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-plum/15">
+        <div>
+          <h2 className="text-3xl font-black text-body-dark tracking-tight">
+            Admin Dashboard
+          </h2>
+          <p className="text-lg text-muted-label mt-1">
+            Generate access IDs, monitor live active sessions, and audit access security logs.
+          </p>
+        </div>
+
+        <div className="flex items-center space-x-3 self-start sm:self-auto">
+          <button
+            type="button"
+            onClick={fetchAuditData}
+            title="Refresh Live Metrics"
+            className="imlaa-btn-secondary py-2.5 px-4 text-base space-x-2"
+          >
+            <HiArrowPath className={`w-5 h-5 ${loadingAudit ? "animate-spin" : ""}`} />
+            <span>Refresh</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleExportPDF}
+            className="imlaa-btn-primary py-2.5 px-5 text-base space-x-2 shadow-sm"
+          >
+            <HiArrowDownTray className="w-5 h-5" />
+            <span>Export Report (PDF)</span>
+          </button>
+        </div>
       </div>
 
+      {actionMessage && (
+        <div className="p-4 rounded-xl bg-plum/10 text-plum text-base font-semibold border border-plum/20 flex items-center justify-between">
+          <span>{actionMessage}</span>
+          <button
+            type="button"
+            onClick={() => setActionMessage("")}
+            className="text-plum hover:text-plum-hover text-sm font-bold ml-4 cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* ==================================================== */}
+      {/* 1. Live Overview Stats (Active Now & Registration)   */}
+      {/* ==================================================== */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        {/* Metric 1: Currently Active Online */}
+        <div className="imlaa-card p-6 border border-plum/20 bg-white flex items-center justify-between">
+          <div>
+            <div className="text-base uppercase tracking-wider text-muted-label font-bold mb-1">
+              Currently Active Online
+            </div>
+            <div className="text-4xl font-black text-emerald-700 flex items-center space-x-3">
+              <span>{auditStats.activeNowCount}</span>
+              <span className="relative flex h-3.5 w-3.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500"></span>
+              </span>
+            </div>
+            <div className="text-base text-muted-label mt-1">
+              Active within the last 5 minutes
+            </div>
+          </div>
+          <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+            <HiSignal className="w-6 h-6" />
+          </div>
+        </div>
+
+        {/* Metric 2: Total Approved Candidates */}
+        <div className="imlaa-card p-6 border border-plum/20 bg-white flex items-center justify-between">
+          <div>
+            <div className="text-base uppercase tracking-wider text-muted-label font-bold mb-1">
+              Approved Candidates
+            </div>
+            <div className="text-4xl font-black text-plum">
+              {auditStats.approvedCount}
+            </div>
+            <div className="text-base text-muted-label mt-1">
+              Authorized device keys issued
+            </div>
+          </div>
+          <div className="w-12 h-12 rounded-xl bg-plum/10 text-plum flex items-center justify-center">
+            <HiUsers className="w-6 h-6" />
+          </div>
+        </div>
+
+        {/* Metric 3: Pending Ingress Queue */}
+        <div className="imlaa-card p-6 border border-plum/20 bg-white flex items-center justify-between">
+          <div>
+            <div className="text-base uppercase tracking-wider text-muted-label font-bold mb-1">
+              Pending Queue
+            </div>
+            <div className="text-4xl font-black text-body-dark">
+              {requests.length}
+            </div>
+            <div className="text-base text-muted-label mt-1">
+              Awaiting administrator approval
+            </div>
+          </div>
+          <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+            <HiClock className="w-6 h-6" />
+          </div>
+        </div>
+      </div>
+
+      {/* ==================================================== */}
+      {/* 2. Candidate Creation & Pending Queue Columns        */}
+      {/* ==================================================== */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Left Column: Generate Access ID Card */}
         <div className="lg:col-span-5 flex flex-col space-y-6">
@@ -145,7 +361,7 @@ export default function AdminDashboardPage() {
 
             {/* Newly Generated ID Card */}
             {generatedUser && (
-              <div className="mt-6 p-4 rounded-xl border border-plum/25 bg-plum/5 text-base space-y-2">
+              <div className="mt-6 p-4 rounded-xl border border-plum/25 bg-plum/5 text-base space-y-2 animate-slide-up">
                 <div className="font-bold text-plum text-base">New Access ID Created:</div>
                 <div className="text-body-dark font-medium">
                   Name: <span className="font-bold">{generatedUser.name}</span>
@@ -176,12 +392,6 @@ export default function AdminDashboardPage() {
               </span>
             </div>
 
-            {actionMessage && (
-              <div className="mb-4 p-3 rounded-lg bg-plum/10 text-plum text-base font-medium">
-                {actionMessage}
-              </div>
-            )}
-
             {loadingRequests ? (
               <div className="p-8 text-center text-muted-label animate-pulse">
                 Refreshing queue...
@@ -189,7 +399,7 @@ export default function AdminDashboardPage() {
             ) : requests.length === 0 ? (
               <div className="p-8 text-center text-muted-label flex flex-col items-center space-y-2">
                 <HiClock className="w-8 h-8 text-plum/30" />
-                <div>No pending access requests in the queue.</div>
+                <div className="text-base">No pending access requests in the queue.</div>
               </div>
             ) : (
               <div className="space-y-4">
@@ -234,6 +444,174 @@ export default function AdminDashboardPage() {
             )}
           </div>
         </div>
+      </div>
+
+      {/* ==================================================== */}
+      {/* 3. Candidate Access Directory Table (Who has access) */}
+      {/* ==================================================== */}
+      <div className="imlaa-card p-6 sm:p-8 space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-plum/15">
+          <div>
+            <h3 className="text-xl font-bold text-body-dark">
+              Candidate Access Directory
+            </h3>
+            <p className="text-base text-muted-label mt-0.5">
+              Full registry of candidates issued 10-digit IDs and their active online presence.
+            </p>
+          </div>
+          <span className="imlaa-badge text-base">
+            {auditUsers.length} Registered Candidates
+          </span>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-base">
+            <thead>
+              <tr className="border-b border-plum/20 text-muted-label uppercase text-sm font-bold">
+                <th className="py-3 px-3">Candidate</th>
+                <th className="py-3 px-3">10-Digit ID</th>
+                <th className="py-3 px-3">Role</th>
+                <th className="py-3 px-3">Status</th>
+                <th className="py-3 px-3">Live Presence</th>
+                <th className="py-3 px-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-plum/10">
+              {auditUsers.map((user) => (
+                <tr key={user.accessId} className="hover:bg-plum/5 transition-colors">
+                  <td className="py-3.5 px-3 font-semibold text-body-dark">
+                    {user.name}
+                  </td>
+                  <td className="py-3.5 px-3 font-mono font-bold text-plum">
+                    {user.accessId}
+                  </td>
+                  <td className="py-3.5 px-3">
+                    <span className="capitalize font-medium text-body-dark">
+                      {user.role}
+                    </span>
+                  </td>
+                  <td className="py-3.5 px-3">
+                    <span
+                      className={`inline-block px-2.5 py-0.5 rounded-full text-sm font-bold uppercase ${
+                        user.status === "approved"
+                          ? "bg-emerald-100 text-emerald-800"
+                          : user.status === "rejected"
+                          ? "bg-rose-100 text-rose-800"
+                          : "bg-amber-100 text-amber-800"
+                      }`}
+                    >
+                      {user.status}
+                    </span>
+                  </td>
+                  <td className="py-3.5 px-3">
+                    {user.isOnline ? (
+                      <span className="inline-flex items-center space-x-2 text-emerald-700 font-bold">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span>Active Now</span>
+                      </span>
+                    ) : (
+                      <span className="text-muted-label">
+                        {user.lastActiveAt
+                          ? `Seen ${new Date(user.lastActiveAt).toLocaleDateString()}`
+                          : "Never logged in"}
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-3.5 px-3 text-right">
+                    <button
+                      type="button"
+                      onClick={() => handleResetDevice(user.accessId, user.name)}
+                      title="Reset hardware device binding"
+                      className="imlaa-btn-secondary py-1 px-3 text-sm cursor-pointer hover:border-plum"
+                    >
+                      Reset Device
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ==================================================== */}
+      {/* 4. Audit Log Trail (With Clear / Delete Options)     */}
+      {/* ==================================================== */}
+      <div className="imlaa-card p-6 sm:p-8 space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-plum/15">
+          <div>
+            <h3 className="text-xl font-bold text-body-dark">
+              Security & Access Audit Trail
+            </h3>
+            <p className="text-base text-muted-label mt-0.5">
+              Historical access event logs, approvals, and device binding resets.
+            </p>
+          </div>
+
+          <div className="flex items-center space-x-3">
+            <span className="imlaa-badge text-base">
+              {auditLogs.length} Events
+            </span>
+            {auditLogs.length > 0 && (
+              <button
+                type="button"
+                onClick={handleClearAllLogs}
+                className="imlaa-btn-secondary py-1.5 px-3 text-sm text-rose-700 border-rose-300 hover:bg-rose-50 space-x-1"
+              >
+                <HiTrash className="w-4 h-4" />
+                <span>Clear All Logs</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {auditLogs.length === 0 ? (
+          <div className="p-8 text-center text-muted-label text-base">
+            No audit log records recorded yet.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-base">
+              <thead>
+                <tr className="border-b border-plum/20 text-muted-label uppercase text-sm font-bold">
+                  <th className="py-3 px-3">Action</th>
+                  <th className="py-3 px-3">Candidate & ID</th>
+                  <th className="py-3 px-3">Event Details</th>
+                  <th className="py-3 px-3">Timestamp</th>
+                  <th className="py-3 px-3 text-right">Delete</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-plum/10">
+                {auditLogs.map((log) => (
+                  <tr key={log._id || log.timestamp} className="hover:bg-plum/5 transition-colors">
+                    <td className="py-3 px-3 font-mono font-bold text-plum text-sm">
+                      {log.action}
+                    </td>
+                    <td className="py-3 px-3 font-semibold text-body-dark">
+                      {log.userName} <span className="font-mono text-xs text-muted-label">({log.accessId || "—"})</span>
+                    </td>
+                    <td className="py-3 px-3 text-body-dark">
+                      {log.details}
+                    </td>
+                    <td className="py-3 px-3 font-mono text-sm text-muted-label whitespace-nowrap">
+                      {new Date(log.timestamp).toLocaleString()}
+                    </td>
+                    <td className="py-3 px-3 text-right">
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteLog(log._id)}
+                        title="Delete log entry"
+                        className="p-1.5 rounded-lg text-muted-label hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                      >
+                        <HiTrash className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

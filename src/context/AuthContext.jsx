@@ -49,6 +49,18 @@ export function AuthProvider({ children }) {
     validateSession();
   }, []);
 
+  // Periodic heartbeat while approved to maintain online presence
+  useEffect(() => {
+    if (status !== "approved" || !user) return;
+
+    // Send heartbeat every 2 minutes
+    const interval = setInterval(() => {
+      apiClient.post("/auth/heartbeat").catch(() => {});
+    }, 2 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [status, user]);
+
   // Login request function
   const login = async (name, accessId) => {
     setError(null);
