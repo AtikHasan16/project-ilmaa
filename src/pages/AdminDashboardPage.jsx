@@ -11,6 +11,11 @@ import {
   HiTrash,
   HiSignal,
 } from "react-icons/hi2";
+import {
+  showConfirmModal,
+  showSuccessToast,
+  showErrorAlert,
+} from "../utils/sweetalert";
 import { exportAuditReportPDF } from "../utils/exportReportPdf";
 
 export default function AdminDashboardPage() {
@@ -142,47 +147,70 @@ export default function AdminDashboardPage() {
 
   // Reset user device binding (allows logging in from new machine)
   const handleResetDevice = async (accessId, name) => {
-    if (!window.confirm(`Reset device token for ${name}? The user will be able to bind their new device on their next login.`)) {
-      return;
-    }
+    const res = await showConfirmModal({
+      title: "Reset Device Binding?",
+      text: `Reset device key for ${name} (${accessId})? They will be prompted to register their current browser on next login.`,
+      confirmButtonText: "Yes, Reset Device",
+      isDanger: false,
+      icon: "question",
+    });
+
+    if (!res.isConfirmed) return;
 
     try {
-      const res = await apiClient.patch(`/admin/users/${accessId}/reset-device`);
-      if (res.data?.success) {
-        setActionMessage(res.data.message);
+      const apiRes = await apiClient.patch(`/admin/users/${accessId}/reset-device`);
+      if (apiRes.data?.success) {
+        showSuccessToast("Device Key Reset", apiRes.data.message);
         fetchAuditData();
       }
     } catch (err) {
-      console.error("Reset device failed:", err);
+      showErrorAlert("Reset Failed", err.response?.data?.message || err.message);
     }
   };
 
   // Delete single log entry
   const handleDeleteLog = async (logId) => {
+    const res = await showConfirmModal({
+      title: "Delete Log Entry?",
+      text: "Are you sure you want to delete this specific audit log event?",
+      confirmButtonText: "Delete Entry",
+      isDanger: true,
+      icon: "warning",
+    });
+
+    if (!res.isConfirmed) return;
+
     try {
-      const res = await apiClient.delete(`/admin/audit-logs/${logId}`);
-      if (res.data?.success) {
+      const apiRes = await apiClient.delete(`/admin/audit-logs/${logId}`);
+      if (apiRes.data?.success) {
         setAuditLogs((prev) => prev.filter((l) => l._id !== logId));
+        showSuccessToast("Log Entry Removed");
       }
     } catch (err) {
-      console.error("Failed to delete log entry:", err);
+      showErrorAlert("Delete Failed", err.response?.data?.message || err.message);
     }
   };
 
   // Clear all audit logs
   const handleClearAllLogs = async () => {
-    if (!window.confirm("Are you sure you want to permanently clear all audit logs? This action cannot be undone.")) {
-      return;
-    }
+    const res = await showConfirmModal({
+      title: "Clear Entire Audit Trail?",
+      text: "Are you sure you want to permanently erase all security and audit log entries? This action cannot be reversed.",
+      confirmButtonText: "Erase All Logs",
+      isDanger: true,
+      icon: "warning",
+    });
+
+    if (!res.isConfirmed) return;
 
     try {
-      const res = await apiClient.delete("/admin/audit-logs");
-      if (res.data?.success) {
+      const apiRes = await apiClient.delete("/admin/audit-logs");
+      if (apiRes.data?.success) {
         setAuditLogs([]);
-        setActionMessage("All audit logs cleared successfully.");
+        showSuccessToast("Audit Trail Cleared");
       }
     } catch (err) {
-      console.error("Failed to clear logs:", err);
+      showErrorAlert("Clear Failed", err.response?.data?.message || err.message);
     }
   };
 

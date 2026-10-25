@@ -9,14 +9,27 @@ import {
 import { useNavigate } from "react-router";
 import { getDeviceToken } from "../utils/deviceToken";
 
+import { showConfirmModal } from "../utils/sweetalert";
+
 export default function ProfilePage() {
   const { user, role, logout } = useAuth();
   const navigate = useNavigate();
   const deviceToken = getDeviceToken();
 
-  const handleLogout = () => {
-    logout();
-    navigate("/", { replace: true });
+  const handleLogout = async () => {
+    const res = await showConfirmModal({
+      title: "Sign Out & Lock Session?",
+      text: "Are you sure you want to end your authorized session and return to the login portal?",
+      confirmButtonText: "Sign Out",
+      cancelButtonText: "Stay Logged In",
+      isDanger: true,
+      icon: "warning",
+    });
+
+    if (res.isConfirmed) {
+      logout();
+      navigate("/", { replace: true });
+    }
   };
 
   return (

@@ -1,10 +1,15 @@
+import { showWarningAlert } from "./sweetalert";
+
 /**
  * Utility to generate and print a clean, executive PDF report for the Access & Audit Log
  */
 export function exportAuditReportPDF({ users, logs, stats }) {
   const printWindow = window.open("", "_blank");
   if (!printWindow) {
-    alert("Please allow pop-ups in your browser to download/print the PDF report.");
+    showWarningAlert(
+      "Pop-Up Blocked",
+      "Please allow pop-ups for this site in your browser settings to preview and export the PDF report.",
+    );
     return;
   }
 

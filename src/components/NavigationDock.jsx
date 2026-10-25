@@ -15,13 +15,26 @@ import {
  * - Strict plum palette: Active items use `#6D4E56`, inactive use muted tones
  * - Role-gated items: Upload to Study (Advance/Admin) and Admin Dashboard (Admin only)
  */
+import { showConfirmModal } from "../utils/sweetalert";
+
 export default function NavigationDock() {
   const { user, logout, isAdmin, isAdvanceOrAdmin } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    logout();
-    navigate("/", { replace: true });
+  const handleLogout = async () => {
+    const res = await showConfirmModal({
+      title: "Exit Workspace?",
+      text: "Are you sure you want to log out and close your active study session?",
+      confirmButtonText: "Exit Workspace",
+      cancelButtonText: "Stay",
+      isDanger: false,
+      icon: "question",
+    });
+
+    if (res.isConfirmed) {
+      logout();
+      navigate("/", { replace: true });
+    }
   };
 
   const navItems = [
