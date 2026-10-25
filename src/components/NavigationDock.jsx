@@ -16,7 +16,7 @@ import {
  * - Role-gated items: Upload to Study (Advance/Admin) and Admin Dashboard (Admin only)
  */
 export default function NavigationDock() {
-  const { user, role, logout, isAdmin, isAdvanceOrAdmin } = useAuth();
+  const { user, logout, isAdmin, isAdvanceOrAdmin } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -101,15 +101,31 @@ export default function NavigationDock() {
               })}
           </nav>
 
-          <div className="w-8 h-px bg-plum/15 my-1" />
-
-          {/* User Role Badge / Tooltip */}
-          <div
-            title={`${user?.name || "User"} (${role || "general"})`}
-            className="w-12 h-12 rounded-xl bg-plum/5 border border-plum/15 flex items-center justify-center text-plum font-bold text-base cursor-default select-none uppercase"
+          {/* User Profile Avatar Link */}
+          <NavLink
+            to="/workspace/profile"
+            title={`Candidate Profile: ${user?.name || "Candidate"}`}
+            className={({ isActive }) =>
+              `relative group w-12 h-12 rounded-xl flex items-center justify-center font-bold text-base transition-all duration-150 cursor-pointer uppercase ${
+                isActive
+                  ? "bg-plum text-white shadow-xs"
+                  : "bg-plum/5 text-plum border border-plum/20 hover:bg-plum hover:text-white"
+              }`
+            }
           >
-            {(user?.name || "U").charAt(0)}
-          </div>
+            {({ isActive }) => (
+              <>
+                <span>{(user?.name || "U").charAt(0)}</span>
+                {/* Hover Tooltip */}
+                <span className="absolute left-16 px-3 py-1.5 rounded-lg bg-body-dark text-white text-base font-medium whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-150 shadow-md">
+                  Profile ({user?.name || "Candidate"})
+                </span>
+                {isActive && (
+                  <span className="absolute -left-3.5 w-1.5 h-6 rounded-r-full bg-plum" />
+                )}
+              </>
+            )}
+          </NavLink>
 
           {/* Logout Action */}
           <button
@@ -149,6 +165,22 @@ export default function NavigationDock() {
                 </NavLink>
               );
             })}
+
+          <NavLink
+            to="/workspace/profile"
+            className={({ isActive }) =>
+              `flex flex-col items-center justify-center py-1.5 px-3 rounded-lg transition-colors duration-150 ${
+                isActive
+                  ? "text-plum font-semibold"
+                  : "text-muted-label hover:text-body-dark"
+              }`
+            }
+          >
+            <div className="w-6 h-6 rounded-full bg-plum/10 text-plum font-bold flex items-center justify-center text-xs">
+              {(user?.name || "U").charAt(0)}
+            </div>
+            <span className="text-base mt-1">Profile</span>
+          </NavLink>
 
           <button
             type="button"

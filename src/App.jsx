@@ -8,6 +8,7 @@ import VocabularyPage from "./pages/VocabularyPage";
 import GrammarPage from "./pages/GrammarPage";
 import UploadStudyPage from "./pages/UploadStudyPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
+import ProfilePage from "./pages/ProfilePage";
 
 // Protected Route Guard
 function ProtectedRoute({ children, requiredRole }) {
@@ -82,6 +83,7 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+            <Route path="profile" element={<ProfilePage />} />
           </Route>
 
           {/* Catch-all 404 */}
