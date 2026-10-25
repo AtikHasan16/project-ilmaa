@@ -274,9 +274,14 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-6">
           {/* Brand & Copyright */}
           <div className="flex flex-col sm:flex-row items-center sm:space-x-3 text-center sm:text-left">
-            <span className="font-black text-plum tracking-tight text-base">Imlaa</span>
+            <span className="font-black text-plum tracking-tight text-base">
+              Imlaa
+            </span>
             <span className="hidden sm:inline text-plum/30">•</span>
-            <span>© {new Date().getFullYear()} Imlaa IELTS Workspace. All rights reserved.</span>
+            <span>
+              © {new Date().getFullYear()} Imlaa IELTS Workspace. All rights
+              reserved.
+            </span>
           </div>
 
           {/* Navigation Links */}
@@ -292,7 +297,7 @@ export default function LandingPage() {
           {/* Social Icons */}
           <div className="flex items-center space-x-4 text-plum">
             <a
-              href="https://linkedin.com"
+              href="https://linkedin.com/in/hasan-md-atik/"
               target="_blank"
               rel="noopener noreferrer"
               title="LinkedIn"
@@ -301,7 +306,7 @@ export default function LandingPage() {
               <FaLinkedin className="w-5 h-5" />
             </a>
             <a
-              href="https://github.com"
+              href="https://github.com/AtikHasan16"
               target="_blank"
               rel="noopener noreferrer"
               title="GitHub"
@@ -310,7 +315,7 @@ export default function LandingPage() {
               <FaGithub className="w-5 h-5" />
             </a>
             <a
-              href="https://discord.com"
+              href="https://discord.gg/758631940642439188"
               target="_blank"
               rel="noopener noreferrer"
               title="Discord"
