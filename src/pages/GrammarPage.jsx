@@ -226,9 +226,7 @@ export default function GrammarPage() {
       {/* ==================================================== */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-plum/15">
         <div>
-          <div className="text-base text-plum font-bold uppercase tracking-wider mb-1">
-            MODULE 02 • SYNTACTIC PRECISION • Level C1 Academic
-          </div>
+          
           <h1 className="text-3xl font-black text-body-dark tracking-tight">
             Grammar & Syntactic Accuracy
           </h1>

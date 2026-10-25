@@ -164,7 +164,8 @@ export default function VocabularyPage() {
   const [statusFeedback, setStatusFeedback] = useState(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [incorrectList, setIncorrectList] = useState([]);
-  const [showPracticeIncorrectOnly, setShowPracticeIncorrectOnly] = useState(false);
+  const [showPracticeIncorrectOnly, setShowPracticeIncorrectOnly] =
+    useState(false);
 
   // Load words when entering a flashcard group
   const loadWordsForGroup = useCallback(async (group) => {
@@ -190,14 +191,16 @@ export default function VocabularyPage() {
             pos: "Adjective",
             banglaMeaning: "খুঁতখুঁতে / সহজে সন্তুষ্ট হয় না এমন",
             synonyms: ["Meticulous", "Punctilious", "Scrupulous"],
-            exampleUsage: "He was fastidious about his appearance, always immaculate in pressed linen.",
+            exampleUsage:
+              "He was fastidious about his appearance, always immaculate in pressed linen.",
           },
           {
             word: "Ubiquitous",
             pos: "Adjective",
             banglaMeaning: "সর্বব্যাপী / যা সর্বত্র বিদ্যমান",
             synonyms: ["Omnipresent", "Pervasive", "Universal"],
-            exampleUsage: "Smartphones have become ubiquitous in modern academic life.",
+            exampleUsage:
+              "Smartphones have become ubiquitous in modern academic life.",
           },
           {
             word: "Ephemeral",
@@ -309,11 +312,8 @@ export default function VocabularyPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-plum/15">
         <div className="flex items-center space-x-3">
           <h1 className="text-3xl font-black text-body-dark tracking-tight">
-            Imlaa Vocabulary
+            Vocabulary
           </h1>
-          <span className="text-base font-bold uppercase tracking-wider px-2.5 py-0.5 rounded border border-plum/30 text-plum bg-plum/5">
-            WORKSPACE
-          </span>
         </div>
 
         {/* View Mode Toggle Button Group */}
@@ -607,7 +607,10 @@ export default function VocabularyPage() {
                         {statusFeedback === "incorrect" && (
                           <div className="flex items-center justify-center space-x-2 text-base text-rose-700 font-semibold animate-slide-up">
                             <HiExclamationCircle className="w-5 h-5" />
-                            <span>Incorrect spelling. Try listening again or reveal study card.</span>
+                            <span>
+                              Incorrect spelling. Try listening again or reveal
+                              study card.
+                            </span>
                           </div>
                         )}
                         {statusFeedback === "correct" && (
@@ -672,23 +675,24 @@ export default function VocabularyPage() {
                       </div>
 
                       {/* Row 3: Synonyms */}
-                      {currentWord.synonyms && currentWord.synonyms.length > 0 && (
-                        <div>
-                          <div className="text-base uppercase tracking-wider text-muted-label font-bold mb-2">
-                            Synonyms
+                      {currentWord.synonyms &&
+                        currentWord.synonyms.length > 0 && (
+                          <div>
+                            <div className="text-base uppercase tracking-wider text-muted-label font-bold mb-2">
+                              Synonyms
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {currentWord.synonyms.map((syn, idx) => (
+                                <span
+                                  key={idx}
+                                  className="imlaa-badge text-base py-1 px-3"
+                                >
+                                  {syn}
+                                </span>
+                              ))}
+                            </div>
                           </div>
-                          <div className="flex flex-wrap gap-2">
-                            {currentWord.synonyms.map((syn, idx) => (
-                              <span
-                                key={idx}
-                                className="imlaa-badge text-base py-1 px-3"
-                              >
-                                {syn}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                        )}
 
                       {/* Row 4: Example Sentence */}
                       {currentWord.exampleUsage && (
