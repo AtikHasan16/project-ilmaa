@@ -22,7 +22,8 @@ export async function speakWithMicrosoftTTS(text, {
   try {
     const encodedText = encodeURIComponent(cleanText);
     const encodedVoice = encodeURIComponent(voice);
-    const audioUrl = `http://localhost:5000/api/v1/tts?text=${encodedText}&voice=${encodedVoice}`;
+    const backendBase = (typeof import.meta !== "undefined" && import.meta.env?.VITE_BACKEND_URL) || "https://ilmaa-server.vercel.app";
+    const audioUrl = `${backendBase}/api/v1/tts?text=${encodedText}&voice=${encodedVoice}`;
 
     const audio = new Audio(audioUrl);
     activeAudio = audio;
