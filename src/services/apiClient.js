@@ -2,9 +2,12 @@ import { createClient } from "@supabase/supabase-js";
 import { getDeviceToken } from "../utils/deviceToken";
 
 // Supabase Cloud Configuration
-const SUPABASE_URL = "https://evjvqrxrevycnjxsnjdt.supabase.co";
+const SUPABASE_URL =
+  (typeof import.meta !== "undefined" && import.meta.env?.VITE_SUPABASE_URL) ||
+  "https://evjvqrxrevycnjxsnjdt.supabase.co";
 const SUPABASE_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2anZxcnhyZXZ5Y25qeHNuamR0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MjkxNTI5OCwiZXhwIjoyMTA4NDkxMjk4fQ.H9P2kOu9XigctvLnLXhlPe5jd2m1FFz7Fccne7Ky_1k";
+  (typeof import.meta !== "undefined" && import.meta.env?.VITE_SUPABASE_ANON_KEY) ||
+  "";
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: { persistSession: false },
