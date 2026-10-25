@@ -32,19 +32,36 @@ export async function speakWithMicrosoftTTS(text, {
       if (onEnd) onEnd();
     };
 
-    audio.onerror = (e) => {
-      console.error('[Microsoft TTS] Audio playback error:', e);
+    audio.onerror = () => {
+      // If local server is not running, seamlessly fallback to browser speech synthesis
       activeAudio = null;
-      if (onError) onError(e);
-      if (onEnd) onEnd();
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(cleanText);
+        u.rate = 0.85;
+        u.onend = () => { if (onEnd) onEnd(); };
+        u.onerror = (err) => { if (onError) onError(err); if (onEnd) onEnd(); };
+        window.speechSynthesis.speak(u);
+      } else {
+        if (onError) onError();
+        if (onEnd) onEnd();
+      }
     };
 
     await audio.play();
   } catch (err) {
-    console.error('[Microsoft TTS] Failed to play audio:', err);
     activeAudio = null;
-    if (onError) onError(err);
-    if (onEnd) onEnd();
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(cleanText);
+      u.rate = 0.85;
+      u.onend = () => { if (onEnd) onEnd(); };
+      u.onerror = (e) => { if (onError) onError(e); if (onEnd) onEnd(); };
+      window.speechSynthesis.speak(u);
+    } else {
+      if (onError) onError(err);
+      if (onEnd) onEnd();
+    }
   }
 }
 
