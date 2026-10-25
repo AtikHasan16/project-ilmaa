@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
-import { useNavigate } from "react-router";
+import { useNavigate, Link } from "react-router";
 import { HiVolumeUp } from "react-icons/hi";
 import { HiArrowRight } from "react-icons/hi2";
+import { FaLinkedin, FaGithub, FaDiscord } from "react-icons/fa6";
 import { speakWithMicrosoftTTS } from "../utils/speechTts";
 
 export default function LandingPage() {
@@ -256,17 +257,70 @@ export default function LandingPage() {
             <div className="mt-4">
               <p className="text-muted-label text-center text-sm">
                 For Access please{" "}
-                <a
-                  href="mailto:contact@ilmaa.org"
+                <Link
+                  to="/contact"
                   className="text-plum font-semibold hover:underline"
                 >
                   contact us
-                </a>
+                </Link>
               </p>
             </div>
           </div>
         </div>
       </main>
+
+      {/* Simple Clean Footer */}
+      <footer className="border-t border-plum/15 bg-white py-8 mt-16 text-muted-label text-sm">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-6">
+          {/* Brand & Copyright */}
+          <div className="flex flex-col sm:flex-row items-center sm:space-x-3 text-center sm:text-left">
+            <span className="font-black text-plum tracking-tight text-base">Imlaa</span>
+            <span className="hidden sm:inline text-plum/30">•</span>
+            <span>© {new Date().getFullYear()} Imlaa IELTS Workspace. All rights reserved.</span>
+          </div>
+
+          {/* Navigation Links */}
+          <div className="flex items-center space-x-6 text-body-dark font-medium">
+            <Link to="/about" className="hover:text-plum transition">
+              About
+            </Link>
+            <Link to="/contact" className="hover:text-plum transition">
+              Contact
+            </Link>
+          </div>
+
+          {/* Social Icons */}
+          <div className="flex items-center space-x-4 text-plum">
+            <a
+              href="https://linkedin.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="LinkedIn"
+              className="p-2 rounded-lg hover:bg-plum/10 transition"
+            >
+              <FaLinkedin className="w-5 h-5" />
+            </a>
+            <a
+              href="https://github.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="GitHub"
+              className="p-2 rounded-lg hover:bg-plum/10 transition"
+            >
+              <FaGithub className="w-5 h-5" />
+            </a>
+            <a
+              href="https://discord.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Discord"
+              className="p-2 rounded-lg hover:bg-plum/10 transition"
+            >
+              <FaDiscord className="w-5 h-5" />
+            </a>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

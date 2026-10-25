@@ -10,6 +10,9 @@ import UploadStudyPage from "./pages/UploadStudyPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
 import ProfilePage from "./pages/ProfilePage";
 
+import AboutPage from "./pages/AboutPage";
+import ContactPage from "./pages/ContactPage";
+
 // Protected Route Guard
 function ProtectedRoute({ children, requiredRole }) {
   const { isAuthenticated, loading, role } = useAuth();
@@ -50,6 +53,8 @@ export default function App() {
         <Routes>
           {/* Public Landing & Login */}
           <Route path="/" element={<LandingPage />} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/contact" element={<ContactPage />} />
 
           {/* Access status screens */}
           <Route path="/access/pending" element={<AccessPendingPage />} />
