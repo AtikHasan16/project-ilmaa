@@ -10,12 +10,12 @@ import NavigationDock from "../components/NavigationDock";
  */
 export default function WorkspaceLayout() {
   return (
-    <div className="min-h-screen w-full bg-white text-body-dark relative flex flex-col">
-      {/* Floating Navigation Dock */}
+    <div className="min-h-screen w-full bg-white text-body-dark relative flex flex-col antialiased">
+      {/* Floating Navigation Dock (Fixed to viewport) */}
       <NavigationDock />
 
-      {/* Main Workspace Canvas */}
-      <main className="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-8 py-8 md:pl-28 md:pr-8 mb-20 md:mb-8 flex flex-col justify-center">
+      {/* Main Workspace Canvas with fixed left offset on desktop */}
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-8 py-8 md:pl-28 md:pr-8 mb-20 md:mb-8 flex flex-col justify-start">
         <Outlet />
       </main>
     </div>

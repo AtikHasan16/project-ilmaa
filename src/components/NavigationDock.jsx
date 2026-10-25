@@ -56,8 +56,8 @@ export default function NavigationDock() {
       {/* ==================================================== */}
       {/* Desktop / Tablet: Floating Left Vertical Dock       */}
       {/* ==================================================== */}
-      <aside className="hidden md:flex fixed left-6 top-1/2 -translate-y-1/2 z-50 flex-col items-center">
-        <div className="imlaa-card p-3 flex flex-col items-center space-y-3 shadow-lg">
+      <aside className="hidden md:flex fixed left-5 top-1/2 -translate-y-1/2 z-50 flex-col items-center select-none pointer-events-auto">
+        <div className="imlaa-card p-3 flex flex-col items-center space-y-3 shadow-lg border border-plum/20 bg-white">
           {/* Brand Mark (Mini) */}
           <div className="w-12 h-12 rounded-xl bg-plum/10 border border-plum/20 flex items-center justify-center text-plum font-bold text-xl select-none">
             I<span className="text-plum">.</span>
