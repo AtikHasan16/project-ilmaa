@@ -193,7 +193,7 @@ export default function LandingPage() {
                 Access Workspace
               </h2>
               <span className="text-base font-mono px-3 py-1 rounded-full border border-plum/25 text-plum font-semibold">
-                v2.4
+                v1.0
               </span>
             </div>
 
@@ -289,15 +289,6 @@ export default function LandingPage() {
                 </div>
               )}
             </div>
-          </div>
-
-          {/* Under Card Status Indicators */}
-          <div className="mt-4 px-2 flex items-center justify-between text-base text-muted-label">
-            <div className="flex items-center space-x-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-plum"></span>
-              <span>Dictation Node: Online (ASR 44.1kHz)</span>
-            </div>
-            <span className="font-mono text-base">Secure TLS 1.3</span>
           </div>
         </div>
       </main>
