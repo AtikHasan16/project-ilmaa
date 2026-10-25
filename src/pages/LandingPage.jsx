@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router";
 import { HiVolumeUp } from "react-icons/hi";
-import { HiChevronDown, HiArrowRight } from "react-icons/hi2";
+import { HiArrowRight } from "react-icons/hi2";
 import { speakWithMicrosoftTTS } from "../utils/speechTts";
 
 export default function LandingPage() {
@@ -10,7 +10,6 @@ export default function LandingPage() {
   const [accessId, setAccessId] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [showIdAccordion, setShowIdAccordion] = useState(false);
   const [playingAudio, setPlayingAudio] = useState(false);
 
   const { login, isAuthenticated } = useAuth();
@@ -254,38 +253,16 @@ export default function LandingPage() {
               </button>
             </form>
 
-            {/* Accordion: Where to find ID? */}
-            <div className="mt-7 pt-5 border-t border-plum/15">
-              <button
-                type="button"
-                onClick={() => setShowIdAccordion(!showIdAccordion)}
-                className="w-full flex items-center justify-between text-base text-muted-label hover:text-body-dark transition text-left cursor-pointer"
-              >
-                <span>Where to find ID? Request administrator access</span>
-                <HiChevronDown
-                  className={`w-5 h-5 transition-transform duration-200 ${showIdAccordion ? "rotate-180" : ""}`}
-                />
-              </button>
-
-              {showIdAccordion && (
-                <div className="mt-3.5 p-4 rounded-xl border border-plum/20 bg-plum/5 text-base text-muted-label space-y-2.5 leading-relaxed">
-                  <p>
-                    10-digit IDs are issued directly upon academic enrollment.
-                    If you don't have one, please contact your supervisor or
-                    course administrator.
-                  </p>
-                  <div className="pt-2.5 border-t border-plum/15 font-mono text-base text-body-dark space-y-1">
-                    <div>
-                      Demo Admin:{" "}
-                      <span className="text-plum font-bold">Admin User</span>
-                    </div>
-                    <div>
-                      Demo Key:{" "}
-                      <span className="text-plum font-bold">1234567890</span>
-                    </div>
-                  </div>
-                </div>
-              )}
+            <div className="mt-4">
+              <p className="text-muted-label text-center text-sm">
+                For Access please{" "}
+                <a
+                  href="mailto:contact@ilmaa.org"
+                  className="text-plum font-semibold hover:underline"
+                >
+                  contact us
+                </a>
+              </p>
             </div>
           </div>
         </div>

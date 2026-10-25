@@ -177,17 +177,35 @@ const apiClient = {
           role: u.role,
           status: u.status,
           deviceToken: u.device_token,
+          deviceBound: !!u.device_token,
           createdAt: u.created_at,
           lastActiveAt: u.last_active_at,
           isOnline,
         };
       });
-      return { data: { success: true, data: users } };
+
+      const totalRegistered = users.length;
+      const approvedCount = users.filter((u) => u.status === "approved").length;
+      const activeNowCount = users.filter((u) => u.isOnline).length;
+
+      return {
+        data: {
+          success: true,
+          totalRegistered,
+          approvedCount,
+          activeNowCount,
+          users,
+          data: users,
+        },
+      };
     }
 
     // 9. Admin Audit Logs
     if (url === "/admin/audit-logs") {
-      const { data } = await supabase.from("audit_logs").select("*").order("timestamp", { ascending: false });
+      const { data } = await supabase
+        .from("audit_logs")
+        .select("*")
+        .order("timestamp", { ascending: false });
       return { data: { success: true, count: (data || []).length, data: toCamel(data || []) } };
     }
 
@@ -236,12 +254,29 @@ const apiClient = {
       const user = data && data[0] ? toCamel(data[0]) : null;
 
       if (!user) {
+        // Record failed login audit
+        supabase.from("audit_logs").insert({
+          action: "LOGIN_FAILED",
+          user_name: name || "Unknown",
+          access_id: cleanId,
+          details: "Login failed: Invalid Access ID",
+          timestamp: new Date().toISOString(),
+        }).then();
+
         const err = new Error("Invalid Access ID or Name. Please check with administrator.");
         err.response = { data: { success: false, message: "Invalid Access ID or Name." } };
         throw err;
       }
 
       if (user.name.trim().toLowerCase() !== cleanName) {
+        supabase.from("audit_logs").insert({
+          action: "LOGIN_NAME_MISMATCH",
+          user_name: name || "Unknown",
+          access_id: cleanId,
+          details: `Name mismatch attempted for ${user.name}`,
+          timestamp: new Date().toISOString(),
+        }).then();
+
         const err = new Error("Name does not match the provided Access ID.");
         err.response = { data: { success: false, message: "Name does not match the provided Access ID." } };
         throw err;
@@ -253,6 +288,16 @@ const apiClient = {
           await supabase.from("users").update({ device_token: deviceToken }).eq("access_id", cleanId);
         }
         await supabase.from("users").update({ last_active_at: new Date().toISOString() }).eq("access_id", cleanId);
+
+        // Record successful login in audit log
+        await supabase.from("audit_logs").insert({
+          action: "LOGIN_SUCCESS",
+          user_name: user.name,
+          access_id: cleanId,
+          details: `Candidate successfully logged in (${user.role} role)`,
+          timestamp: new Date().toISOString(),
+        });
+
         return {
           data: {
             success: true,
@@ -264,6 +309,14 @@ const apiClient = {
       }
 
       if (user.status === "approved" && user.deviceToken !== deviceToken) {
+        await supabase.from("audit_logs").insert({
+          action: "DEVICE_MISMATCH",
+          user_name: user.name,
+          access_id: cleanId,
+          details: "Login rejected: Candidate attempted login from unauthorized device",
+          timestamp: new Date().toISOString(),
+        });
+
         const err = new Error("This ID is bound to another browser/device.");
         err.response = { data: { success: false, status: "device_mismatch", message: "This ID is bound to another browser/device." } };
         throw err;
@@ -280,6 +333,15 @@ const apiClient = {
         status: "pending_approval",
         requested_device_token: deviceToken,
       }).eq("access_id", cleanId);
+
+      // Record access request in audit log
+      await supabase.from("audit_logs").insert({
+        action: "ACCESS_REQUESTED",
+        user_name: user.name,
+        access_id: cleanId,
+        details: "New device registration submitted, awaiting admin approval",
+        timestamp: new Date().toISOString(),
+      });
 
       return {
         data: {
@@ -474,6 +536,15 @@ const apiClient = {
       };
 
       const { data } = await supabase.from("users").insert(newUser).select();
+
+      await supabase.from("audit_logs").insert({
+        action: "ID_GENERATED",
+        user_name: newUser.name,
+        access_id: accessId,
+        details: `Generated new 10-digit ID with ${newUser.role} role`,
+        timestamp: new Date().toISOString(),
+      });
+
       return { data: { success: true, message: "Access ID generated successfully", data: toCamel(data?.[0] || newUser) } };
     }
 
@@ -492,24 +563,52 @@ const apiClient = {
         device_token: user?.requested_device_token || "token-" + Date.now(),
       }).eq("access_id", accessId);
 
+      await supabase.from("audit_logs").insert({
+        action: "ACCESS_APPROVED",
+        user_name: user?.name || "Candidate",
+        access_id: accessId,
+        details: `Approved device access with role: ${user?.role || "general"}`,
+        timestamp: new Date().toISOString(),
+      });
+
       return { data: { success: true, message: `Access approved for candidate` } };
     }
 
     // 2. Reject Access Request
     if (url.startsWith("/admin/access-requests/") && url.endsWith("/reject")) {
       const accessId = url.split("/")[3];
+      const { data: userData } = await supabase.from("users").select("name").eq("access_id", accessId).limit(1);
       await supabase.from("users").update({ status: "rejected" }).eq("access_id", accessId);
+
+      await supabase.from("audit_logs").insert({
+        action: "ACCESS_REJECTED",
+        user_name: userData?.[0]?.name || "Candidate",
+        access_id: accessId,
+        details: "Access request rejected by admin",
+        timestamp: new Date().toISOString(),
+      });
+
       return { data: { success: true, message: "Request rejected" } };
     }
 
     // 3. Reset Hardware Device
     if (url.startsWith("/admin/users/") && url.endsWith("/reset-device")) {
       const accessId = url.split("/")[3];
+      const { data: userData } = await supabase.from("users").select("name").eq("access_id", accessId).limit(1);
+
       await supabase.from("users").update({
         status: "unclaimed",
         device_token: null,
         requested_device_token: null,
       }).eq("access_id", accessId);
+
+      await supabase.from("audit_logs").insert({
+        action: "DEVICE_RESET",
+        user_name: userData?.[0]?.name || "Candidate",
+        access_id: accessId,
+        details: "Admin reset hardware device binding lock",
+        timestamp: new Date().toISOString(),
+      });
 
       return { data: { success: true, message: "Device lock cleared successfully" } };
     }
