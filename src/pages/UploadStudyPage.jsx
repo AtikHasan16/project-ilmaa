@@ -295,7 +295,7 @@ export default function UploadStudyPage() {
                 )}
               </div>
 
-              <div className="inline-flex items-center bg-white p-1 rounded-xl border border-plum/20 shadow-xs">
+              <div className="inline-flex items-center bg-white p-1 rounded-xl border border-plum/20 shadow-xs flex-wrap gap-1">
                 <button
                   type="button"
                   onClick={() => {
@@ -314,6 +314,25 @@ export default function UploadStudyPage() {
                   }`}
                 >
                   All Active Tab
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTargetDestination("listening");
+                    setBulkTopic("Studying university/college");
+                    if (rawText) {
+                      setPreviewItems(
+                        parseDelimitedText(rawText, "Studying university/college"),
+                      );
+                    }
+                  }}
+                  className={`px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
+                    targetDestination === "listening"
+                      ? "bg-plum text-white shadow-xs font-bold"
+                      : "text-muted-label hover:text-body-dark"
+                  }`}
+                >
+                  Listening Vocabs Tab
                 </button>
                 <button
                   type="button"
@@ -337,25 +356,57 @@ export default function UploadStudyPage() {
               </div>
             </div>
 
-            {/* Target Category Selector: Custom Input Box */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-              <label className="text-base font-semibold text-body-dark shrink-0">
-                {targetDestination === "active" ? "Active Topic Name:" : "Custom Uploaded Topic Name:"}
-              </label>
-              <input
-                type="text"
-                value={bulkTopic}
-                onChange={(e) => {
-                  setBulkTopic(e.target.value);
-                  if (rawText) {
-                    setPreviewItems(
-                      parseDelimitedText(rawText, e.target.value || "Custom Study"),
-                    );
+            {/* Target Category Selector: Custom Input Box with Quick Suggestion Badges */}
+            <div className="flex flex-col space-y-2">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                <label className="text-base font-semibold text-body-dark shrink-0">
+                  {targetDestination === "active"
+                    ? "Active Topic Name:"
+                    : targetDestination === "listening"
+                      ? "Listening Topic Title:"
+                      : "Custom Uploaded Topic Name:"}
+                </label>
+                <input
+                  type="text"
+                  value={bulkTopic}
+                  onChange={(e) => {
+                    setBulkTopic(e.target.value);
+                    if (rawText) {
+                      setPreviewItems(
+                        parseDelimitedText(rawText, e.target.value || "Custom Study"),
+                      );
+                    }
+                  }}
+                  placeholder={
+                    targetDestination === "active"
+                      ? "Academic Word List: Sublist A"
+                      : targetDestination === "listening"
+                        ? "e.g. Studying university/college, Subjects..."
+                        : "e.g. My IELTS Vocabulary, Medical Terms..."
                   }
-                }}
-                placeholder={targetDestination === "active" ? "Academic Word List: Sublist A" : "e.g. My IELTS Vocabulary, Medical Terms..."}
-                className="imlaa-input text-base py-2 px-3 flex-1"
-              />
+                  className="imlaa-input text-base py-2 px-3 flex-1"
+                />
+              </div>
+
+              {/* Quick Topic Title Suggestions for Listening */}
+              {targetDestination === "listening" && (
+                <div className="flex items-center gap-2 text-xs text-muted-label pt-1 pl-1 flex-wrap">
+                  <span className="font-medium">Quick 1200 Lexicon Suggestions:</span>
+                  {["Studying university/college", "Subjects", "Finance & Banking", "Accommodation"].map((sug) => (
+                    <button
+                      key={sug}
+                      type="button"
+                      onClick={() => {
+                        setBulkTopic(sug);
+                        if (rawText) setPreviewItems(parseDelimitedText(rawText, sug));
+                      }}
+                      className="px-2 py-0.5 rounded-md bg-plum/5 hover:bg-plum/10 text-plum font-semibold cursor-pointer border border-plum/15 transition"
+                    >
+                      {sug}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Textarea for Direct Copy-Paste */}
@@ -543,7 +594,7 @@ export default function UploadStudyPage() {
                 )}
               </div>
 
-              <div className="inline-flex items-center bg-white p-1 rounded-xl border border-plum/20 shadow-xs">
+              <div className="inline-flex items-center bg-white p-1 rounded-xl border border-plum/20 shadow-xs flex-wrap gap-1">
                 <button
                   type="button"
                   onClick={() => {
@@ -557,6 +608,20 @@ export default function UploadStudyPage() {
                   }`}
                 >
                   All Active Tab
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTargetDestination("listening");
+                    setTopic("Studying university/college");
+                  }}
+                  className={`px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
+                    targetDestination === "listening"
+                      ? "bg-plum text-white shadow-xs font-bold"
+                      : "text-muted-label hover:text-body-dark"
+                  }`}
+                >
+                  Listening Vocabs Tab
                 </button>
                 <button
                   type="button"

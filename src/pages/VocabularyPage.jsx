@@ -10,10 +10,16 @@ import {
   HiCheckCircle,
   HiExclamationCircle,
   HiArrowLeft,
+  HiTrash,
 } from "react-icons/hi2";
+import {
+  showConfirmModal,
+  showSuccessToast,
+  showErrorAlert,
+} from "../utils/sweetalert";
 
 // Corpus groups matching design mockup
-const PARTS = ["All Active", "Uploaded"];
+const PARTS = ["All Active", "Listening Vocabs", "Uploaded"];
 
 export default function VocabularyPage() {
   const [activePart, setActivePart] = useState("All Active");
@@ -120,7 +126,44 @@ export default function VocabularyPage() {
     });
   }
 
-  // 2. Custom Uploaded Topics (Dynamic titles from user uploads)
+  // 2. Listening Vocabs (Custom topics uploaded for listening)
+  const listeningList = vocabStats?.listeningTopics || [];
+  if (listeningList.length > 0) {
+    listeningList.forEach((lis, idx) => {
+      const topicStats = userProgress?.progressByTopic?.[lis.title] || { mastered: 0, incorrect: 0 };
+      const percent = lis.count > 0 ? Math.min(100, Math.round((topicStats.mastered / lis.count) * 100)) : 0;
+      dynamicGroups.push({
+        id: `listening-topic-${idx}-${lis.title}`,
+        part: "Listening Vocabs",
+        title: lis.title,
+        description: `IELTS listening module vocabulary (${lis.count} lexemes).`,
+        status: topicStats.mastered >= lis.count && lis.count > 0 ? "MASTERED" : topicStats.mastered > 0 ? "IN PROGRESS" : "ACTIVE",
+        wordsCount: lis.count,
+        masteredCount: topicStats.mastered,
+        incorrectCount: topicStats.incorrect,
+        progress: `${topicStats.mastered} / ${lis.count} Mastered`,
+        percent,
+        hasIncorrect: topicStats.incorrect > 0,
+      });
+    });
+  } else {
+    // Empty state placeholder for Listening Vocabs
+    dynamicGroups.push({
+      id: "listening-empty-placeholder",
+      part: "Listening Vocabs",
+      title: "No Listening Vocabs Yet",
+      description: "Upload topics like 'Studying university/college' or 'Subjects' into the Listening Vocabs tab via Upload to Study.",
+      status: "EMPTY",
+      wordsCount: 0,
+      masteredCount: 0,
+      incorrectCount: 0,
+      progress: "0 Words Available",
+      percent: 0,
+      hasIncorrect: false,
+    });
+  }
+
+  // 3. Custom Uploaded Topics (Dynamic titles from user uploads)
   const uploadedList = vocabStats?.uploadedTopics || [];
   if (uploadedList.length > 0) {
     uploadedList.forEach((up, idx) => {
@@ -254,6 +297,36 @@ export default function VocabularyPage() {
       handleStartGroup(group, false, false);
     } catch (err) {
       console.error("Failed to reset progress:", err);
+    }
+  };
+
+  // Delete entire topic card & words (Admin or owner)
+  const handleDeleteTopic = async (group) => {
+    const res = await showConfirmModal({
+      title: `Delete "${group.title}"?`,
+      text: `This will permanently delete this entire vocabulary card and all ${group.wordsCount} terms from the database.`,
+      confirmButtonText: "Yes, Delete Topic",
+      cancelButtonText: "Cancel",
+      isDanger: true,
+      icon: "warning",
+    });
+
+    if (!res.isConfirmed) return;
+
+    try {
+      const delRes = await apiClient.delete("/vocabulary/topic", {
+        data: { topic: group.title, deletedBy: user?.name || "admin" },
+      });
+      if (delRes.data?.success) {
+        showSuccessToast("Topic Deleted", delRes.data.message);
+        fetchStats();
+        fetchProgress();
+      }
+    } catch (err) {
+      showErrorAlert(
+        "Delete Failed",
+        err.response?.data?.message || err.message,
+      );
     }
   };
 
@@ -551,10 +624,25 @@ export default function VocabularyPage() {
                       </span>
                     </div>
 
-                    {/* Group Title */}
-                    <h3 className="text-xl font-bold text-body-dark leading-snug mb-2">
-                      {group.title}
-                    </h3>
+                    {/* Group Title with Delete Option for Admins */}
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <h3 className="text-xl font-bold text-body-dark leading-snug">
+                        {group.title}
+                      </h3>
+                      {user?.role === "admin" && group.status !== "EMPTY" && group.id !== "academic-sublist-a" && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteTopic(group);
+                          }}
+                          title="Delete this topic card and all its words"
+                          className="p-1.5 text-muted-label hover:text-rose-700 hover:bg-rose-50 rounded-lg transition shrink-0 cursor-pointer"
+                        >
+                          <HiTrash className="w-5 h-5" />
+                        </button>
+                      )}
+                    </div>
 
                     {/* Description */}
                     <p className="text-base text-muted-label leading-relaxed mb-4">

@@ -8,6 +8,7 @@ import VocabularyPage from "./pages/VocabularyPage";
 import GrammarPage from "./pages/GrammarPage";
 import UploadStudyPage from "./pages/UploadStudyPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
+import VocabMonitorPage from "./pages/VocabMonitorPage";
 import ProfilePage from "./pages/ProfilePage";
 
 import AboutPage from "./pages/AboutPage";
@@ -86,6 +87,14 @@ export default function App() {
               element={
                 <ProtectedRoute requiredRole="admin">
                   <AdminDashboardPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="vocab-monitor"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <VocabMonitorPage />
                 </ProtectedRoute>
               }
             />

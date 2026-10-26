@@ -5,6 +5,7 @@ import {
   HiAcademicCap,
   HiCloudArrowUp,
   HiCog6Tooth,
+  HiFolder,
   HiArrowRightOnRectangle,
 } from "react-icons/hi2";
 
@@ -55,6 +56,12 @@ export default function NavigationDock() {
       label: "Upload Study",
       icon: HiCloudArrowUp,
       show: isAdvanceOrAdmin,
+    },
+    {
+      to: "/workspace/vocab-monitor",
+      label: "Vocab Monitor",
+      icon: HiFolder,
+      show: isAdmin,
     },
     {
       to: "/workspace/admin",
