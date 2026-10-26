@@ -158,12 +158,11 @@ export default function VocabularyPage() {
   }
 
   // Load words when entering a flashcard group
-  const loadWordsForGroup = useCallback(async (group) => {
+  const loadWordsForGroup = useCallback(async (group, shouldResume = true) => {
     setLoading(true);
     setStatusFeedback(null);
     setSpellingInput("");
     setIsFlipped(false);
-    setCurrentIndex(0);
     try {
       const isUploaded = group.part === "Uploaded";
       let params = {};
@@ -187,7 +186,28 @@ export default function VocabularyPage() {
 
       if (loadedWords.length > 0) {
         setWords(loadedWords);
+
+        // Resume at the first unmastered word or saved lastIndex
+        if (shouldResume) {
+          const masteredSet = new Set(userProgress?.masteredWords || []);
+          const topicStats = userProgress?.progressByTopic?.[group.title];
+          let resumeIdx = 0;
+
+          if (typeof topicStats?.lastIndex === "number" && topicStats.lastIndex < loadedWords.length) {
+            resumeIdx = topicStats.lastIndex;
+          } else {
+            // Find the first word that hasn't been mastered yet
+            const firstUnmastered = loadedWords.findIndex((w) => !masteredSet.has(w.word));
+            if (firstUnmastered !== -1) {
+              resumeIdx = firstUnmastered;
+            }
+          }
+          setCurrentIndex(resumeIdx);
+        } else {
+          setCurrentIndex(0);
+        }
       } else {
+        setCurrentIndex(0);
         // Fallback default corpus if topic is completely empty
         setWords([
           {
@@ -215,10 +235,11 @@ export default function VocabularyPage() {
       }
     } catch (err) {
       console.error("Failed to load vocabulary:", err);
+      setCurrentIndex(0);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [userProgress]);
 
   // Reset progress for group
   const handleResetProgress = async (group) => {
@@ -230,14 +251,14 @@ export default function VocabularyPage() {
       });
       fetchProgress();
       setIncorrectList([]);
-      handleStartGroup(group);
+      handleStartGroup(group, false, false);
     } catch (err) {
       console.error("Failed to reset progress:", err);
     }
   };
 
   const handleStartGroup = useCallback(
-    async (group, incorrectOnly = false) => {
+    async (group, incorrectOnly = false, resume = true) => {
       setSelectedGroup(group);
       setViewMode("flashcard");
       setShowPracticeIncorrectOnly(incorrectOnly);
@@ -259,7 +280,7 @@ export default function VocabularyPage() {
         }
       }
 
-      loadWordsForGroup(group);
+      loadWordsForGroup(group, resume && !incorrectOnly);
     },
     [userProgress, loadWordsForGroup],
   );
@@ -327,7 +348,7 @@ export default function VocabularyPage() {
     const cleanTarget = currentWord.word.trim().toLowerCase();
     const isCorrect = cleanInput === cleanTarget;
 
-    // Send answer to backend asynchronously to persist progress
+    // Send answer to backend asynchronously to persist progress and resume point
     if (user?.accessId) {
       apiClient
         .post("/vocabulary/progress", {
@@ -335,6 +356,7 @@ export default function VocabularyPage() {
           word: currentWord.word,
           isCorrect,
           topic: selectedGroup?.title || "Academic Word List: Sublist A",
+          currentIndex,
         })
         .then((res) => {
           if (res.data?.success && res.data.data) {
