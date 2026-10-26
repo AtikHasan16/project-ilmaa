@@ -638,56 +638,74 @@ export default function VocabularyPage() {
             </div>
           ) : (
             <div className="w-full flex flex-col space-y-6">
-              {/* Step indicator & Drill Filter */}
-              <div className="flex flex-col space-y-2 px-2">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-base text-muted-label">
-                  <div className="flex items-center space-x-3">
-                    <span
-                      key={currentIndex}
-                      className="font-bold text-body-dark bg-plum/10 px-3 py-1 rounded-lg transition-all animate-slide-up"
-                    >
-                      Word {currentIndex + 1} of {activeWords.length}
-                    </span>
-                    {showPracticeIncorrectOnly && (
-                      <span className="px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 text-xs font-bold border border-rose-200">
-                        Spelling Drill: Mistakes Only
-                      </span>
-                    )}
-                  </div>
+              {/* Header Step Counter & Mode Segmented Pill */}
+              <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-1">
+                {/* Step counter with subtle animated indicator */}
+                <div className="flex items-center space-x-2.5">
+                  <span
+                    key={currentIndex}
+                    className="text-base font-bold text-body-dark bg-white px-3.5 py-1.5 rounded-xl border border-plum/20 shadow-xs transition-all animate-slide-up"
+                  >
+                    Word <span className="text-plum">{currentIndex + 1}</span> of {activeWords.length}
+                  </span>
+                </div>
 
+                {/* Integrated Segmented Toggle Pill (All Words vs Needs Practice) */}
                 {userProgress?.incorrectWords?.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (showPracticeIncorrectOnly) {
-                        setShowPracticeIncorrectOnly(false);
-                        setCurrentIndex(0);
-                        setIsFlipped(false);
-                        setSpellingInput("");
-                      } else {
-                        // Switch to incorrect only
-                        const filtered = words.filter((w) =>
-                          userProgress.incorrectWords.includes(w.word),
-                        );
-                        if (filtered.length > 0) {
-                          setIncorrectList(filtered);
-                          setShowPracticeIncorrectOnly(true);
+                  <div className="inline-flex items-center bg-plum/5 p-1 rounded-xl border border-plum/20 shadow-xs self-start sm:self-auto">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (showPracticeIncorrectOnly) {
+                          setShowPracticeIncorrectOnly(false);
                           setCurrentIndex(0);
                           setIsFlipped(false);
                           setSpellingInput("");
+                          setStatusFeedback(null);
                         }
-                      }
-                    }}
-                    className={`text-xs font-bold px-3 py-1.5 rounded-lg border transition cursor-pointer flex items-center space-x-1.5 self-start sm:self-auto ${
-                      showPracticeIncorrectOnly
-                        ? "bg-rose-100 text-rose-800 border-rose-300 hover:bg-rose-200"
-                        : "bg-white text-muted-label border-plum/20 hover:border-plum hover:text-plum"
-                    }`}
-                  >
-                    <span>{showPracticeIncorrectOnly ? "Exit Mistakes Drill (Show All)" : `Practice Mistakes Only (${userProgress.incorrectWords.length})`}</span>
-                  </button>
+                      }}
+                      className={`px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-all cursor-pointer flex items-center space-x-1.5 ${
+                        !showPracticeIncorrectOnly
+                          ? "bg-white text-plum shadow-xs font-bold"
+                          : "text-muted-label hover:text-body-dark"
+                      }`}
+                    >
+                      <span>All Words</span>
+                      <span className={`text-xs px-1.5 py-0.2 rounded-full ${!showPracticeIncorrectOnly ? "bg-plum/10 text-plum" : "bg-black/5 text-muted-label"}`}>
+                        {words.length}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!showPracticeIncorrectOnly) {
+                          const filtered = words.filter((w) =>
+                            userProgress.incorrectWords.includes(w.word),
+                          );
+                          if (filtered.length > 0) {
+                            setIncorrectList(filtered);
+                            setShowPracticeIncorrectOnly(true);
+                            setCurrentIndex(0);
+                            setIsFlipped(false);
+                            setSpellingInput("");
+                            setStatusFeedback(null);
+                          }
+                        }
+                      }}
+                      className={`px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-all cursor-pointer flex items-center space-x-1.5 ${
+                        showPracticeIncorrectOnly
+                          ? "bg-plum text-white shadow-xs font-bold"
+                          : "text-muted-label hover:text-plum"
+                      }`}
+                    >
+                      <span>Needs Practice</span>
+                      <span className={`text-xs px-1.5 py-0.2 rounded-full ${showPracticeIncorrectOnly ? "bg-white/20 text-white" : "bg-rose-100 text-rose-700 font-bold"}`}>
+                        {userProgress.incorrectWords.length}
+                      </span>
+                    </button>
+                  </div>
                 )}
-                </div>
               </div>
 
               {/* 3D Animated Flip Card with Smooth Slide Transition on Navigation */}
