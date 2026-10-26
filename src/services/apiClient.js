@@ -37,19 +37,59 @@ const apiClient = {
 
     // 1. Vocabulary Stats
     if (url === "/vocabulary/stats") {
-      const { data: allWords } = await supabase.from("vocabularies").select("topic");
+      const { data: allWords } = await supabase.from("vocabularies").select("topic, uploaded_by");
       const byTopic = {};
       const uploadedTopicsMap = {};
+      const activeTopicsMap = {};
+      const listeningTopicsMap = {};
+      let totalUploaded = 0;
 
       for (const w of allWords || []) {
         const top = w.topic || "Academic Word List: Sublist A";
         byTopic[top] = (byTopic[top] || 0) + 1;
-        if (top !== "Academic Word List: Sublist A") {
+
+        const lowerTopic = top.toLowerCase();
+        const uploadedBy = (w.uploaded_by || "").toLowerCase();
+
+        // Check if item belongs to Listening Vocabs:
+        // Topic is 'Studying university/college', 'Subjects', or contains 'listening' / '1200'
+        const isListening =
+          lowerTopic.includes("studying university") ||
+          lowerTopic.includes("subjects") ||
+          lowerTopic.includes("listening") ||
+          lowerTopic.includes("1200");
+
+        // Check if item belongs to All Active:
+        // Explicitly academic word list or uploaded by admin or active
+        const isAcademic = lowerTopic.includes("academic word list");
+        const isActive = isAcademic || uploadedBy.includes("active");
+
+        if (isListening) {
+          listeningTopicsMap[top] = (listeningTopicsMap[top] || 0) + 1;
+        } else if (isActive) {
+          activeTopicsMap[top] = (activeTopicsMap[top] || 0) + 1;
+        } else {
+          totalUploaded += 1;
           uploadedTopicsMap[top] = (uploadedTopicsMap[top] || 0) + 1;
         }
       }
 
+      // Default Academic Word List if empty in DB
+      if (!activeTopicsMap["Academic Word List: Sublist A"]) {
+        activeTopicsMap["Academic Word List: Sublist A"] = byTopic["Academic Word List: Sublist A"] || 300;
+      }
+
       const uploadedTopics = Object.entries(uploadedTopicsMap).map(([title, count]) => ({
+        title,
+        count,
+      }));
+
+      const activeTopics = Object.entries(activeTopicsMap).map(([title, count]) => ({
+        title,
+        count,
+      }));
+
+      const listeningTopics = Object.entries(listeningTopicsMap).map(([title, count]) => ({
         title,
         count,
       }));
@@ -58,7 +98,10 @@ const apiClient = {
         data: {
           success: true,
           totalCount: (allWords || []).length,
+          uploadedCount: totalUploaded,
           byTopic,
+          activeTopics,
+          listeningTopics,
           uploadedTopics,
         },
       };
@@ -200,8 +243,8 @@ const apiClient = {
       };
     }
 
-    // 9. Admin Audit Logs
-    if (url === "/admin/audit-logs") {
+    // 9. Admin Audit Logs & Vocab Audit Logs
+    if (url === "/admin/audit-logs" || url === "/vocabulary/audit-logs") {
       const { data } = await supabase
         .from("audit_logs")
         .select("*")
@@ -470,7 +513,7 @@ const apiClient = {
 
     // 7. Upload Single Word
     if (url === "/vocabulary") {
-      const { word, pos, banglaMeaning, synonyms, exampleUsage, topic, uploadedBy } = body;
+      const { word, pos, banglaMeaning, synonyms, exampleUsage, topic, targetTab, uploadedBy } = body;
       const synList = Array.isArray(synonyms)
         ? synonyms
         : typeof synonyms === "string"
@@ -479,21 +522,31 @@ const apiClient = {
 
       const newWord = {
         word: word.trim(),
-        pos: pos.trim(),
+        pos: (pos || "Unknown").trim(),
         bangla_meaning: banglaMeaning.trim(),
         synonyms: synList,
         example_usage: (exampleUsage || "").trim(),
         topic: topic || "Uploaded",
-        uploaded_by: uploadedBy || "user-upload",
+        uploaded_by: uploadedBy || (targetTab === "active" ? "admin-active" : "user-upload"),
       };
 
       const { data } = await supabase.from("vocabularies").insert(newWord).select();
+
+      await supabase.from("audit_logs").insert({
+        action: "VOCAB_UPLOADED",
+        user_name: uploadedBy || "candidate",
+        access_id: "STUDENT",
+        details: `Uploaded word "${word.trim()}" to topic "${newWord.topic}"`,
+        timestamp: new Date().toISOString(),
+      });
+
       return { data: { success: true, message: "Word uploaded successfully", data: toCamel(data?.[0] || newWord) } };
     }
 
     // 8. Bulk Import Words
     if (url === "/vocabulary/bulk") {
-      const { items, defaultTopic = "Uploaded", uploadedBy = "bulk-upload" } = body;
+      const { items, defaultTopic = "Uploaded", targetTab = "active", uploadedBy = "bulk-upload" } = body;
+      const actualUploader = uploadedBy || (targetTab === "active" ? "admin-active" : "bulk-upload");
       const docs = (items || []).map((row) => ({
         word: row.word.trim(),
         pos: (row.pos || "Unknown").trim(),
@@ -501,15 +554,16 @@ const apiClient = {
         synonyms: Array.isArray(row.synonyms) ? row.synonyms : [],
         example_usage: (row.exampleUsage || "").trim(),
         topic: (row.topic || defaultTopic).trim(),
-        uploaded_by: uploadedBy,
+        uploaded_by: actualUploader,
       }));
 
       await supabase.from("vocabularies").insert(docs);
       await supabase.from("audit_logs").insert({
         action: "VOCAB_BULK_UPLOAD",
-        user_name: uploadedBy,
-        access_id: "SYSTEM",
-        details: `Bulk imported ${docs.length} words`,
+        user_name: actualUploader,
+        access_id: uploadedBy === "admin" ? "ADMIN" : "SYSTEM",
+        details: `Bulk imported ${docs.length} words under "${defaultTopic}" [tab: ${targetTab}]`,
+        timestamp: new Date().toISOString(),
       });
 
       return { data: { success: true, count: docs.length, message: `Successfully imported ${docs.length} words` } };
@@ -616,15 +670,55 @@ const apiClient = {
     throw new Error(`Unhandled PATCH endpoint: ${url}`);
   },
 
-  async delete(url) {
-    // 1. Delete Single Audit Log
+  async delete(url, config = {}) {
+    // 1. Delete Vocabulary Topic (card and all terms in it)
+    if (url === "/vocabulary/topic") {
+      const topicName = config.data?.topic;
+      const deletedBy = config.data?.deletedBy || "admin";
+      if (!topicName) {
+        throw new Error("Missing topic name to delete");
+      }
+
+      const { data: existingWords } = await supabase
+        .from("vocabularies")
+        .select("id")
+        .eq("topic", topicName);
+      const count = existingWords?.length || 0;
+
+      await supabase.from("vocabularies").delete().eq("topic", topicName);
+
+      await supabase.from("audit_logs").insert({
+        action: "VOCAB_TOPIC_DELETED",
+        user_name: deletedBy,
+        access_id: "ADMIN",
+        details: `Deleted topic "${topicName}" (${count} words removed)`,
+        timestamp: new Date().toISOString(),
+      });
+
+      return {
+        data: {
+          success: true,
+          message: `Topic "${topicName}" and all its ${count} words deleted successfully.`,
+          deletedCount: count,
+        },
+      };
+    }
+
+    // 2. Delete Single Vocabulary Word
+    if (url.startsWith("/vocabulary/")) {
+      const wordId = url.split("/")[2];
+      await supabase.from("vocabularies").delete().eq("id", wordId);
+      return { data: { success: true, message: "Word deleted successfully" } };
+    }
+
+    // 3. Delete Single Audit Log
     if (url.startsWith("/admin/audit-logs/")) {
       const logId = url.split("/")[3];
       await supabase.from("audit_logs").delete().eq("id", logId);
       return { data: { success: true, message: "Audit log deleted" } };
     }
 
-    // 2. Delete All Audit Logs
+    // 4. Delete All Audit Logs
     if (url === "/admin/audit-logs") {
       await supabase.from("audit_logs").delete().neq("action", "");
       return { data: { success: true, message: "All audit logs cleared" } };
