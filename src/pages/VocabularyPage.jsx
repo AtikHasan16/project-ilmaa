@@ -330,9 +330,12 @@ export default function VocabularyPage() {
     }
   };
 
+  const [slideDirection, setSlideDirection] = useState("next"); // 'next' | 'prev'
+
   const handleNext = useCallback(() => {
     setCurrentIndex((prev) => {
       if (prev < activeWords.length - 1) {
+        setSlideDirection("next");
         setIsFlipped(false);
         setSpellingInput("");
         setStatusFeedback(null);
@@ -345,6 +348,7 @@ export default function VocabularyPage() {
   const handlePrev = useCallback(() => {
     setCurrentIndex((prev) => {
       if (prev > 0) {
+        setSlideDirection("prev");
         setIsFlipped(false);
         setSpellingInput("");
         setStatusFeedback(null);
@@ -635,17 +639,21 @@ export default function VocabularyPage() {
           ) : (
             <div className="w-full flex flex-col space-y-6">
               {/* Step indicator & Drill Filter */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-base text-muted-label px-2">
-                <div className="flex items-center space-x-3">
-                  <span className="font-semibold text-body-dark">
-                    Word {currentIndex + 1} of {activeWords.length}
-                  </span>
-                  {showPracticeIncorrectOnly && (
-                    <span className="px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 text-xs font-bold border border-rose-200">
-                      Spelling Drill: Mistakes Only
+              <div className="flex flex-col space-y-2 px-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-base text-muted-label">
+                  <div className="flex items-center space-x-3">
+                    <span
+                      key={currentIndex}
+                      className="font-bold text-body-dark bg-plum/10 px-3 py-1 rounded-lg transition-all animate-slide-up"
+                    >
+                      Word {currentIndex + 1} of {activeWords.length}
                     </span>
-                  )}
-                </div>
+                    {showPracticeIncorrectOnly && (
+                      <span className="px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 text-xs font-bold border border-rose-200">
+                        Spelling Drill: Mistakes Only
+                      </span>
+                    )}
+                  </div>
 
                 {userProgress?.incorrectWords?.length > 0 && (
                   <button
@@ -679,10 +687,18 @@ export default function VocabularyPage() {
                     <span>{showPracticeIncorrectOnly ? "Exit Mistakes Drill (Show All)" : `Practice Mistakes Only (${userProgress.incorrectWords.length})`}</span>
                   </button>
                 )}
+                </div>
               </div>
 
-              {/* 3D Animated Flip Card */}
-              <div className="imlaa-flip-card-container">
+              {/* 3D Animated Flip Card with Smooth Slide Transition on Navigation */}
+              <div
+                key={currentIndex}
+                className={`imlaa-flip-card-container ${
+                  slideDirection === "next"
+                    ? "animate-card-next"
+                    : "animate-card-prev"
+                }`}
+              >
                 <div
                   className={`imlaa-flip-card-inner ${
                     isFlipped ? "is-flipped" : ""

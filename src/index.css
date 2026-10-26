@@ -213,6 +213,43 @@
     animation: imlaaSlideIn 300ms ease-out forwards;
   }
 
+  /* Flashcard slide transitions when moving forward / backward - Smooth & clearly noticeable */
+  @keyframes cardSlideNext {
+    0% {
+      opacity: 0.15;
+      transform: translateX(110px) scale(0.95);
+    }
+    60% {
+      opacity: 0.9;
+    }
+    100% {
+      opacity: 1;
+      transform: translateX(0) scale(1);
+    }
+  }
+
+  @keyframes cardSlidePrev {
+    0% {
+      opacity: 0.15;
+      transform: translateX(-110px) scale(0.95);
+    }
+    60% {
+      opacity: 0.9;
+    }
+    100% {
+      opacity: 1;
+      transform: translateX(0) scale(1);
+    }
+  }
+
+  .animate-card-next {
+    animation: cardSlideNext 550ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
+  .animate-card-prev {
+    animation: cardSlidePrev 550ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
   /* SweetAlert2 Custom Clean Design */
   .imlaa-swal-popup {
     border-radius: 1rem !important;
