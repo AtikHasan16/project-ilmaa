@@ -330,23 +330,70 @@ export default function VocabularyPage() {
     }
   };
 
-  const handleNext = () => {
-    if (currentIndex < activeWords.length - 1) {
-      setCurrentIndex((prev) => prev + 1);
-      setIsFlipped(false);
-      setSpellingInput("");
-      setStatusFeedback(null);
-    }
-  };
+  const handleNext = useCallback(() => {
+    setCurrentIndex((prev) => {
+      if (prev < activeWords.length - 1) {
+        setIsFlipped(false);
+        setSpellingInput("");
+        setStatusFeedback(null);
+        return prev + 1;
+      }
+      return prev;
+    });
+  }, [activeWords.length]);
 
-  const handlePrev = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex((prev) => prev - 1);
-      setIsFlipped(false);
-      setSpellingInput("");
-      setStatusFeedback(null);
-    }
-  };
+  const handlePrev = useCallback(() => {
+    setCurrentIndex((prev) => {
+      if (prev > 0) {
+        setIsFlipped(false);
+        setSpellingInput("");
+        setStatusFeedback(null);
+        return prev - 1;
+      }
+      return prev;
+    });
+  }, []);
+
+  // Keyboard Shortcuts:
+  // - Tab: Flip card
+  // - ArrowRight: Move forward to next word
+  // - ArrowLeft: Move backward to previous word
+  useEffect(() => {
+    if (viewMode !== "flashcard") return;
+
+    const handleKeyDown = (e) => {
+      // Tab key flips the flashcard
+      if (e.key === "Tab") {
+        e.preventDefault();
+        setIsFlipped((prev) => !prev);
+        return;
+      }
+
+      // If user is currently typing in an input text field and has text,
+      // allow left/right cursor caret navigation within the input text unless modifier is pressed
+      const isInput = e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA";
+
+      if (e.key === "ArrowRight") {
+        // If inside spelling input with text, don't hijack unless end of input or modifier key
+        if (isInput && e.target.selectionStart !== e.target.selectionEnd) return;
+        if (isInput && e.target.value.length > 0 && e.target.selectionStart < e.target.value.length) return;
+
+        e.preventDefault();
+        handleNext();
+      } else if (e.key === "ArrowLeft") {
+        if (isInput && e.target.selectionStart !== e.target.selectionEnd) return;
+        if (isInput && e.target.value.length > 0 && e.target.selectionStart > 0) return;
+
+        e.preventDefault();
+        handlePrev();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [viewMode, handleNext, handlePrev]);
 
   const filteredGroups = dynamicGroups.filter((g) => g.part === activePart);
 
@@ -714,9 +761,13 @@ export default function VocabularyPage() {
                           <button
                             type="button"
                             onClick={() => setIsFlipped(true)}
-                            className="imlaa-btn-secondary py-3.5 text-base"
+                            className="imlaa-btn-secondary py-3.5 text-base flex items-center justify-center space-x-2"
+                            title="Flip Card (Press Tab)"
                           >
-                            Flip Card
+                            <span>Flip Card</span>
+                            <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-xs font-mono bg-plum/10 text-plum rounded border border-plum/20">
+                              Tab
+                            </kbd>
                           </button>
                         </div>
                       </form>
@@ -789,7 +840,10 @@ export default function VocabularyPage() {
                         </div>
                       )}
 
-                      <div className="pt-1 flex justify-end">
+                      <div className="pt-1 flex items-center justify-between">
+                        <span className="text-xs text-muted-label flex items-center gap-1.5">
+                          Press <kbd className="px-1.5 py-0.5 text-xs font-mono bg-plum/10 text-plum rounded border border-plum/20">Tab</kbd> to flip back
+                        </span>
                         <button
                           type="button"
                           onClick={() => setIsFlipped(false)}
@@ -804,41 +858,66 @@ export default function VocabularyPage() {
               </div>
 
               {/* Bottom Nav Controls */}
-              <div className="flex items-center justify-between gap-4 pt-2">
-                <button
-                  type="button"
-                  onClick={handlePrev}
-                  disabled={currentIndex === 0}
-                  className="imlaa-btn-secondary py-3 px-5 text-base space-x-2"
-                >
-                  <HiChevronLeft className="w-5 h-5" />
-                  <span>Previous</span>
-                </button>
+              <div className="flex flex-col space-y-2 pt-2">
+                <div className="flex items-center justify-between gap-4">
+                  <button
+                    type="button"
+                    onClick={handlePrev}
+                    disabled={currentIndex === 0}
+                    className="imlaa-btn-secondary py-3 px-5 text-base flex items-center space-x-2"
+                    title="Previous Word (Left Arrow ←)"
+                  >
+                    <HiChevronLeft className="w-5 h-5" />
+                    <span>Previous</span>
+                    <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-xs font-mono bg-plum/10 text-plum rounded border border-plum/20">
+                      ←
+                    </kbd>
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCurrentIndex(0);
-                    setIsFlipped(false);
-                    setSpellingInput("");
-                    setStatusFeedback(null);
-                  }}
-                  title="Restart group"
-                  className="imlaa-btn-secondary py-3 px-4 text-base space-x-1.5"
-                >
-                  <HiArrowPath className="w-5 h-5" />
-                  <span>Restart</span>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCurrentIndex(0);
+                      setIsFlipped(false);
+                      setSpellingInput("");
+                      setStatusFeedback(null);
+                    }}
+                    title="Restart group"
+                    className="imlaa-btn-secondary py-3 px-4 text-base space-x-1.5"
+                  >
+                    <HiArrowPath className="w-5 h-5" />
+                    <span>Restart</span>
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={handleNext}
-                  disabled={currentIndex === activeWords.length - 1}
-                  className="imlaa-btn-primary py-3 px-5 text-base space-x-2"
-                >
-                  <span>Next Word</span>
-                  <HiChevronRight className="w-5 h-5" />
-                </button>
+                  <button
+                    type="button"
+                    onClick={handleNext}
+                    disabled={currentIndex === activeWords.length - 1}
+                    className="imlaa-btn-primary py-3 px-5 text-base flex items-center space-x-2"
+                    title="Next Word (Right Arrow →)"
+                  >
+                    <span>Next Word</span>
+                    <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-xs font-mono bg-white/20 text-white rounded border border-white/30">
+                      →
+                    </kbd>
+                    <HiChevronRight className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Subtle keyboard shortcut guide bar */}
+                <div className="flex items-center justify-center gap-4 text-xs text-muted-label pt-1 select-none">
+                  <span className="flex items-center gap-1">
+                    <kbd className="px-1.5 py-0.5 font-mono bg-plum/5 text-plum rounded border border-plum/20">Tab</kbd> Flip
+                  </span>
+                  <span>•</span>
+                  <span className="flex items-center gap-1">
+                    <kbd className="px-1.5 py-0.5 font-mono bg-plum/5 text-plum rounded border border-plum/20">←</kbd> Previous
+                  </span>
+                  <span>•</span>
+                  <span className="flex items-center gap-1">
+                    <kbd className="px-1.5 py-0.5 font-mono bg-plum/5 text-plum rounded border border-plum/20">→</kbd> Next
+                  </span>
+                </div>
               </div>
             </div>
           )}
