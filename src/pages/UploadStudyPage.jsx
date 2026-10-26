@@ -67,7 +67,7 @@ export default function UploadStudyPage() {
         exampleUsage: exampleUsage.trim(),
         topic: selectedTopic,
         targetTab: targetDestination,
-        uploadedBy: isAdmin ? "admin" : (user?.name || "user-upload"),
+        uploadedBy: `${targetDestination}:${isAdmin ? "admin" : (user?.name || "user-upload")}`,
       });
 
       if (res.data?.success) {
@@ -152,7 +152,7 @@ export default function UploadStudyPage() {
         items: previewItems,
         defaultTopic: bulkTopic,
         targetTab: targetDestination,
-        uploadedBy: isAdmin ? "admin" : (user?.name || "bulk-sheet-import"),
+        uploadedBy: `${targetDestination}:${isAdmin ? "admin" : (user?.name || "bulk-import")}`,
       });
 
       if (res.data?.success) {

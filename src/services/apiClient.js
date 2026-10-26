@@ -51,22 +51,23 @@ const apiClient = {
         const lowerTopic = top.toLowerCase();
         const uploadedBy = (w.uploaded_by || "").toLowerCase();
 
-        // Check if item belongs to Listening Vocabs:
-        // Topic is 'Studying university/college', 'Subjects', or contains 'listening' / '1200'
-        const isListening =
+        // 1. Check if explicitly tagged in uploaded_by (e.g. 'active:...', 'listening:...', 'uploaded:...')
+        const isTaggedActive = uploadedBy.startsWith("active:") || uploadedBy.includes("active") || uploadedBy === "admin";
+        const isTaggedListening = uploadedBy.startsWith("listening:") || uploadedBy.includes("listening");
+        const isTaggedUploaded = uploadedBy.startsWith("uploaded:");
+
+        // 2. Check topic title semantic heuristics
+        const isListeningTitle =
           lowerTopic.includes("studying university") ||
           lowerTopic.includes("subjects") ||
           lowerTopic.includes("listening") ||
           lowerTopic.includes("1200");
 
-        // Check if item belongs to All Active:
-        // Explicitly academic word list or uploaded by admin or active
-        const isAcademic = lowerTopic.includes("academic word list");
-        const isActive = isAcademic || uploadedBy.includes("active");
+        const isAcademicTitle = lowerTopic.includes("academic word list");
 
-        if (isListening) {
+        if (isTaggedListening || (!isTaggedActive && !isTaggedUploaded && isListeningTitle)) {
           listeningTopicsMap[top] = (listeningTopicsMap[top] || 0) + 1;
-        } else if (isActive) {
+        } else if (isTaggedActive || isAcademicTitle) {
           activeTopicsMap[top] = (activeTopicsMap[top] || 0) + 1;
         } else {
           totalUploaded += 1;
@@ -256,8 +257,6 @@ const apiClient = {
   },
 
   async post(url, body = {}) {
-    const token = getDeviceToken();
-
     // 1. Auth: Validate Device on Page Load
     if (url === "/auth/validate-device") {
       const { accessId, deviceToken } = body;
@@ -397,8 +396,9 @@ const apiClient = {
 
     // 3. Auth: Heartbeat
     if (url === "/auth/heartbeat") {
-      if (token) {
-        supabase.from("users").update({ last_active_at: new Date().toISOString() }).eq("device_token", token).then();
+      const deviceToken = getDeviceToken();
+      if (deviceToken) {
+        supabase.from("users").update({ last_active_at: new Date().toISOString() }).eq("device_token", deviceToken).then();
       }
       return { data: { success: true } };
     }
@@ -513,12 +513,18 @@ const apiClient = {
 
     // 7. Upload Single Word
     if (url === "/vocabulary") {
-      const { word, pos, banglaMeaning, synonyms, exampleUsage, topic, targetTab, uploadedBy } = body;
+      const { word, pos, banglaMeaning, synonyms, exampleUsage, topic, targetTab = "active", uploadedBy } = body;
       const synList = Array.isArray(synonyms)
         ? synonyms
         : typeof synonyms === "string"
         ? synonyms.split(",").map((s) => s.trim()).filter(Boolean)
         : [];
+
+      // Encode destination in uploaded_by so stats can always accurately categorize
+      const resolvedUploader =
+        uploadedBy && uploadedBy.includes(":")
+          ? uploadedBy
+          : `${targetTab}:${uploadedBy || "user"}`;
 
       const newWord = {
         word: word.trim(),
@@ -527,7 +533,7 @@ const apiClient = {
         synonyms: synList,
         example_usage: (exampleUsage || "").trim(),
         topic: topic || "Uploaded",
-        uploaded_by: uploadedBy || (targetTab === "active" ? "admin-active" : "user-upload"),
+        uploaded_by: resolvedUploader,
       };
 
       const { data } = await supabase.from("vocabularies").insert(newWord).select();
@@ -536,7 +542,7 @@ const apiClient = {
         action: "VOCAB_UPLOADED",
         user_name: uploadedBy || "candidate",
         access_id: "STUDENT",
-        details: `Uploaded word "${word.trim()}" to topic "${newWord.topic}"`,
+        details: `Uploaded word "${word.trim()}" to topic "${newWord.topic}" [tab: ${targetTab}]`,
         timestamp: new Date().toISOString(),
       });
 
@@ -546,7 +552,11 @@ const apiClient = {
     // 8. Bulk Import Words
     if (url === "/vocabulary/bulk") {
       const { items, defaultTopic = "Uploaded", targetTab = "active", uploadedBy = "bulk-upload" } = body;
-      const actualUploader = uploadedBy || (targetTab === "active" ? "admin-active" : "bulk-upload");
+      const resolvedUploader =
+        uploadedBy && uploadedBy.includes(":")
+          ? uploadedBy
+          : `${targetTab}:${uploadedBy || "bulk-import"}`;
+
       const docs = (items || []).map((row) => ({
         word: row.word.trim(),
         pos: (row.pos || "Unknown").trim(),
@@ -554,14 +564,14 @@ const apiClient = {
         synonyms: Array.isArray(row.synonyms) ? row.synonyms : [],
         example_usage: (row.exampleUsage || "").trim(),
         topic: (row.topic || defaultTopic).trim(),
-        uploaded_by: actualUploader,
+        uploaded_by: resolvedUploader,
       }));
 
       await supabase.from("vocabularies").insert(docs);
       await supabase.from("audit_logs").insert({
         action: "VOCAB_BULK_UPLOAD",
-        user_name: actualUploader,
-        access_id: uploadedBy === "admin" ? "ADMIN" : "SYSTEM",
+        user_name: uploadedBy || "admin",
+        access_id: uploadedBy?.toLowerCase().includes("admin") ? "ADMIN" : "SYSTEM",
         details: `Bulk imported ${docs.length} words under "${defaultTopic}" [tab: ${targetTab}]`,
         timestamp: new Date().toISOString(),
       });

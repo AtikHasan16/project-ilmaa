@@ -6,10 +6,8 @@ import {
   HiClipboardDocumentList,
   HiTrash,
   HiArrowPath,
-  HiArrowDownTray,
   HiMagnifyingGlass,
   HiBookOpen,
-  HiShieldCheck,
   HiClock,
 } from "react-icons/hi2";
 import {
@@ -410,7 +408,7 @@ export default function VocabMonitorPage() {
               No matching vocabulary words found.
             </div>
           ) : (
-            <div className="overflow-x-auto max-h-[600px]">
+            <div className="overflow-x-auto max-h-150">
               <table className="w-full text-left text-base">
                 <thead className="sticky top-0 bg-white">
                   <tr className="border-b border-plum/20 text-muted-label uppercase text-sm font-bold">
@@ -479,7 +477,7 @@ export default function VocabMonitorPage() {
               No audit logs recorded yet.
             </div>
           ) : (
-            <div className="overflow-x-auto max-h-[600px]">
+            <div className="overflow-x-auto max-h-150">
               <table className="w-full text-left text-base">
                 <thead className="sticky top-0 bg-white">
                   <tr className="border-b border-plum/20 text-muted-label uppercase text-sm font-bold">
