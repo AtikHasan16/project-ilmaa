@@ -1,11 +1,13 @@
 import { useState, useRef } from "react";
 import apiClient from "../services/apiClient";
+import { useAuth } from "../context/AuthContext";
 import {
   HiCloudArrowUp,
   HiDocumentText,
   HiDocumentArrowUp,
   HiTableCells,
   HiCheckCircle,
+  HiShieldCheck,
 } from "react-icons/hi2";
 import {
   showConfirmModal,
@@ -15,7 +17,13 @@ import {
 import { parseDelimitedText } from "../utils/csvParser";
 
 export default function UploadStudyPage() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+
   const [activeTab, setActiveTab] = useState("bulk"); // 'bulk' | 'single'
+
+  // Destination tab: 'active' (All Active corpus) vs 'uploaded' (Uploaded corpus)
+  const [targetDestination, setTargetDestination] = useState("active");
 
   // Single upload state
   const [word, setWord] = useState("");
@@ -23,11 +31,11 @@ export default function UploadStudyPage() {
   const [banglaMeaning, setBanglaMeaning] = useState("");
   const [synonyms, setSynonyms] = useState("");
   const [exampleUsage, setExampleUsage] = useState("");
-  const [topic, setTopic] = useState("Uploaded");
+  const [topic, setTopic] = useState("Academic Word List: Sublist A");
 
   // Bulk upload state
   const [rawText, setRawText] = useState("");
-  const [bulkTopic, setBulkTopic] = useState("Uploaded");
+  const [bulkTopic, setBulkTopic] = useState("Academic Word List: Sublist A");
   const [previewItems, setPreviewItems] = useState([]);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
@@ -47,6 +55,7 @@ export default function UploadStudyPage() {
 
     setImporting(true);
     try {
+      const selectedTopic = topic.trim() || (targetDestination === "active" ? "Academic Word List: Sublist A" : "Uploaded");
       const res = await apiClient.post("/vocabulary", {
         word: word.trim(),
         pos,
@@ -56,13 +65,15 @@ export default function UploadStudyPage() {
           .map((s) => s.trim())
           .filter(Boolean),
         exampleUsage: exampleUsage.trim(),
-        topic: topic.trim() || "Uploaded",
+        topic: selectedTopic,
+        targetTab: targetDestination,
+        uploadedBy: isAdmin ? "admin" : (user?.name || "user-upload"),
       });
 
       if (res.data?.success) {
         showSuccessToast(
           "Word Added!",
-          `"${word.trim()}" successfully saved to ${topic || "Uploaded"}.`,
+          `"${word.trim()}" successfully saved to ${targetDestination === "active" ? "All Active" : "Uploaded"} (${selectedTopic}).`,
         );
         setWord("");
         setBanglaMeaning("");
@@ -123,9 +134,10 @@ export default function UploadStudyPage() {
       return;
     }
 
+    const destLabel = targetDestination === "active" ? "All Active Corpus" : "Uploaded Corpus";
     const confirmRes = await showConfirmModal({
       title: "Confirm Bulk Import?",
-      text: `Upload ${previewItems.length} vocabulary entries into "${bulkTopic}"?`,
+      text: `Upload ${previewItems.length} vocabulary entries into [${destLabel}] under "${bulkTopic}"?`,
       confirmButtonText: "Start Import",
       icon: "question",
     });
@@ -139,7 +151,8 @@ export default function UploadStudyPage() {
       const res = await apiClient.post("/vocabulary/bulk", {
         items: previewItems,
         defaultTopic: bulkTopic,
-        uploadedBy: "bulk-sheet-import",
+        targetTab: targetDestination,
+        uploadedBy: isAdmin ? "admin" : (user?.name || "bulk-sheet-import"),
       });
 
       if (res.data?.success) {
@@ -268,10 +281,66 @@ export default function UploadStudyPage() {
               </div>
             </div>
 
+            {/* Target Corpus Destination Selector (Admin / Active vs Uploaded) */}
+            <div className="p-4 rounded-xl bg-plum/5 border border-plum/15 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center space-x-2">
+                <HiShieldCheck className={`w-5 h-5 ${isAdmin ? "text-plum" : "text-muted-label"}`} />
+                <span className="text-base font-bold text-body-dark">
+                  Target Corpus Destination:
+                </span>
+                {isAdmin && (
+                  <span className="px-2 py-0.5 rounded-full bg-plum/10 text-plum text-xs font-bold">
+                    Admin Privileges
+                  </span>
+                )}
+              </div>
+
+              <div className="inline-flex items-center bg-white p-1 rounded-xl border border-plum/20 shadow-xs">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTargetDestination("active");
+                    setBulkTopic("Academic Word List: Sublist A");
+                    if (rawText) {
+                      setPreviewItems(
+                        parseDelimitedText(rawText, "Academic Word List: Sublist A"),
+                      );
+                    }
+                  }}
+                  className={`px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
+                    targetDestination === "active"
+                      ? "bg-plum text-white shadow-xs font-bold"
+                      : "text-muted-label hover:text-body-dark"
+                  }`}
+                >
+                  All Active Tab
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTargetDestination("uploaded");
+                    setBulkTopic("Uploaded Custom Topic");
+                    if (rawText) {
+                      setPreviewItems(
+                        parseDelimitedText(rawText, "Uploaded Custom Topic"),
+                      );
+                    }
+                  }}
+                  className={`px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
+                    targetDestination === "uploaded"
+                      ? "bg-plum text-white shadow-xs font-bold"
+                      : "text-muted-label hover:text-body-dark"
+                  }`}
+                >
+                  Uploaded Tab
+                </button>
+              </div>
+            </div>
+
             {/* Target Category Selector: Custom Input Box */}
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
               <label className="text-base font-semibold text-body-dark shrink-0">
-                Custom Target Topic Name:
+                {targetDestination === "active" ? "Active Topic Name:" : "Custom Uploaded Topic Name:"}
               </label>
               <input
                 type="text"
@@ -284,7 +353,7 @@ export default function UploadStudyPage() {
                     );
                   }
                 }}
-                placeholder="e.g. My IELTS Vocabulary, Medical Terms..."
+                placeholder={targetDestination === "active" ? "Academic Word List: Sublist A" : "e.g. My IELTS Vocabulary, Medical Terms..."}
                 className="imlaa-input text-base py-2 px-3 flex-1"
               />
             </div>
@@ -460,6 +529,52 @@ export default function UploadStudyPage() {
               />
             </div>
 
+            {/* Target Corpus Destination Selector (Admin / Active vs Uploaded) */}
+            <div className="p-4 rounded-xl bg-plum/5 border border-plum/15 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center space-x-2">
+                <HiShieldCheck className={`w-5 h-5 ${isAdmin ? "text-plum" : "text-muted-label"}`} />
+                <span className="text-base font-bold text-body-dark">
+                  Target Corpus Destination:
+                </span>
+                {isAdmin && (
+                  <span className="px-2 py-0.5 rounded-full bg-plum/10 text-plum text-xs font-bold">
+                    Admin Privileges
+                  </span>
+                )}
+              </div>
+
+              <div className="inline-flex items-center bg-white p-1 rounded-xl border border-plum/20 shadow-xs">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTargetDestination("active");
+                    setTopic("Academic Word List: Sublist A");
+                  }}
+                  className={`px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
+                    targetDestination === "active"
+                      ? "bg-plum text-white shadow-xs font-bold"
+                      : "text-muted-label hover:text-body-dark"
+                  }`}
+                >
+                  All Active Tab
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTargetDestination("uploaded");
+                    setTopic("Uploaded Custom Topic");
+                  }}
+                  className={`px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
+                    targetDestination === "uploaded"
+                      ? "bg-plum text-white shadow-xs font-bold"
+                      : "text-muted-label hover:text-body-dark"
+                  }`}
+                >
+                  Uploaded Tab
+                </button>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div>
                 <label className="block text-base font-semibold text-body-dark mb-2">
@@ -476,13 +591,13 @@ export default function UploadStudyPage() {
 
               <div>
                 <label className="block text-base font-semibold text-body-dark mb-2">
-                  Custom Target Topic Name
+                  {targetDestination === "active" ? "Active Topic Name:" : "Custom Target Topic Name:"}
                 </label>
                 <input
                   type="text"
                   value={topic}
                   onChange={(e) => setTopic(e.target.value)}
-                  placeholder="e.g. My IELTS Vocabulary, Medical Terms..."
+                  placeholder={targetDestination === "active" ? "Academic Word List: Sublist A" : "e.g. My IELTS Vocabulary, Medical Terms..."}
                   className="imlaa-input text-base"
                 />
               </div>

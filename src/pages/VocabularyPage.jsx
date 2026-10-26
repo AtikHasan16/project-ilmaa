@@ -70,26 +70,55 @@ export default function VocabularyPage() {
   // Compute dynamic groups with real data counts and candidate's personal progress
   const dynamicGroups = [];
 
-  // 1. Primary Academic Word List
-  const academicCount = vocabStats?.byTopic?.["Academic Word List: Sublist A"] || 300;
-  const academicMastered = userProgress?.masteredWords?.length || 0;
-  const academicIncorrect = userProgress?.incorrectWords?.length || 0;
-  const academicPercent = academicCount > 0 ? Math.min(100, Math.round((academicMastered / academicCount) * 100)) : 0;
+  // 1. Primary Academic & Active Word Lists
+  const activeList = vocabStats?.activeTopics || [];
+  if (activeList.length > 0) {
+    activeList.forEach((act, idx) => {
+      const topicStats = userProgress?.progressByTopic?.[act.title] || { mastered: 0, incorrect: 0 };
+      const totalWords = act.count || (act.title === "Academic Word List: Sublist A" ? 300 : 0);
+      const mastered = topicStats.mastered || (act.title === "Academic Word List: Sublist A" ? (userProgress?.masteredWords?.length || 0) : 0);
+      const incorrect = topicStats.incorrect || (act.title === "Academic Word List: Sublist A" ? (userProgress?.incorrectWords?.length || 0) : 0);
+      const percent = totalWords > 0 ? Math.min(100, Math.round((mastered / totalWords) * 100)) : 0;
 
-  dynamicGroups.push({
-    id: "academic-sublist-a",
-    part: "All Active",
-    title: "Academic Word List: Sublist A",
-    description: "High-frequency academic stems, Latin morphemes & IELTS Band 8+ lexicon.",
-    status: academicMastered === academicCount && academicCount > 0 ? "MASTERED" : academicMastered > 0 ? "IN PROGRESS" : "ACTIVE",
-    wordsCount: academicCount,
-    masteredCount: academicMastered,
-    incorrectCount: academicIncorrect,
-    progress: `${academicMastered} / ${academicCount} Mastered`,
-    percent: academicPercent,
-    accuracy: academicMastered + academicIncorrect > 0 ? `${Math.round((academicMastered / (academicMastered + academicIncorrect)) * 100)}% Accuracy` : null,
-    hasIncorrect: academicIncorrect > 0,
-  });
+      dynamicGroups.push({
+        id: `active-corpus-${idx}-${act.title}`,
+        part: "All Active",
+        title: act.title,
+        description: act.title === "Academic Word List: Sublist A"
+          ? "High-frequency academic stems, Latin morphemes & IELTS Band 8+ lexicon."
+          : `Active official curriculum corpus with ${totalWords} lexemes.`,
+        status: mastered === totalWords && totalWords > 0 ? "MASTERED" : mastered > 0 ? "IN PROGRESS" : "ACTIVE",
+        wordsCount: totalWords,
+        masteredCount: mastered,
+        incorrectCount: incorrect,
+        progress: `${mastered} / ${totalWords} Mastered`,
+        percent,
+        accuracy: mastered + incorrect > 0 ? `${Math.round((mastered / (mastered + incorrect)) * 100)}% Accuracy` : null,
+        hasIncorrect: incorrect > 0,
+      });
+    });
+  } else {
+    // Default fallback if stats not loaded yet
+    const academicCount = vocabStats?.byTopic?.["Academic Word List: Sublist A"] || 300;
+    const academicMastered = userProgress?.masteredWords?.length || 0;
+    const academicIncorrect = userProgress?.incorrectWords?.length || 0;
+    const academicPercent = academicCount > 0 ? Math.min(100, Math.round((academicMastered / academicCount) * 100)) : 0;
+
+    dynamicGroups.push({
+      id: "academic-sublist-a",
+      part: "All Active",
+      title: "Academic Word List: Sublist A",
+      description: "High-frequency academic stems, Latin morphemes & IELTS Band 8+ lexicon.",
+      status: academicMastered === academicCount && academicCount > 0 ? "MASTERED" : academicMastered > 0 ? "IN PROGRESS" : "ACTIVE",
+      wordsCount: academicCount,
+      masteredCount: academicMastered,
+      incorrectCount: academicIncorrect,
+      progress: `${academicMastered} / ${academicCount} Mastered`,
+      percent: academicPercent,
+      accuracy: academicMastered + academicIncorrect > 0 ? `${Math.round((academicMastered / (academicMastered + academicIncorrect)) * 100)}% Accuracy` : null,
+      hasIncorrect: academicIncorrect > 0,
+    });
+  }
 
   // 2. Custom Uploaded Topics (Dynamic titles from user uploads)
   const uploadedList = vocabStats?.uploadedTopics || [];
