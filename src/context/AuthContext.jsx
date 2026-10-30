@@ -1,107 +1,568 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { AuthContext } from "./authContextInstance";
-import apiClient from "../services/apiClient";
-import { getDeviceToken, getStoredAccessId, setStoredAccessId } from "../utils/deviceToken";
+import { supabase } from "../services/apiClient";
+import { getDeviceInfo } from "../utils/deviceInfo";
 
 export { useAuth } from "./useAuth";
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [role, setRole] = useState(null); // 'general' | 'advance' | 'admin'
-  const [status, setStatus] = useState("idle"); // 'idle' | 'checking' | 'approved' | 'pending' | 'rejected'
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Validate session on app mount
+  // Helper to load or initialize profile from public.profiles
+  const syncProfile = useCallback(async (authUser) => {
+    if (!authUser) return null;
+
+    try {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", authUser.id)
+        .maybeSingle();
+
+      const fallbackName =
+        authUser.user_metadata?.full_name ||
+        authUser.user_metadata?.name ||
+        authUser.email?.split("@")[0] ||
+        "Candidate";
+
+      const fallbackAvatar =
+        authUser.user_metadata?.avatar_url ||
+        authUser.user_metadata?.picture ||
+        null;
+
+      const isAdminEmail = authUser.email?.toLowerCase() === "akhasannaeem@gmail.com";
+      const resolvedRole = profile?.role || (isAdminEmail ? "admin" : "general");
+
+      const resolvedUser = {
+        id: authUser.id,
+        name: profile?.name || fallbackName,
+        email: authUser.email,
+        role: resolvedRole,
+        avatarUrl: profile?.avatar_url || fallbackAvatar,
+        authProvider: authUser.app_metadata?.provider || "email",
+        createdAt: profile?.created_at || authUser.created_at || null,
+        lastActiveAt: profile?.last_active_at || authUser.last_sign_in_at || null,
+      };
+
+      // Heartbeat last_active_at and save device info asynchronously
+      const deviceInfo = getDeviceInfo();
+      supabase
+        .from("profiles")
+        .upsert(
+          {
+            id: authUser.id,
+            name: resolvedUser.name,
+            email: resolvedUser.email,
+            role: resolvedRole,
+            avatar_url: resolvedUser.avatarUrl,
+            auth_provider: resolvedUser.authProvider,
+            device_info: deviceInfo,
+            last_active_at: new Date().toISOString(),
+          },
+          { onConflict: "id" }
+        )
+        .then();
+
+      return resolvedUser;
+    } catch (err) {
+      console.warn("Profile sync error:", err);
+      const isAdminEmail = authUser.email?.toLowerCase() === "akhasannaeem@gmail.com";
+      return {
+        id: authUser.id,
+        name: authUser.email?.split("@")[0] || "Candidate",
+        email: authUser.email,
+        role: isAdminEmail ? "admin" : "general",
+        avatarUrl: null,
+        authProvider: "email",
+        createdAt: authUser.created_at || new Date().toISOString(),
+        lastActiveAt: authUser.last_sign_in_at || null,
+      };
+    }
+  }, []);
+
+  // Listen to Supabase Auth State changes
   useEffect(() => {
-    async function validateSession() {
-      const storedAccessId = getStoredAccessId();
-      const deviceToken = getDeviceToken();
+    let mounted = true;
 
-      if (!storedAccessId) {
-        setLoading(false);
-        return;
-      }
-
+    async function initSession() {
       try {
-        const res = await apiClient.post("/auth/validate-device", {
-          accessId: storedAccessId,
-          deviceToken,
-        });
-
-        if (res.data?.success && res.data.status === "approved") {
-          setUser(res.data.user);
-          setRole(res.data.role);
-          setStatus("approved");
-        } else {
-          setStoredAccessId(null);
-          setStatus("idle");
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user && mounted) {
+          const profile = await syncProfile(session.user);
+          if (mounted) {
+            setUser(profile);
+            setRole(profile?.role || "general");
+          }
         }
       } catch (err) {
-        console.warn("Session check returned error:", err.response?.data?.message || err.message);
-        setStoredAccessId(null);
-        setStatus("idle");
+        console.warn("Session restore failed:", err);
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     }
 
-    validateSession();
-  }, []);
+    initSession();
 
-  // Periodic heartbeat while approved to maintain online presence
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        const profile = await syncProfile(session.user);
+        if (mounted) {
+          setUser(profile);
+          setRole(profile?.role || "general");
+          setLoading(false);
+        }
+      } else {
+        if (mounted) {
+          setUser(null);
+          setRole(null);
+          setLoading(false);
+        }
+      }
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [syncProfile]);
+
+  // Periodic heartbeat while logged in (every 3 minutes)
   useEffect(() => {
-    if (status !== "approved" || !user) return;
-
-    // Send heartbeat every 2 minutes
+    if (!user?.id) return;
     const interval = setInterval(() => {
-      apiClient.post("/auth/heartbeat").catch(() => {});
-    }, 2 * 60 * 1000);
+      supabase
+        .from("profiles")
+        .update({ last_active_at: new Date().toISOString() })
+        .eq("id", user.id)
+        .then();
+    }, 3 * 60 * 1000);
 
     return () => clearInterval(interval);
-  }, [status, user]);
+  }, [user]);
 
-  // Login request function
-  const login = async (name, accessId) => {
+  // Google OAuth 1-Click Sign-in
+  const signInWithGoogle = async () => {
     setError(null);
-    const cleanId = String(accessId).trim();
-    const cleanName = String(name).trim();
-    const deviceToken = getDeviceToken();
-
     try {
-      const res = await apiClient.post("/auth/login-request", {
-        name: cleanName,
-        accessId: cleanId,
-        deviceToken,
+      const origin =
+        typeof window !== "undefined" && window.location?.origin
+          ? window.location.origin
+          : "http://localhost:5173";
+
+      const { data, error: authErr } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${origin}/workspace/vocab`,
+          queryParams: {
+            access_type: "offline",
+            prompt: "consent",
+          },
+        },
       });
 
-      const data = res.data;
-      if (data.status === "approved") {
-        setStoredAccessId(cleanId);
-        setUser(data.user);
-        setRole(data.role);
-        setStatus("approved");
-        return { success: true, status: "approved" };
-      } else if (data.status === "pending_approval") {
-        setStoredAccessId(cleanId);
-        setStatus("pending");
-        return { success: true, status: "pending" };
-      } else {
-        setStatus("rejected");
-        return { success: false, status: "rejected", message: data.message };
-      }
+      if (authErr) throw authErr;
+      return { success: true, data };
     } catch (err) {
-      const msg = err.response?.data?.message || "Failed to submit login request.";
+      const msg = err.message || "Failed to initialize Google authentication.";
       setError(msg);
       return { success: false, message: msg };
     }
   };
 
-  const logout = () => {
-    setStoredAccessId(null);
-    setUser(null);
-    setRole(null);
-    setStatus("idle");
+  // Helper to check if an email already belongs to a Google OAuth or Email account
+  const checkEmailAuthProvider = async (rawEmail) => {
+    const cleanEmail = String(rawEmail || "").trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes("@")) return null;
+
+    try {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id, name, email, auth_provider")
+        .eq("email", cleanEmail)
+        .maybeSingle();
+
+      return profile;
+    } catch (err) {
+      console.warn("Could not check email profile:", err);
+      return null;
+    }
+  };
+
+  // Custom Email + Password Sign-in
+  const signInWithEmail = async (email, password) => {
+    setError(null);
+    const cleanEmail = String(email || "").trim().toLowerCase();
+
+    // Check if user account was created via Google
+    const existing = await checkEmailAuthProvider(cleanEmail);
+    if (existing?.auth_provider === "google") {
+      const msg = "This email was registered using Google 1-Click Login. Please click 'Continue with Google' above to sign in.";
+      setError(msg);
+      return { success: false, isGoogleAccount: true, message: msg };
+    }
+
+    try {
+      const { data, error: authErr } = await supabase.auth.signInWithPassword({
+        email: cleanEmail,
+        password,
+      });
+
+      if (authErr) {
+        // Double check if error was due to unlinked Google account
+        if (existing?.auth_provider === "google" || authErr.message?.includes("Invalid login credentials")) {
+          if (existing?.auth_provider === "google") {
+            const googleMsg = "This email was registered using Google 1-Click Login. Please click 'Continue with Google' above to sign in.";
+            setError(googleMsg);
+            return { success: false, isGoogleAccount: true, message: googleMsg };
+          }
+        }
+        throw authErr;
+      }
+
+      if (data?.user) {
+        const profile = await syncProfile(data.user);
+        setUser(profile);
+        setRole(profile?.role || "general");
+      }
+      return { success: true, user: data.user };
+    } catch (err) {
+      const msg = err.message || "Invalid email or password.";
+      setError(msg);
+      return { success: false, message: msg };
+    }
+  };
+
+  // Custom Registration with Email, Password & Full Name
+  const signUpWithEmail = async (email, password, fullName) => {
+    setError(null);
+    const cleanEmail = String(email || "").trim().toLowerCase();
+    const cleanName = String(fullName || "").trim();
+
+    // 1. Proactive Validation: Did candidate already register via Google?
+    const existing = await checkEmailAuthProvider(cleanEmail);
+    if (existing) {
+      if (existing.auth_provider === "google") {
+        const msg = "This email is already registered using Google 1-Click Login. Please click 'Continue with Google' above to sign in.";
+        setError(msg);
+        return { success: false, isGoogleAccount: true, message: msg };
+      }
+      const msg = "An account with this email already exists. Please switch to 'Sign In' or click 'Forgot Password' if you lost access.";
+      setError(msg);
+      return { success: false, isEmailAccount: true, message: msg };
+    }
+
+    try {
+      const { data, error: authErr } = await supabase.auth.signUp({
+        email: cleanEmail,
+        password,
+        options: {
+          data: {
+            full_name: cleanName,
+            name: cleanName,
+          },
+        },
+      });
+
+      if (authErr) {
+        if (authErr.message?.toLowerCase().includes("already registered") || authErr.message?.toLowerCase().includes("already exists")) {
+          const msg = "An account with this email already exists. Please switch to 'Sign In' or use 'Forgot Password'.";
+          setError(msg);
+          return { success: false, message: msg };
+        }
+        throw authErr;
+      }
+
+      // Check if Supabase silently prevented duplicate user (identities array empty)
+      if (data?.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+        const msg = "An account with this email already exists. If you previously used Google, please sign in with 'Continue with Google'.";
+        setError(msg);
+        return { success: false, isGoogleAccount: true, message: msg };
+      }
+
+      const requiresOtp = !data.session && data.user;
+      if (data.session?.user) {
+        const profile = await syncProfile(data.session.user);
+        setUser(profile);
+        setRole(profile?.role || "general");
+      }
+
+      return {
+        success: true,
+        user: data.user,
+        requiresOtp,
+        message: requiresOtp
+          ? "An 8-digit verification code was sent to your email. Please check your inbox and spam folder."
+          : "Registration successful!",
+      };
+    } catch (err) {
+      const msg = err.message || "Registration failed.";
+      setError(msg);
+      return { success: false, message: msg };
+    }
+  };
+
+  // Resend 8-Digit Email Verification Code
+  const resendVerificationCode = async (email) => {
+    setError(null);
+    const cleanEmail = String(email || "").trim().toLowerCase();
+    try {
+      const { error: resendErr } = await supabase.auth.resend({
+        type: "signup",
+        email: cleanEmail,
+      });
+
+      if (resendErr) {
+        // Fallback to email_change type if signup resend fails
+        const { error: fallbackErr } = await supabase.auth.resend({
+          type: "email_change",
+          email: cleanEmail,
+        });
+        if (fallbackErr) throw fallbackErr;
+      }
+
+      return {
+        success: true,
+        message: "A fresh 8-digit verification code has been dispatched to your email.",
+      };
+    } catch (err) {
+      const msg = err.message || "Failed to resend verification code. Please wait a moment and try again.";
+      setError(msg);
+      return { success: false, message: msg };
+    }
+  };
+
+  // Verify 4-digit, 6-digit, or 8-digit Email OTP Token
+  const verifyEmailOtp = async (email, token) => {
+    setError(null);
+    try {
+      const cleanEmail = String(email || "").trim().toLowerCase();
+      // Strip all non-alphanumeric characters (spaces, dashes, dots)
+      const cleanToken = String(token || "").replace(/[^0-9a-zA-Z]/g, "").trim();
+
+      if (!cleanToken || cleanToken.length < 4) {
+        throw new Error("Please enter a valid verification code.");
+      }
+
+      // Try 1: 'signup' verification type
+      let { data, error: authErr } = await supabase.auth.verifyOtp({
+        email: cleanEmail,
+        token: cleanToken,
+        type: "signup",
+      });
+
+      // Try 2: 'email' magic link/OTP type
+      if (authErr) {
+        const { data: fbData, error: fbErr } = await supabase.auth.verifyOtp({
+          email: cleanEmail,
+          token: cleanToken,
+          type: "email",
+        });
+        if (!fbErr && fbData?.user) {
+          data = fbData;
+          authErr = null;
+        }
+      }
+
+      // Try 3: 'recovery' type in case code was sent via recovery flow
+      if (authErr) {
+        const { data: recData, error: recErr } = await supabase.auth.verifyOtp({
+          email: cleanEmail,
+          token: cleanToken,
+          type: "recovery",
+        });
+        if (!recErr && recData?.user) {
+          data = recData;
+          authErr = null;
+        }
+      }
+
+      if (authErr) {
+        throw authErr;
+      }
+
+      if (data?.user) {
+        const profile = await syncProfile(data.user);
+        setUser(profile);
+        setRole(profile?.role || "general");
+      }
+
+      return { success: true, user: data?.user };
+    } catch (err) {
+      const msg = err.message || "Invalid or expired verification code. Please request a new code.";
+      setError(msg);
+      return { success: false, message: msg };
+    }
+  };
+
+  // Send Password Recovery Email
+  const sendPasswordResetEmail = async (rawEmail) => {
+    setError(null);
+    const cleanEmail = String(rawEmail || "").trim().toLowerCase();
+
+    if (!cleanEmail || !cleanEmail.includes("@")) {
+      const msg = "Please enter a valid email address.";
+      setError(msg);
+      return { success: false, message: msg };
+    }
+
+    // Check if account is a Google account
+    const existing = await checkEmailAuthProvider(cleanEmail);
+    if (existing?.auth_provider === "google") {
+      const msg = "This email was registered using Google 1-Click Login. There is no password to reset—simply click 'Continue with Google' to sign in.";
+      setError(msg);
+      return { success: false, isGoogleAccount: true, message: msg };
+    }
+
+    try {
+      const origin =
+        typeof window !== "undefined" && window.location?.origin
+          ? window.location.origin
+          : "http://localhost:5173";
+
+      const { error: resetErr } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+        redirectTo: `${origin}/reset-password`,
+      });
+
+      if (resetErr) throw resetErr;
+
+      return {
+        success: true,
+        message: "Password recovery instructions and an 8-digit code have been dispatched to your email.",
+      };
+    } catch (err) {
+      const msg = err.message || "Failed to dispatch password recovery email.";
+      setError(msg);
+      return { success: false, message: msg };
+    }
+  };
+
+  // Verify Recovery OTP Code and Set New Password
+  const resetPasswordWithOtp = async (rawEmail, rawToken, newPassword) => {
+    setError(null);
+    const cleanEmail = String(rawEmail || "").trim().toLowerCase();
+    const cleanToken = String(rawToken || "").replace(/[^0-9a-zA-Z]/g, "").trim();
+
+    if (!newPassword || newPassword.length < 6) {
+      const msg = "New password must be at least 6 characters long.";
+      setError(msg);
+      return { success: false, message: msg };
+    }
+
+    try {
+      // Step 1: Verify the recovery OTP token
+      const { error: otpErr } = await supabase.auth.verifyOtp({
+        email: cleanEmail,
+        token: cleanToken,
+        type: "recovery",
+      });
+
+      if (otpErr) throw otpErr;
+
+      // Step 2: Update password on active session
+      const { data: userUpdate, error: updateErr } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (updateErr) throw updateErr;
+
+      if (userUpdate?.user) {
+        const profile = await syncProfile(userUpdate.user);
+        setUser(profile);
+        setRole(profile?.role || "general");
+      }
+
+      return {
+        success: true,
+        message: "Password reset successfully! Redirecting to workspace...",
+      };
+    } catch (err) {
+      const msg = err.message || "Invalid recovery code or password reset failed.";
+      setError(msg);
+      return { success: false, message: msg };
+    }
+  };
+
+  // Update Profile Credentials (Name & Avatar URL)
+  const updateProfile = async ({ name, avatarUrl }) => {
+    setError(null);
+    if (!user?.id) return { success: false, message: "No active user session" };
+
+    try {
+      const updates = {};
+      if (name) updates.name = name.trim();
+      if (avatarUrl !== undefined) updates.avatar_url = avatarUrl;
+      updates.last_active_at = new Date().toISOString();
+
+      const { data, error: updateErr } = await supabase
+        .from("profiles")
+        .update(updates)
+        .eq("id", user.id)
+        .select()
+        .single();
+
+      if (updateErr) throw updateErr;
+
+      // Update current user state in React
+      setUser((prev) => ({
+        ...prev,
+        name: updates.name || prev.name,
+        avatarUrl: updates.avatar_url !== undefined ? updates.avatar_url : prev.avatarUrl,
+      }));
+
+      return { success: true, profile: data };
+    } catch (err) {
+      console.error("Profile update error:", err);
+      const msg = err.message || "Failed to update profile credentials.";
+      setError(msg);
+      return { success: false, message: msg };
+    }
+  };
+
+  // Update Password directly (for users arriving via email recovery link)
+  const updateUserPassword = async (newPassword) => {
+    setError(null);
+    if (!newPassword || newPassword.length < 6) {
+      const msg = "Password must be at least 6 characters long.";
+      setError(msg);
+      return { success: false, message: msg };
+    }
+
+    try {
+      const { data, error: updateErr } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (updateErr) throw updateErr;
+
+      if (data?.user) {
+        const profile = await syncProfile(data.user);
+        setUser(profile);
+        setRole(profile?.role || "general");
+      }
+
+      return { success: true, message: "Password updated successfully!" };
+    } catch (err) {
+      const msg = err.message || "Failed to update password.";
+      setError(msg);
+      return { success: false, message: msg };
+    }
+  };
+
+  // Sign out / Logout
+  const signOut = async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.warn("Supabase sign out error:", err);
+    } finally {
+      setUser(null);
+      setRole(null);
+    }
   };
 
   return (
@@ -109,14 +570,25 @@ export function AuthProvider({ children }) {
       value={{
         user,
         role,
-        status,
         loading,
         error,
-        login,
-        logout,
-        isAuthenticated: status === "approved" && !!user,
+        signInWithGoogle,
+        signInWithEmail,
+        signUpWithEmail,
+        verifyEmailOtp,
+        resendVerificationCode,
+        sendPasswordResetEmail,
+        resetPasswordWithOtp,
+        updateUserPassword,
+        updateProfile,
+        checkEmailAuthProvider,
+        signOut,
+        logout: signOut,
+        isAuthenticated: Boolean(user),
         isAdmin: role === "admin",
+        isAdvance: role === "advance",
         isAdvanceOrAdmin: role === "advance" || role === "admin",
+        isGeneral: role === "general",
       }}
     >
       {children}

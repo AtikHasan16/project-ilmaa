@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import apiClient from "../services/apiClient";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -7,13 +7,11 @@ import {
   HiArrowPath,
   HiInformationCircle,
   HiArrowLeft,
-  HiArrowRight,
   HiShieldCheck,
   HiClock,
+  HiSparkles,
 } from "react-icons/hi2";
 
-// Grammar modules and topic categories matching the provided design image
-// Grammar topic categories aligned with actual curriculum modules
 const GRAMMAR_CATEGORIES = [
   { id: "all", label: "All Modules" },
   { id: "sentence-structure", label: "Sentence Structure" },
@@ -57,8 +55,8 @@ const GRAMMAR_TOPICS = [
 export default function GrammarPage() {
   const { user } = useAuth();
   const [activeCategory, setActiveCategory] = useState("all");
-  const [selectedTopic, setSelectedTopic] = useState(null); // When null => show topic grid
-  const [viewMode, setViewMode] = useState("overview"); // 'overview' | 'quiz'
+  const [selectedTopic, setSelectedTopic] = useState(null);
+  const [viewMode, setViewMode] = useState("overview"); // 'overview' | 'quiz' | 'finished'
   const [drillStartTime, setDrillStartTime] = useState(null);
 
   const [questions, setQuestions] = useState([]);
@@ -69,7 +67,15 @@ export default function GrammarPage() {
   const [loading, setLoading] = useState(false);
   const [grammarStats, setGrammarStats] = useState(null);
 
-  // Fetch dynamic grammar statistics from backend
+  // Random Quiz Modal & State (Item 6)
+  const [quizModalOpen, setQuizModalOpen] = useState(false);
+  const [quizQuantity, setQuizQuantity] = useState(10);
+  const [quizTimerMinutes, setQuizTimerMinutes] = useState(0);
+  const [quizTimeRemaining, setQuizTimeRemaining] = useState(0);
+  const [isRandomQuiz, setIsRandomQuiz] = useState(false);
+  const quizTimerRef = useRef(null);
+
+  // Fetch dynamic grammar statistics
   useEffect(() => {
     let isMounted = true;
     const fetchGrammarStats = async () => {
@@ -85,25 +91,23 @@ export default function GrammarPage() {
     fetchGrammarStats();
     return () => {
       isMounted = false;
+      if (quizTimerRef.current) clearInterval(quizTimerRef.current);
     };
   }, []);
 
-  // Compute dynamic grammar topics with real counts & progress percent
   const dynamicGrammarTopics = GRAMMAR_TOPICS.map((topic) => {
     const byModule = grammarStats?.byModule || {};
     let realCount;
-
     if (byModule[topic.id] !== undefined) {
       realCount = byModule[topic.id];
     } else if (topic.id === "modifiers-and-splices") {
-      realCount = byModule["modifiers-and-splices"] || (byModule["modifiers-dangling"] || 0) + (byModule["run-on-comma-splices"] || 0);
+      realCount =
+        byModule["modifiers-and-splices"] ||
+        (byModule["modifiers-dangling"] || 0) + (byModule["run-on-comma-splices"] || 0);
     } else {
       realCount = 0;
     }
-
-    // Dynamic progress percentage based on target module mastery (e.g. 50 exercises target)
     const percent = realCount > 0 ? Math.min(100, Math.round((realCount / 50) * 100)) : 0;
-
     return {
       ...topic,
       realCount,
@@ -112,7 +116,6 @@ export default function GrammarPage() {
     };
   });
 
-  // Load questions for topic
   const loadQuestions = useCallback(async (topicId) => {
     setLoading(true);
     setSelectedOption(null);
@@ -141,6 +144,7 @@ export default function GrammarPage() {
     (topic) => {
       if (!topic.realCount || topic.realCount === 0) return;
       setSelectedTopic(topic);
+      setIsRandomQuiz(false);
       setViewMode("quiz");
       setDrillStartTime(Date.now());
       loadQuestions(topic.id);
@@ -149,12 +153,12 @@ export default function GrammarPage() {
   );
 
   const handleReturnToTopics = () => {
-    // Record study session and highest score to backend if user practiced
-    if (user?.accessId && drillStartTime) {
+    if (quizTimerRef.current) clearInterval(quizTimerRef.current);
+    if ((user?.id || user?.accessId) && drillStartTime) {
       const durationSeconds = Math.max(1, Math.round((Date.now() - drillStartTime) / 1000));
       apiClient
         .post("/user/study-session", {
-          accessId: user.accessId,
+          accessId: user?.id || user?.accessId,
           durationSeconds,
           grammarScore: score,
           totalQuestions: currentIndex + 1,
@@ -167,6 +171,57 @@ export default function GrammarPage() {
     setSelectedOption(null);
     setIsAnswered(false);
     setDrillStartTime(null);
+  };
+
+  // Launch Random Grammar Quiz (Item 6)
+  const launchRandomQuiz = async () => {
+    setQuizModalOpen(false);
+    setLoading(true);
+    setSelectedOption(null);
+    setIsAnswered(false);
+    setCurrentIndex(0);
+    setScore(0);
+    setIsRandomQuiz(true);
+    setDrillStartTime(Date.now());
+
+    try {
+      const res = await apiClient.get("/grammar/questions");
+      const allQ = res.data?.data || [];
+      if (allQ.length === 0) return;
+
+      const shuffled = [...allQ].sort(() => 0.5 - Math.random());
+      const selected = shuffled.slice(0, Math.min(quizQuantity, shuffled.length));
+
+      setQuestions(selected);
+      setSelectedTopic({
+        title: `Random Grammar Quiz (${selected.length} Qs)`,
+        description: "Timed synthesis across all grammatical structures.",
+      });
+
+      if (quizTimerMinutes > 0) {
+        setQuizTimeRemaining(quizTimerMinutes * 60);
+      } else {
+        setQuizTimeRemaining(0);
+      }
+
+      setViewMode("quiz");
+
+      if (quizTimerRef.current) clearInterval(quizTimerRef.current);
+      if (quizTimerMinutes > 0) {
+        quizTimerRef.current = setInterval(() => {
+          setQuizTimeRemaining((prev) => {
+            if (prev <= 1) {
+              clearInterval(quizTimerRef.current);
+              setViewMode("finished");
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const currentQ = questions[currentIndex] || null;
@@ -185,7 +240,16 @@ export default function GrammarPage() {
       setCurrentIndex((prev) => prev + 1);
       setSelectedOption(null);
       setIsAnswered(false);
+    } else {
+      if (quizTimerRef.current) clearInterval(quizTimerRef.current);
+      setViewMode("finished");
     }
+  };
+
+  const formatTimer = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
   };
 
   const filteredTopics =
@@ -197,33 +261,37 @@ export default function GrammarPage() {
 
   return (
     <div className="w-full flex flex-col space-y-7 animate-slide-up">
-      {/* ==================================================== */}
-      {/* 1. Header Bar: Title, Subtitle, Corpus Verified Badge*/}
-      {/* ==================================================== */}
+      {/* 1. Header Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-plum/15">
         <div>
           <h1 className="text-3xl font-black text-body-dark tracking-tight">
             Grammar & Syntactic Accuracy
           </h1>
           <p className="text-base text-muted-label mt-1">
-            Targeted structural drills and error elimination.
+            Targeted structural drills, error elimination, and timed quizzes.
           </p>
         </div>
 
-        <div className="flex items-center space-x-2 border border-plum/25 bg-plum/5 px-3.5 py-1.5 rounded-xl self-start md:self-auto text-base text-plum font-semibold">
-          <HiShieldCheck className="w-5 h-5 text-plum" />
-          <span>
-            Database: {totalQuestionsInDatabase} Questions Verified
-          </span>
+        <div className="flex items-center space-x-3">
+          <button
+            type="button"
+            onClick={() => setQuizModalOpen(true)}
+            className="imlaa-btn-secondary text-sm py-2 px-4 flex items-center space-x-2 font-bold"
+          >
+            <HiSparkles className="w-4 h-4 text-plum" />
+            <span>Random Grammar Quiz</span>
+          </button>
+
+          <div className="hidden sm:flex items-center space-x-2 border border-plum/25 bg-plum/5 px-3.5 py-1.5 rounded-xl text-sm text-plum font-semibold">
+            <HiShieldCheck className="w-4 h-4 text-plum" />
+            <span>{totalQuestionsInDatabase} Verified</span>
+          </div>
         </div>
       </div>
 
-      {/* ==================================================== */}
-      {/* 2. Topics Overview View (Home Selection Page)        */}
-      {/* ==================================================== */}
+      {/* 2. Topics Overview */}
       {viewMode === "overview" && (
         <div className="flex flex-col space-y-6">
-          {/* Category Tabs */}
           <div className="flex flex-wrap items-center gap-3">
             {GRAMMAR_CATEGORIES.map((cat) => {
               const count =
@@ -255,199 +323,138 @@ export default function GrammarPage() {
             })}
           </div>
 
-          {/* Grammar Topic Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredTopics.map((topic) => {
-              const hasQuestions = topic.realCount > 0;
-
-              return (
-                <div
-                  key={topic.id}
-                  className="imlaa-card p-6 flex flex-col justify-between hover:shadow-lg transition-all duration-200 border border-plum/20 rounded-2xl bg-white"
-                >
-                  <div>
-                    {/* Header: Title and Question Count Tag */}
-                    <div className="flex items-start justify-between gap-3 mb-2">
-                      <h3 className="text-xl font-bold text-body-dark leading-snug">
-                        {topic.title}
-                      </h3>
-                      <span
-                        className={`text-xs font-bold px-2.5 py-1 rounded-full shrink-0 border ${
-                          hasQuestions
-                            ? "bg-plum/10 text-plum border-plum/20"
-                            : "bg-gray-100 text-gray-500 border-gray-200"
-                        }`}
-                      >
-                        {topic.exercisesCount}
-                      </span>
-                    </div>
-
-                    {/* Clean Description */}
-                    <p className="text-base text-muted-label leading-relaxed mb-6">
-                      {topic.description}
-                    </p>
+            {filteredTopics.map((topic) => (
+              <div
+                key={topic.id}
+                className="imlaa-card p-6 flex flex-col justify-between hover:shadow-md transition-all duration-200 border border-plum/20"
+              >
+                <div>
+                  <div className="flex items-center justify-between text-base font-semibold mb-2">
+                    <span className="text-muted-label font-semibold">
+                      {topic.exercisesCount}
+                    </span>
+                    <span className="text-body-dark font-medium">
+                      {topic.percent}% Mastery
+                    </span>
                   </div>
 
-                  <div>
-                    {/* Dynamic Progress Bar */}
-                    <div className="mb-5">
-                      <div className="flex items-center justify-between text-xs font-semibold text-muted-label mb-1.5">
-                        <span>Target Mastery</span>
-                        <span className="font-mono text-plum font-bold">
-                          {topic.percent}%
-                        </span>
-                      </div>
-                      <div className="w-full bg-plum/10 rounded-full h-2 overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-plum transition-all duration-500"
-                          style={{ width: `${topic.percent}%` }}
-                        />
-                      </div>
-                    </div>
+                  <h3 className="text-xl font-bold text-body-dark leading-snug mb-2">
+                    {topic.title}
+                  </h3>
+                  <p className="text-base text-muted-label leading-relaxed mb-4">
+                    {topic.description}
+                  </p>
+                </div>
 
-                    {/* Footer Action */}
-                    <div className="pt-4 border-t border-plum/10 flex items-center justify-between">
-                      <span className="text-sm font-medium text-muted-label">
-                        {hasQuestions ? "Ready to practice" : "No questions available"}
-                      </span>
-
-                      <button
-                        type="button"
-                        disabled={!hasQuestions}
-                        onClick={() => handleStartTopic(topic)}
-                        className={`py-2 px-5 text-base rounded-xl font-semibold transition-all inline-flex items-center space-x-1.5 ${
-                          !hasQuestions
-                            ? "bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed opacity-60 pointer-events-none"
-                            : "imlaa-btn-primary cursor-pointer hover:shadow-md"
-                        }`}
-                      >
-                        <span>{hasQuestions ? "Practice" : "No Questions"}</span>
-                        {hasQuestions && <HiArrowRight className="w-4 h-4" />}
-                      </button>
+                <div>
+                  <div className="mb-4">
+                    <div className="w-full bg-plum/10 rounded-full h-2 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-plum transition-all duration-500"
+                        style={{ width: `${topic.percent}%` }}
+                      />
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
 
-          {/* Quick Diagnostic Drill */}
-          <div className="imlaa-card p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-plum/25 bg-plum/5 rounded-2xl">
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 rounded-xl bg-plum/10 border border-plum/20 flex items-center justify-center text-plum shrink-0">
-                <HiClock className="w-6 h-6" />
-              </div>
-              <div>
-                <div className="flex items-center space-x-2">
-                  <h4 className="text-lg font-bold text-body-dark">
-                    Quick Diagnostic Drill
-                  </h4>
-                  <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-plum text-white">
-                    Adaptive
-                  </span>
+                  <div className="flex items-center justify-between pt-2 border-t border-plum/10">
+                    <span className="text-sm text-muted-label font-medium">
+                      {topic.realCount === 0 ? "Corpus Loading" : "Target 50"}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={!topic.realCount || topic.realCount === 0}
+                      onClick={() => handleStartTopic(topic)}
+                      className={`py-2 px-5 text-base rounded-lg font-semibold transition-all ${
+                        !topic.realCount || topic.realCount === 0
+                          ? "bg-plum/20 text-white/70 cursor-not-allowed opacity-50"
+                          : "imlaa-btn-primary cursor-pointer"
+                      }`}
+                    >
+                      {topic.realCount === 0 ? "Coming Soon" : "Start Drill"}
+                    </button>
+                  </div>
                 </div>
-                <p className="text-base text-muted-label mt-0.5">
-                  Full mix drill across all verified grammar categories to test your baseline accuracy.
-                </p>
               </div>
-            </div>
-
-            <button
-              type="button"
-              disabled={totalQuestionsInDatabase === 0}
-              onClick={() =>
-                handleStartTopic({
-                  id: "all",
-                  title: "Quick Diagnostic Drill",
-                  description: "Full question pool across all modules",
-                  realCount: totalQuestionsInDatabase,
-                })
-              }
-              className={`py-3 px-6 text-base whitespace-nowrap self-stretch sm:self-auto rounded-xl font-semibold transition-all ${
-                totalQuestionsInDatabase === 0
-                  ? "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
-                  : "imlaa-btn-primary cursor-pointer"
-              }`}
-            >
-              Start Rapid Drill
-            </button>
+            ))}
           </div>
         </div>
       )}
 
-      {/* ==================================================== */}
-      {/* 3. Interactive Quiz Practice View                   */}
-      {/* ==================================================== */}
+      {/* 3. Quiz & Drill Mode */}
       {viewMode === "quiz" && (
-        <div className="w-full max-w-2xl mx-auto flex flex-col items-center space-y-6">
-          {/* Header navigation */}
-          <div className="w-full flex items-center justify-between text-base px-1">
+        <div className="w-full max-w-2xl mx-auto flex flex-col space-y-6">
+          <div className="flex items-center justify-between text-base px-1">
             <button
               type="button"
               onClick={handleReturnToTopics}
               className="inline-flex items-center space-x-2 text-plum hover:text-plum-hover font-semibold cursor-pointer"
             >
               <HiArrowLeft className="w-5 h-5" />
-              <span>Back to Grammar Modules</span>
+              <span>Back to Overview</span>
             </button>
 
-            <span className="imlaa-badge text-base">
-              Score: {score} / {questions.length}
-            </span>
+            {isRandomQuiz && quizTimerMinutes > 0 && (
+              <div className="flex items-center space-x-2 bg-plum/10 text-plum font-mono font-bold px-3 py-1 rounded-xl">
+                <HiClock className="w-5 h-5" />
+                <span>{formatTimer(quizTimeRemaining)}</span>
+              </div>
+            )}
           </div>
 
           {loading ? (
             <div className="imlaa-card w-full p-16 text-center animate-pulse">
               <div className="text-xl text-plum font-semibold">
-                Loading questions...
+                Loading grammar questions...
               </div>
             </div>
           ) : !currentQ ? (
             <div className="imlaa-card w-full p-12 text-center space-y-4">
               <div className="text-2xl font-bold text-body-dark">
-                No exercises found
+                No questions found
               </div>
               <button
                 type="button"
                 onClick={handleReturnToTopics}
                 className="imlaa-btn-primary text-base"
               >
-                Choose Another Topic
+                Choose Another Module
               </button>
             </div>
           ) : (
             <div className="w-full flex flex-col space-y-6">
-              {/* Question progress */}
-              <div className="flex items-center justify-between text-base text-muted-label px-2">
-                <span className="font-semibold text-body-dark">
-                  Question {currentIndex + 1} of {questions.length}
+              <div className="w-full flex items-center justify-between px-1">
+                <span className="text-base font-bold text-body-dark bg-white px-3.5 py-1.5 rounded-xl border border-plum/20 shadow-xs">
+                  Question <span className="text-plum">{currentIndex + 1}</span> of {questions.length}
                 </span>
-                <span className="font-mono text-plum">
-                  {selectedTopic?.title}
-                </span>
+
+                <div className="flex items-center space-x-2 text-base font-bold text-body-dark">
+                  <span>Score:</span>
+                  <span className="text-plum">{score}</span>
+                </div>
               </div>
 
-              {/* Question Card */}
-              <div className="imlaa-card w-full p-8 sm:p-10 flex flex-col space-y-7 shadow-md transition-all">
-                <h3 className="text-2xl sm:text-3xl font-bold text-body-dark leading-snug">
-                  {currentQ.questionText}
-                </h3>
+              <div className="imlaa-card p-6 sm:p-8 bg-white border border-plum/20 shadow-md space-y-6">
+                <div>
+                  <span className="text-xs font-bold uppercase tracking-wider text-muted-label">
+                    Sentence Correction & Synthesis
+                  </span>
+                  <h3 className="text-xl sm:text-2xl font-bold text-body-dark mt-2 leading-relaxed">
+                    {currentQ.question}
+                  </h3>
+                </div>
 
-                {/* Options Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {currentQ.options.map((option, idx) => {
+                <div className="space-y-3 pt-2">
+                  {currentQ.options?.map((option, idx) => {
                     const isSelected = selectedOption === option;
                     const isCorrect = option === currentQ.correctAnswer;
+                    let btnStyle = "border-plum/20 hover:border-plum hover:bg-plum/5 text-body-dark";
 
-                    let btnStyle =
-                      "border-plum/20 hover:border-plum bg-white text-body-dark hover:bg-plum/5";
                     if (isAnswered) {
                       if (isCorrect) {
-                        btnStyle =
-                          "border-emerald-600 bg-emerald-50 text-emerald-900 font-bold ring-1 ring-emerald-600";
-                      } else if (isSelected) {
-                        btnStyle =
-                          "border-rose-600 bg-rose-50 text-rose-900 font-bold ring-1 ring-rose-600";
+                        btnStyle = "border-emerald-600 bg-emerald-50 text-emerald-900 font-bold ring-1 ring-emerald-600";
+                      } else if (isSelected && !isCorrect) {
+                        btnStyle = "border-rose-600 bg-rose-50 text-rose-900 font-bold ring-1 ring-rose-600";
                       } else {
                         btnStyle = "border-gray-200 opacity-60 text-muted-label";
                       }
@@ -473,8 +480,7 @@ export default function GrammarPage() {
                   })}
                 </div>
 
-                {/* One-sentence immediate explanation */}
-                {isAnswered && (
+                {isAnswered && currentQ.explanation && (
                   <div className="p-4 rounded-xl bg-plum/5 border border-plum/20 flex items-start space-x-3 text-base text-body-dark animate-slide-up">
                     <HiInformationCircle className="w-6 h-6 text-plum shrink-0 mt-0.5" />
                     <div>
@@ -485,7 +491,6 @@ export default function GrammarPage() {
                 )}
               </div>
 
-              {/* Navigation Controls */}
               <div className="flex items-center justify-between gap-4 pt-2">
                 <button
                   type="button"
@@ -498,30 +503,150 @@ export default function GrammarPage() {
                   className="imlaa-btn-secondary py-3 px-5 text-base space-x-2"
                 >
                   <HiArrowPath className="w-5 h-5" />
-                  <span>Restart Drill</span>
+                  <span>Restart</span>
                 </button>
 
-                {currentIndex < questions.length - 1 ? (
-                  <button
-                    type="button"
-                    onClick={handleNextQuestion}
-                    disabled={!isAnswered}
-                    className="imlaa-btn-primary py-3 px-6 text-base"
-                  >
-                    Next Question
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={handleReturnToTopics}
-                    className="imlaa-btn-primary py-3 px-6 text-base"
-                  >
-                    Finish Topic
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={handleNextQuestion}
+                  disabled={!isAnswered}
+                  className="imlaa-btn-primary py-3 px-6 text-base font-bold"
+                >
+                  {currentIndex === questions.length - 1 ? "Finish Quiz" : "Next Question"}
+                </button>
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* 4. Quiz Completion Screen */}
+      {viewMode === "finished" && (
+        <div className="w-full max-w-xl mx-auto imlaa-card p-8 sm:p-10 text-center space-y-7 animate-slide-up border border-plum/20 shadow-lg bg-white">
+          <div className="w-16 h-16 rounded-full bg-plum/10 text-plum mx-auto flex items-center justify-center">
+            <HiSparkles className="w-8 h-8" />
+          </div>
+
+          <div className="space-y-2">
+            <h2 className="text-3xl font-black text-body-dark">
+              Grammar Drill Completed!
+            </h2>
+            <p className="text-base text-muted-label">
+              Performance summary for {selectedTopic?.title}.
+            </p>
+          </div>
+
+          <div className="p-6 rounded-2xl bg-plum/5 border border-plum/20 space-y-2">
+            <div className="text-5xl font-black text-plum">
+              {score} / {questions.length}
+            </div>
+            <div className="text-sm font-bold text-muted-label uppercase tracking-wider">
+              {Math.round((score / (questions.length || 1)) * 100)}% Accuracy
+            </div>
+          </div>
+
+          <div className="flex items-center justify-center gap-3 pt-4 border-t border-plum/10">
+            <button
+              type="button"
+              onClick={() => {
+                if (isRandomQuiz) {
+                  launchRandomQuiz();
+                } else {
+                  loadQuestions(selectedTopic.id);
+                  setViewMode("quiz");
+                }
+              }}
+              className="imlaa-btn-primary py-3 px-6 text-base font-bold"
+            >
+              Try Again
+            </button>
+
+            <button
+              type="button"
+              onClick={handleReturnToTopics}
+              className="imlaa-btn-secondary py-3 px-6 text-base font-semibold"
+            >
+              Back to Overview
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 5. Random Quiz Modal (Item 6) */}
+      {quizModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="imlaa-card w-full max-w-md p-6 bg-white border border-plum/20 shadow-xl space-y-6">
+            <h3 className="text-2xl font-black text-body-dark">
+              Random Grammar Quiz
+            </h3>
+
+            <div>
+              <label className="text-xs font-bold uppercase tracking-wider text-muted-label block mb-2">
+                Number of Questions
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {[10, 20, 50].map((qty) => (
+                  <button
+                    key={qty}
+                    type="button"
+                    onClick={() => setQuizQuantity(qty)}
+                    className={`py-2 rounded-xl font-bold border transition ${
+                      quizQuantity === qty
+                        ? "bg-plum text-white border-plum"
+                        : "border-plum/20 text-body-dark hover:bg-plum/5"
+                    }`}
+                  >
+                    {qty} Questions
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold uppercase tracking-wider text-muted-label block mb-2">
+                Timer Limit
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { label: "Untimed", value: 0 },
+                  { label: "1 Min", value: 1 },
+                  { label: "2 Min", value: 2 },
+                  { label: "5 Min", value: 5 },
+                  { label: "10 Min", value: 10 },
+                ].map((t) => (
+                  <button
+                    key={t.value}
+                    type="button"
+                    onClick={() => setQuizTimerMinutes(t.value)}
+                    className={`py-2 rounded-xl font-bold border transition ${
+                      quizTimerMinutes === t.value
+                        ? "bg-plum text-white border-plum"
+                        : "border-plum/20 text-body-dark hover:bg-plum/5"
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end space-x-3 pt-3 border-t border-plum/10">
+              <button
+                type="button"
+                onClick={() => setQuizModalOpen(false)}
+                className="imlaa-btn-secondary py-2 px-4 text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={launchRandomQuiz}
+                className="imlaa-btn-primary py-2 px-5 text-sm font-bold"
+              >
+                Start Quiz
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

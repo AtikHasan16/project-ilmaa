@@ -2,12 +2,15 @@ import { NavLink, useNavigate } from "react-router";
 import { useAuth } from "../context/AuthContext";
 import {
   HiBookOpen,
+  HiPencilSquare,
   HiAcademicCap,
   HiCloudArrowUp,
   HiCog6Tooth,
   HiFolder,
+  HiHeart,
   HiArrowRightOnRectangle,
 } from "react-icons/hi2";
+import { showConfirmModal } from "../utils/sweetalert";
 
 /**
  * Universal Floating Navigation Dock
@@ -16,7 +19,6 @@ import {
  * - Strict plum palette: Active items use `#6D4E56`, inactive use muted tones
  * - Role-gated items: Upload to Study (Advance/Admin) and Admin Dashboard (Admin only)
  */
-import { showConfirmModal } from "../utils/sweetalert";
 
 export default function NavigationDock() {
   const { user, logout, isAdmin, isAdvanceOrAdmin } = useAuth();
@@ -40,9 +42,15 @@ export default function NavigationDock() {
 
   const navItems = [
     {
-      to: "/workspace/vocab",
-      label: "Vocabulary",
+      to: "/workspace/flashcard",
+      label: "Flashcards",
       icon: HiBookOpen,
+      show: true,
+    },
+    {
+      to: "/workspace/spelling",
+      label: "Spelling",
+      icon: HiPencilSquare,
       show: true,
     },
     {
@@ -68,6 +76,12 @@ export default function NavigationDock() {
       label: "Admin",
       icon: HiCog6Tooth,
       show: isAdmin,
+    },
+    {
+      to: "/workspace/contribute",
+      label: "Contribute",
+      icon: HiHeart,
+      show: true,
     },
   ];
 

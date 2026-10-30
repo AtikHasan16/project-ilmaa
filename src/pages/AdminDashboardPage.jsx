@@ -1,17 +1,17 @@
 import { useState, useEffect, useCallback } from "react";
-import apiClient from "../services/apiClient";
+import { createPortal } from "react-dom";
+import apiClient, { supabase } from "../services/apiClient";
 import {
-  HiCheck,
-  HiXMark,
-  HiKey,
   HiUsers,
-  HiClock,
   HiArrowPath,
   HiArrowDownTray,
   HiTrash,
   HiSignal,
-  HiClipboard,
-  HiClipboardDocumentCheck,
+  HiSparkles,
+  HiShieldCheck,
+  HiMagnifyingGlass,
+  HiInformationCircle,
+  HiXMark,
 } from "react-icons/hi2";
 import {
   showConfirmModal,
@@ -21,40 +21,6 @@ import {
 import { exportAuditReportPDF } from "../utils/exportReportPdf";
 
 export default function AdminDashboardPage() {
-  const [candidateName, setCandidateName] = useState("");
-  const [candidateRole, setCandidateRole] = useState("general");
-  const [generating, setGenerating] = useState(false);
-  const [generatedUser, setGeneratedUser] = useState(null);
-  const [copied, setCopied] = useState(false);
-
-  const handleCopyInstructions = async () => {
-    if (!generatedUser) return;
-    const origin = typeof window !== "undefined" ? window.location.origin : "https://ilmaa.vercel.app";
-    const text = `🎓 Welcome to Imlaa IELTS Workspace!\n\nCandidate Name: ${generatedUser.name}\n10-Digit Access ID: ${generatedUser.accessId}\nRole: ${generatedUser.role}\n\n👉 Login link: ${origin}\n\nNote: Please use your authorized device when logging in.`;
-
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(text);
-      } else {
-        const textarea = document.createElement("textarea");
-        textarea.value = text;
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand("copy");
-        document.body.removeChild(textarea);
-      }
-      setCopied(true);
-      showSuccessToast("Copied to Clipboard", "Ready to paste into WhatsApp or Email!");
-      setTimeout(() => setCopied(false), 3000);
-    } catch {
-      showErrorAlert("Copy Failed", "Please copy the ID manually.");
-    }
-  };
-
-  const [requests, setRequests] = useState([]);
-  const [loadingRequests, setLoadingRequests] = useState(true);
-  const [actionMessage, setActionMessage] = useState("");
-
   // Audit state
   const [auditStats, setAuditStats] = useState({
     totalRegistered: 0,
@@ -65,20 +31,51 @@ export default function AdminDashboardPage() {
   const [auditLogs, setAuditLogs] = useState([]);
   const [loadingAudit, setLoadingAudit] = useState(true);
 
-  // Fetch pending access requests
-  const fetchRequests = useCallback(async () => {
-    setLoadingRequests(true);
+  // Candidate filtering & permission explainer states
+  const [roleFilter, setRoleFilter] = useState("all"); // 'all' | 'general' | 'advance' | 'admin'
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showPermissionGuide, setShowPermissionGuide] = useState(false);
+
+  // Selected candidate profile inspection modal state
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [selectedUserMetrics, setSelectedUserMetrics] = useState(null);
+  const [loadingMetrics, setLoadingMetrics] = useState(false);
+
+  // Lock body scroll and listen for ESC key when inspector modal is open
+  useEffect(() => {
+    if (!selectedUser) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        setSelectedUser(null);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [selectedUser]);
+
+  const handleOpenUserDetail = async (u) => {
+    setSelectedUser(u);
+    setLoadingMetrics(true);
     try {
-      const res = await apiClient.get("/admin/access-requests");
+      const res = await apiClient.get("/user/profile-metrics", {
+        params: { accessId: u.id || u.accessId },
+      });
       if (res.data?.success) {
-        setRequests(res.data.data || []);
+        setSelectedUserMetrics(res.data.data);
       }
     } catch (err) {
-      console.error("Failed to load access requests:", err);
+      console.warn("Failed to fetch user metrics:", err);
     } finally {
-      setLoadingRequests(false);
+      setLoadingMetrics(false);
     }
-  }, []);
+  };
 
   // Fetch users audit and activity stats
   const fetchAuditData = useCallback(async () => {
@@ -109,7 +106,6 @@ export default function AdminDashboardPage() {
   }, []);
 
   useEffect(() => {
-    fetchRequests();
     fetchAuditData();
 
     // Auto refresh active user statuses every 45s
@@ -118,82 +114,7 @@ export default function AdminDashboardPage() {
     }, 45000);
 
     return () => clearInterval(interval);
-  }, [fetchRequests, fetchAuditData]);
-
-  // Generate 10-digit ID
-  const handleGenerateId = async (e) => {
-    e.preventDefault();
-    if (!candidateName.trim()) return;
-
-    setGenerating(true);
-    try {
-      const res = await apiClient.post("/admin/access-ids", {
-        name: candidateName.trim(),
-        role: candidateRole,
-      });
-
-      if (res.data?.success) {
-        setGeneratedUser(res.data.data);
-        setCandidateName("");
-        fetchAuditData();
-      }
-    } catch (err) {
-      console.error("Generate ID failed:", err);
-    } finally {
-      setGenerating(false);
-    }
-  };
-
-  // Approve pending request
-  const handleApprove = async (accessId) => {
-    try {
-      const res = await apiClient.patch(`/admin/access-requests/${accessId}/approve`, {});
-      if (res.data?.success) {
-        setActionMessage(`Approved Access ID: ${accessId}`);
-        fetchRequests();
-        fetchAuditData();
-      }
-    } catch (err) {
-      console.error("Approve failed:", err);
-    }
-  };
-
-  // Reject pending request
-  const handleReject = async (accessId) => {
-    try {
-      const res = await apiClient.patch(`/admin/access-requests/${accessId}/reject`, {});
-      if (res.data?.success) {
-        setActionMessage(`Rejected Access ID: ${accessId}`);
-        fetchRequests();
-        fetchAuditData();
-      }
-    } catch (err) {
-      console.error("Reject failed:", err);
-    }
-  };
-
-  // Reset user device binding (allows logging in from new machine)
-  const handleResetDevice = async (accessId, name) => {
-    const res = await showConfirmModal({
-      title: "Reset Device Binding?",
-      text: `Reset device key for ${name} (${accessId})? They will be prompted to register their current browser on next login.`,
-      confirmButtonText: "Yes, Reset Device",
-      isDanger: false,
-      icon: "question",
-    });
-
-    if (!res.isConfirmed) return;
-
-    try {
-      const apiRes = await apiClient.patch(`/admin/users/${accessId}/reset-device`);
-      if (apiRes.data?.success) {
-        showSuccessToast("Device Key Reset", apiRes.data.message);
-        fetchAuditData();
-      }
-    } catch (err) {
-      showErrorAlert("Reset Failed", err.response?.data?.message || err.message);
-    }
-  };
+  }, [fetchAuditData]);
 
   // Delete single log entry
   const handleDeleteLog = async (logId) => {
@@ -241,6 +162,44 @@ export default function AdminDashboardPage() {
     }
   };
 
+  // Change user role (General / Advance / Admin) with audit tracking
+  const handleUpdateRole = async (userId, userName, newRole) => {
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ role: newRole })
+        .eq("id", userId);
+
+      if (error) throw error;
+
+      // Log into audit trail
+      try {
+        await supabase.from("audit_logs").insert({
+          action: "ROLE_CHANGE",
+          user_name: userName || "Candidate",
+          access_id: userId,
+          details: `Role updated to [${newRole.toUpperCase()}] by administrator`,
+          timestamp: new Date().toISOString(),
+        });
+      } catch (logErr) {
+        console.warn("Could not insert audit log:", logErr);
+      }
+
+      showSuccessToast(
+        "Permissions Updated",
+        `${userName || "Candidate"} has been granted [${newRole.toUpperCase()}] access.`
+      );
+
+      if (selectedUser && (selectedUser.id === userId || selectedUser.accessId === userId)) {
+        setSelectedUser((prev) => ({ ...prev, role: newRole }));
+      }
+
+      fetchAuditData();
+    } catch (err) {
+      showErrorAlert("Update Failed", err.message || "Failed to update role");
+    }
+  };
+
   // Trigger PDF export
   const handleExportPDF = () => {
     exportAuditReportPDF({
@@ -250,8 +209,41 @@ export default function AdminDashboardPage() {
     });
   };
 
+  const formatDate = (isoStr) => {
+    if (!isoStr) return "Never";
+    try {
+      const d = new Date(isoStr);
+      if (Number.isNaN(d.getTime())) return "Never";
+      return d.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+    } catch {
+      return "Never";
+    }
+  };
+
+  // Role counters & filtered candidates
+  const generalCount = auditUsers.filter((u) => (u.role || "general") === "general").length;
+  const advanceCount = auditUsers.filter((u) => u.role === "advance").length;
+  const adminCount = auditUsers.filter((u) => u.role === "admin").length;
+
+  const filteredUsers = auditUsers.filter((u) => {
+    const r = u.role || "general";
+    const matchesRole = roleFilter === "all" || r === roleFilter;
+    const q = searchQuery.toLowerCase().trim();
+    const matchesSearch =
+      !q ||
+      u.name?.toLowerCase().includes(q) ||
+      u.email?.toLowerCase().includes(q) ||
+      u.id?.toLowerCase().includes(q) ||
+      u.accessId?.toLowerCase().includes(q);
+    return matchesRole && matchesSearch;
+  });
+
   return (
-    <div className="w-full flex flex-col space-y-10 animate-slide-up">
+    <div className="w-full flex flex-col space-y-8 animate-slide-up pb-12">
       {/* Header with Export & Refresh Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-plum/15">
         <div>
@@ -259,7 +251,7 @@ export default function AdminDashboardPage() {
             Admin Dashboard
           </h2>
           <p className="text-lg text-muted-label mt-1">
-            Generate access IDs, monitor live active sessions, and audit access security logs.
+            Manage candidate access permissions, monitor live sessions, and audit security events.
           </p>
         </div>
 
@@ -285,21 +277,8 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {actionMessage && (
-        <div className="p-4 rounded-xl bg-plum/10 text-plum text-base font-semibold border border-plum/20 flex items-center justify-between">
-          <span>{actionMessage}</span>
-          <button
-            type="button"
-            onClick={() => setActionMessage("")}
-            className="text-plum hover:text-plum-hover text-sm font-bold ml-4 cursor-pointer"
-          >
-            ✕
-          </button>
-        </div>
-      )}
-
       {/* ==================================================== */}
-      {/* 1. Live Overview Stats (Active Now & Registration)   */}
+      {/* 1. Live Overview Stats (Strict Platform Plum Family) */}
       {/* ==================================================== */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
         {/* Metric 1: Currently Active Online */}
@@ -308,310 +287,331 @@ export default function AdminDashboardPage() {
             <div className="text-base uppercase tracking-wider text-muted-label font-bold mb-1">
               Currently Active Online
             </div>
-            <div className="text-4xl font-black text-emerald-700 flex items-center space-x-3">
+            <div className="text-4xl font-black text-body-dark font-mono flex items-center space-x-3">
               <span>{auditStats.activeNowCount}</span>
-              <span className="relative flex h-3.5 w-3.5">
+              <span className="flex h-3 w-3 relative">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
               </span>
             </div>
             <div className="text-base text-muted-label mt-1">
-              Active within the last 5 minutes
+              Candidates in active session
             </div>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-            <HiSignal className="w-6 h-6" />
-          </div>
-        </div>
-
-        {/* Metric 2: Total Approved Candidates */}
-        <div className="imlaa-card p-6 border border-plum/20 bg-white flex items-center justify-between">
-          <div>
-            <div className="text-base uppercase tracking-wider text-muted-label font-bold mb-1">
-              Approved Candidates
-            </div>
-            <div className="text-4xl font-black text-plum">
-              {auditStats.approvedCount}
-            </div>
-            <div className="text-base text-muted-label mt-1">
-              Authorized device keys issued
-            </div>
-          </div>
-          <div className="w-12 h-12 rounded-xl bg-plum/10 text-plum flex items-center justify-center">
-            <HiUsers className="w-6 h-6" />
+          <div className="w-14 h-14 rounded-2xl bg-plum/10 text-plum flex items-center justify-center">
+            <HiSignal className="w-7 h-7" />
           </div>
         </div>
 
-        {/* Metric 3: Pending Ingress Queue */}
+        {/* Metric 2: Advance & Admin Members */}
         <div className="imlaa-card p-6 border border-plum/20 bg-white flex items-center justify-between">
           <div>
             <div className="text-base uppercase tracking-wider text-muted-label font-bold mb-1">
-              Pending Queue
+              Advance & Admin Tiers
             </div>
-            <div className="text-4xl font-black text-body-dark">
-              {requests.length}
+            <div className="text-4xl font-black text-plum font-mono">
+              {advanceCount + adminCount}
             </div>
             <div className="text-base text-muted-label mt-1">
-              Awaiting administrator approval
+              {advanceCount} Advance, {adminCount} Admins
             </div>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
-            <HiClock className="w-6 h-6" />
+          <div className="w-14 h-14 rounded-2xl bg-plum/10 text-plum flex items-center justify-center">
+            <HiSparkles className="w-7 h-7" />
+          </div>
+        </div>
+
+        {/* Metric 3: Total Registered Candidates */}
+        <div className="imlaa-card p-6 border border-plum/20 bg-white flex items-center justify-between">
+          <div>
+            <div className="text-base uppercase tracking-wider text-muted-label font-bold mb-1">
+              Total Candidates
+            </div>
+            <div className="text-4xl font-black text-body-dark font-mono">
+              {auditStats.totalRegistered}
+            </div>
+            <div className="text-base text-muted-label mt-1">
+              {generalCount} Free members in registry
+            </div>
+          </div>
+          <div className="w-14 h-14 rounded-2xl bg-plum/10 text-plum flex items-center justify-center">
+            <HiUsers className="w-7 h-7" />
           </div>
         </div>
       </div>
 
       {/* ==================================================== */}
-      {/* 2. Candidate Creation & Pending Queue Columns        */}
+      {/* 2. Candidate Access Directory (Simplified & Unified) */}
       {/* ==================================================== */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Left Column: Generate Access ID Card */}
-        <div className="lg:col-span-5 flex flex-col space-y-6">
-          <div className="imlaa-card p-6 sm:p-8">
-            <div className="flex items-center space-x-3 text-plum mb-4">
-              <HiKey className="w-6 h-6" />
+      <div className="imlaa-card p-6 sm:p-8 space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-plum/15">
+          <div>
+            <div className="flex items-center space-x-3">
               <h3 className="text-xl font-bold text-body-dark">
-                Issue 10-Digit ID
+                Candidate Access Directory
               </h3>
-            </div>
-
-            <form onSubmit={handleGenerateId} className="space-y-5">
-              <div>
-                <label className="block text-base font-semibold text-body-dark mb-2">
-                  Candidate Name *
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. John Doe"
-                  value={candidateName}
-                  onChange={(e) => setCandidateName(e.target.value)}
-                  className="imlaa-input text-base"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-base font-semibold text-body-dark mb-2">
-                  Assigned Role
-                </label>
-                <select
-                  value={candidateRole}
-                  onChange={(e) => setCandidateRole(e.target.value)}
-                  className="imlaa-input text-base"
-                >
-                  <option value="general">General (Vocabulary + Grammar)</option>
-                  <option value="advance">Advance (+ Upload to Study)</option>
-                  <option value="admin">Admin (Full Access)</option>
-                </select>
-              </div>
-
               <button
-                type="submit"
-                disabled={generating || !candidateName.trim()}
-                className="imlaa-btn-primary w-full py-3.5 text-base"
+                type="button"
+                onClick={() => setShowPermissionGuide(!showPermissionGuide)}
+                className="inline-flex items-center space-x-1 text-xs font-bold text-plum hover:underline cursor-pointer"
               >
-                {generating ? "Generating..." : "Generate 10-Digit Access ID"}
+                <HiInformationCircle className="w-4 h-4" />
+                <span>{showPermissionGuide ? "Hide Tier Guide" : "View Tier Guide"}</span>
               </button>
-            </form>
-
-            {/* Newly Generated ID Card */}
-            {generatedUser && (
-              <div className="mt-6 p-5 rounded-xl border border-plum/30 bg-plum/5 text-base space-y-3 animate-slide-up">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-plum text-base">New Access ID Created</span>
-                  <span className="text-xs uppercase font-bold px-2 py-0.5 rounded bg-plum/10 text-plum">
-                    {generatedUser.role}
-                  </span>
-                </div>
-                <div className="text-body-dark font-medium text-sm">
-                  Candidate: <span className="font-bold text-base">{generatedUser.name}</span>
-                </div>
-                <div className="p-3 bg-white rounded-lg border border-plum/15 text-2xl font-mono font-black text-plum tracking-widest text-center">
-                  {generatedUser.accessId}
-                </div>
-
-                {/* Copy ID & Instructions Button */}
-                <button
-                  type="button"
-                  onClick={handleCopyInstructions}
-                  className="imlaa-btn-secondary w-full py-2.5 px-3 text-sm flex items-center justify-center space-x-2 font-semibold hover:border-plum"
-                >
-                  {copied ? (
-                    <>
-                      <HiClipboardDocumentCheck className="w-5 h-5 text-emerald-600" />
-                      <span className="text-emerald-700">Copied to Clipboard!</span>
-                    </>
-                  ) : (
-                    <>
-                      <HiClipboard className="w-5 h-5 text-plum" />
-                      <span>Copy ID & Instructions (WhatsApp/Email)</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Right Column: Pending Device Requests Table */}
-        <div className="lg:col-span-7 flex flex-col space-y-6">
-          <div className="imlaa-card p-6 sm:p-8">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-3 text-plum">
-                <HiUsers className="w-6 h-6" />
-                <h3 className="text-xl font-bold text-body-dark">
-                  Access Requests Queue
-                </h3>
-              </div>
-              <span className="imlaa-badge text-base">
-                {requests.length} Pending
-              </span>
             </div>
-
-            {loadingRequests ? (
-              <div className="p-8 text-center text-muted-label animate-pulse">
-                Refreshing queue...
-              </div>
-            ) : requests.length === 0 ? (
-              <div className="p-8 text-center text-muted-label flex flex-col items-center space-y-2">
-                <HiClock className="w-8 h-8 text-plum/30" />
-                <div className="text-base">No pending access requests in the queue.</div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {requests.map((req) => (
-                  <div
-                    key={req.accessId}
-                    className="p-4 rounded-xl border border-plum/20 bg-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
-                  >
-                    <div>
-                      <div className="text-lg font-bold text-body-dark">
-                        {req.name}
-                      </div>
-                      <div className="font-mono text-base text-plum font-semibold">
-                        ID: {req.accessId}
-                      </div>
-                      <div className="text-base text-muted-label mt-0.5">
-                        Role: <span className="capitalize">{req.role}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center space-x-2 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => handleApprove(req.accessId)}
-                        className="imlaa-btn-primary py-2 px-4 text-base space-x-1"
-                      >
-                        <HiCheck className="w-5 h-5" />
-                        <span>Approve</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleReject(req.accessId)}
-                        className="imlaa-btn-secondary py-2 px-4 text-base text-rose-700 border-rose-300 hover:bg-rose-50 space-x-1"
-                      >
-                        <HiXMark className="w-5 h-5" />
-                        <span>Reject</span>
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* ==================================================== */}
-      {/* 3. Candidate Access Directory Table (Who has access) */}
-      {/* ==================================================== */}
-      <div className="imlaa-card p-6 sm:p-8 space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-plum/15">
-          <div>
-            <h3 className="text-xl font-bold text-body-dark">
-              Candidate Access Directory
-            </h3>
             <p className="text-base text-muted-label mt-0.5">
-              Full registry of candidates issued 10-digit IDs and their active online presence.
+              Full directory of registered users with role assignments and privilege controls.
             </p>
           </div>
+
           <span className="imlaa-badge text-base">
-            {auditUsers.length} Registered Candidates
+            {filteredUsers.length} / {auditUsers.length} Candidates
           </span>
         </div>
 
+        {/* Collapsible Permission Tiers Guide (Harmonious Plum Palette) */}
+        {showPermissionGuide && (
+          <div className="p-5 rounded-2xl border border-plum/20 bg-plum/5 space-y-4 animate-slide-up">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-black text-plum uppercase tracking-wider flex items-center space-x-1.5">
+                <HiShieldCheck className="w-5 h-5 text-plum" />
+                <span>Platform Permission Matrix & Feature Tiers</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowPermissionGuide(false)}
+                className="text-xs text-muted-label hover:text-body-dark font-bold cursor-pointer"
+              >
+                ✕ Close
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+              {/* Tier 1: General Free */}
+              <div className="p-4 rounded-xl bg-white border border-plum/15 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-plum uppercase text-xs">General Member</span>
+                  <span className="imlaa-badge text-[11px] py-0.5 px-2">Free</span>
+                </div>
+                <ul className="text-muted-label space-y-1.5 list-disc list-inside">
+                  <li>Full Flashcards & Spelling drills</li>
+                  <li>Standard Grammar interactive quizzes</li>
+                  <li>Personal learning metrics & progress tracking</li>
+                  <li>Standard visitor rate limit queues</li>
+                </ul>
+              </div>
+
+              {/* Tier 2: Advance Premium */}
+              <div className="p-4 rounded-xl bg-plum/5 border border-plum/25 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-plum uppercase text-xs flex items-center space-x-1">
+                    <HiSparkles className="w-3.5 h-3.5 text-plum" />
+                    <span>Advance Member</span>
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full bg-plum text-white text-[11px] font-bold">Premium</span>
+                </div>
+                <ul className="text-muted-label space-y-1.5 list-disc list-inside">
+                  <li><strong>Custom Vocabulary Uploads</strong> authorized</li>
+                  <li>Native language translations (Bangla, etc.)</li>
+                  <li>High-volume & untimed drills (10, 20, 50 questions)</li>
+                  <li>Priority audio synthesis queue & server bandwidth</li>
+                </ul>
+              </div>
+
+              {/* Tier 3: Admin Superuser */}
+              <div className="p-4 rounded-xl bg-plum/10 border border-plum/35 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-plum uppercase text-xs">Platform Admin</span>
+                  <span className="px-2 py-0.5 rounded-full bg-plum text-white text-[11px] font-bold">Authority</span>
+                </div>
+                <ul className="text-muted-label space-y-1.5 list-disc list-inside">
+                  <li>Promote / demote candidate tiers directly</li>
+                  <li>Device binding reset & browser telemetry inspection</li>
+                  <li>Full security audit log inspection & purge</li>
+                  <li>Export candidate analytics reports to PDF</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Filter Controls Bar (Search + Role Pills - Strict Plum Palette) */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+          {/* Role Filter Pills */}
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            <button
+              type="button"
+              onClick={() => setRoleFilter("all")}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                roleFilter === "all"
+                  ? "bg-plum text-white shadow-xs"
+                  : "bg-plum/5 text-muted-label hover:bg-plum/10 hover:text-plum border border-plum/15"
+              }`}
+            >
+              All ({auditUsers.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setRoleFilter("general")}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                roleFilter === "general"
+                  ? "bg-plum text-white shadow-xs"
+                  : "bg-plum/5 text-muted-label hover:bg-plum/10 hover:text-plum border border-plum/15"
+              }`}
+            >
+              General ({generalCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setRoleFilter("advance")}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center space-x-1.5 ${
+                roleFilter === "advance"
+                  ? "bg-plum text-white shadow-xs"
+                  : "bg-plum/5 text-muted-label hover:bg-plum/10 hover:text-plum border border-plum/15"
+              }`}
+            >
+              <HiSparkles className="w-3.5 h-3.5" />
+              <span>Advance ({advanceCount})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setRoleFilter("admin")}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                roleFilter === "admin"
+                  ? "bg-plum text-white shadow-xs"
+                  : "bg-plum/5 text-muted-label hover:bg-plum/10 hover:text-plum border border-plum/15"
+              }`}
+            >
+              Admin ({adminCount})
+            </button>
+          </div>
+
+          {/* Search Input */}
+          <div className="relative w-full sm:w-72">
+            <input
+              type="text"
+              placeholder="Search by name, email, ID..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="imlaa-input py-2 pl-9 pr-3 text-xs w-full bg-white"
+            />
+            <HiMagnifyingGlass className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-label" />
+          </div>
+        </div>
+
+        {/* Directory Table */}
         <div className="overflow-x-auto">
           <table className="w-full text-left text-base">
             <thead>
               <tr className="border-b border-plum/20 text-muted-label uppercase text-sm font-bold">
-                <th className="py-3 px-3">Candidate</th>
-                <th className="py-3 px-3">10-Digit ID</th>
-                <th className="py-3 px-3">Role</th>
-                <th className="py-3 px-3">Status</th>
+                <th className="py-3 px-3">User / Candidate</th>
+                <th className="py-3 px-3">Email & Auth</th>
+                <th className="py-3 px-3">Assigned Role</th>
                 <th className="py-3 px-3">Live Presence</th>
-                <th className="py-3 px-3 text-right">Actions</th>
+                <th className="py-3 px-3 text-right">Role Management</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-plum/10">
-              {auditUsers.map((user) => (
-                <tr key={user.accessId} className="hover:bg-plum/5 transition-colors">
-                  <td className="py-3.5 px-3 font-semibold text-body-dark">
-                    {user.name}
-                  </td>
-                  <td className="py-3.5 px-3 font-mono font-bold text-plum">
-                    {user.accessId}
-                  </td>
-                  <td className="py-3.5 px-3">
-                    <span className="capitalize font-medium text-body-dark">
-                      {user.role}
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-3">
-                    <span
-                      className={`inline-block px-2.5 py-0.5 rounded-full text-sm font-bold uppercase ${
-                        user.status === "approved"
-                          ? "bg-emerald-100 text-emerald-800"
-                          : user.status === "rejected"
-                          ? "bg-rose-100 text-rose-800"
-                          : "bg-amber-100 text-amber-800"
-                      }`}
-                    >
-                      {user.status}
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-3">
-                    {user.isOnline ? (
-                      <span className="inline-flex items-center space-x-2 text-emerald-700 font-bold">
-                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                        <span>Active Now</span>
-                      </span>
-                    ) : (
-                      <span className="text-muted-label">
-                        {user.lastActiveAt
-                          ? `Seen ${new Date(user.lastActiveAt).toLocaleDateString()}`
-                          : "Never logged in"}
-                      </span>
-                    )}
-                  </td>
-                  <td className="py-3.5 px-3 text-right">
-                    <button
-                      type="button"
-                      onClick={() => handleResetDevice(user.accessId, user.name)}
-                      title="Reset hardware device binding"
-                      className="imlaa-btn-secondary py-1 px-3 text-sm cursor-pointer hover:border-plum"
-                    >
-                      Reset Device
-                    </button>
+              {filteredUsers.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-8 text-center text-muted-label text-sm">
+                    No candidates matched the current role filter or search criteria.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredUsers.map((u) => (
+                  <tr
+                    key={u.id || u.accessId}
+                    className="hover:bg-plum/5 transition-colors cursor-pointer"
+                    onClick={() => handleOpenUserDetail(u)}
+                  >
+                    <td className="py-3.5 px-3">
+                      <div className="flex items-center space-x-3">
+                        {u.avatarUrl ? (
+                          <img
+                            src={u.avatarUrl}
+                            alt={u.name}
+                            className="w-10 h-10 rounded-full border border-plum object-cover shrink-0"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-plum/15 text-plum font-bold flex items-center justify-center shrink-0 text-sm">
+                            {(u.name || u.email || "U").charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <div>
+                          <div className="font-bold text-body-dark hover:text-plum flex items-center space-x-1.5">
+                            <span>{u.name || "Candidate"}</span>
+                            <span className="text-[10px] text-plum bg-plum/10 px-1.5 py-0.2 rounded font-semibold">
+                              Inspect
+                            </span>
+                          </div>
+                          <div className="text-xs text-muted-label font-mono">
+                            ID: {u.id?.slice(0, 8) || u.accessId}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+
+                    <td className="py-3.5 px-3">
+                      <div className="text-sm font-medium text-body-dark">{u.email || "—"}</div>
+                      <div className="text-xs text-muted-label uppercase font-mono">
+                        Via {u.authProvider || "email"}
+                      </div>
+                    </td>
+
+                    <td className="py-3.5 px-3">
+                      <span
+                        className={`inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-bold uppercase ${
+                          u.role === "admin"
+                            ? "bg-plum text-white"
+                            : u.role === "advance"
+                            ? "bg-plum/15 text-plum border border-plum/30"
+                            : "bg-plum/5 text-muted-label border border-plum/15"
+                        }`}
+                      >
+                        {u.role === "advance" && <HiSparkles className="w-3 h-3 text-plum" />}
+                        <span>{u.role || "general"}</span>
+                      </span>
+                    </td>
+
+                    <td className="py-3.5 px-3">
+                      {u.isOnline ? (
+                        <span className="inline-flex items-center space-x-2 text-emerald-700 font-bold text-sm">
+                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                          <span>Active Now</span>
+                        </span>
+                      ) : (
+                        <span className="text-muted-label text-sm">
+                          {u.lastActiveAt
+                            ? `Seen ${new Date(u.lastActiveAt).toLocaleDateString()}`
+                            : "Never logged in"}
+                        </span>
+                      )}
+                    </td>
+
+                    <td className="py-3.5 px-3 text-right" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-end">
+                        <select
+                          value={u.role || "general"}
+                          onChange={(e) => handleUpdateRole(u.id, u.name, e.target.value)}
+                          className="imlaa-input text-xs py-1.5 px-3 bg-white font-semibold border-plum/25 text-body-dark hover:border-plum focus:border-plum cursor-pointer rounded-xl max-w-37.5"
+                        >
+                          <option value="general">General (Free)</option>
+                          <option value="advance">Advance (Premium)</option>
+                          <option value="admin">Platform Admin</option>
+                        </select>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
       </div>
 
       {/* ==================================================== */}
-      {/* 4. Audit Log Trail (With Clear / Delete Options)     */}
+      {/* 3. Audit Log Trail (With Clear / Delete Options)     */}
       {/* ==================================================== */}
       <div className="imlaa-card p-6 sm:p-8 space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-plum/15">
@@ -620,7 +620,7 @@ export default function AdminDashboardPage() {
               Security & Access Audit Trail
             </h3>
             <p className="text-base text-muted-label mt-0.5">
-              Historical access event logs, approvals, and device binding resets.
+              Historical access event logs, role promotions, and security events.
             </p>
           </div>
 
@@ -689,6 +689,291 @@ export default function AdminDashboardPage() {
           </div>
         )}
       </div>
+
+      {/* ==================================================== */}
+      {/* 4. USER PROFILE INSPECTOR MODAL (Portaled to Body)   */}
+      {/* ==================================================== */}
+      {selectedUser &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-9999 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setSelectedUser(null);
+            }}
+          >
+            <div
+              className="imlaa-card w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 sm:p-8 bg-white border border-plum/20 shadow-2xl space-y-6 my-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header with Avatar & Online Status */}
+              <div className="flex items-start justify-between pb-4 border-b border-plum/15">
+                <div className="flex items-center space-x-4">
+                  {selectedUser.avatarUrl ? (
+                    <img
+                      src={selectedUser.avatarUrl}
+                      alt={selectedUser.name}
+                      className="w-16 h-16 rounded-2xl border-2 border-plum object-cover shadow-sm"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 rounded-2xl bg-plum/15 text-plum font-bold flex items-center justify-center text-2xl border-2 border-plum/30">
+                      {(selectedUser.name || selectedUser.email || "U").charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <h3 className="text-2xl font-black text-body-dark">
+                        {selectedUser.name || "Candidate"}
+                      </h3>
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase ${
+                          selectedUser.role === "admin"
+                            ? "bg-plum text-white"
+                            : selectedUser.role === "advance"
+                            ? "bg-plum/15 text-plum border border-plum/30"
+                            : "bg-plum/10 text-plum border border-plum/15"
+                        }`}
+                      >
+                        {selectedUser.role || "general"}
+                      </span>
+                    </div>
+                    <div className="text-sm text-muted-label mt-0.5">
+                      {selectedUser.email || "No email linked"} • Auth via {selectedUser.authProvider || "email"}
+                    </div>
+                    <div className="flex items-center space-x-3 mt-1 text-xs">
+                      {selectedUser.isOnline ? (
+                        <span className="inline-flex items-center space-x-1.5 text-emerald-700 font-bold">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                          <span>Active Online Now</span>
+                        </span>
+                      ) : (
+                        <span className="text-muted-label">
+                          Last Active: {selectedUser.lastActiveAt ? new Date(selectedUser.lastActiveAt).toLocaleString() : "Never"}
+                        </span>
+                      )}
+
+                      <span className="text-muted-label font-mono">
+                        Member Since: {formatDate(selectedUser.createdAt)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedUser(null)}
+                  className="text-muted-label hover:text-body-dark text-xl font-bold p-2 cursor-pointer"
+                >
+                  <HiXMark className="w-6 h-6" />
+                </button>
+              </div>
+
+              {/* Role & Permission Privileges Box (Unified Plum Family) */}
+              <div className="p-4 rounded-xl border border-plum/20 bg-plum/5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black uppercase tracking-wider text-plum flex items-center space-x-1">
+                    <HiShieldCheck className="w-4 h-4 text-plum" />
+                    <span>Assigned Access Tier & Capabilities</span>
+                  </span>
+                  <span className="text-xs font-bold font-mono text-muted-label">
+                    ID: {selectedUser.id?.slice(0, 8) || selectedUser.accessId}
+                  </span>
+                </div>
+
+                <div className="text-xs text-muted-label leading-relaxed">
+                  {(selectedUser.role || "general") === "general" && (
+                    <p>
+                      <strong className="text-body-dark">General Free Tier:</strong> Candidate has access to Core Vocabulary Flashcards, Spelling Drills, and standard Grammar tests.
+                    </p>
+                  )}
+                  {selectedUser.role === "advance" && (
+                    <p className="text-body-dark font-medium">
+                      <strong className="text-plum">Advance Premium Tier:</strong> Candidate is authorized for custom vocabulary uploads, native language translations, untimed/high-volume quizzes, and priority voice synthesis.
+                    </p>
+                  )}
+                  {selectedUser.role === "admin" && (
+                    <p className="text-body-dark font-medium">
+                      <strong className="text-plum">Platform Administrator:</strong> Full platform authority to manage candidate credentials, review audit trails, and alter system parameters.
+                    </p>
+                  )}
+                </div>
+
+                {/* 1-Click Role Change Action Buttons (Platform Color Palette) */}
+                <div className="pt-2 flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-bold text-body-dark mr-1">Quick Permissions:</span>
+
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateRole(selectedUser.id, selectedUser.name, "general")}
+                    disabled={(selectedUser.role || "general") === "general"}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                      (selectedUser.role || "general") === "general"
+                        ? "bg-plum/15 text-plum border border-plum/30 cursor-default"
+                        : "bg-white hover:bg-plum/10 text-body-dark border border-plum/20 cursor-pointer"
+                    }`}
+                  >
+                    ↩ Set as General
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateRole(selectedUser.id, selectedUser.name, "advance")}
+                    disabled={selectedUser.role === "advance"}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1 ${
+                      selectedUser.role === "advance"
+                        ? "bg-plum text-white font-bold shadow-xs cursor-default"
+                        : "bg-plum/5 hover:bg-plum/15 text-plum font-bold border border-plum/25 cursor-pointer"
+                    }`}
+                  >
+                    <HiSparkles className="w-3.5 h-3.5" />
+                    <span>Grant Advance</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateRole(selectedUser.id, selectedUser.name, "admin")}
+                    disabled={selectedUser.role === "admin"}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                      selectedUser.role === "admin"
+                        ? "bg-plum text-white font-bold shadow-xs cursor-default"
+                        : "bg-plum/5 hover:bg-plum/15 text-plum font-bold border border-plum/25 cursor-pointer"
+                    }`}
+                  >
+                    Promote to Admin
+                  </button>
+                </div>
+              </div>
+
+              {/* Device & Browser Telemetry */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-label">
+                  Device & Browser Telemetry
+                </h4>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                  <div className="p-3 rounded-xl bg-plum/5 border border-plum/10">
+                    <div className="text-xs text-muted-label">Browser</div>
+                    <div className="font-bold text-body-dark mt-0.5">
+                      {selectedUser.deviceInfo?.browser || "Web Browser"}
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-xl bg-plum/5 border border-plum/10">
+                    <div className="text-xs text-muted-label">Operating System</div>
+                    <div className="font-bold text-body-dark mt-0.5">
+                      {selectedUser.deviceInfo?.os || "Desktop OS"}
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-xl bg-plum/5 border border-plum/10">
+                    <div className="text-xs text-muted-label">Platform Form</div>
+                    <div className="font-bold text-body-dark mt-0.5">
+                      {selectedUser.deviceInfo?.platform || "Desktop Workstation"}
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-xl bg-plum/5 border border-plum/10">
+                    <div className="text-xs text-muted-label">Display Specs</div>
+                    <div className="font-bold text-body-dark mt-0.5 text-xs">
+                      {selectedUser.deviceInfo?.screenResolution || "1920 × 1080"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Study Time & Activity Usage */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-label">
+                  Usage & Academic Engagement
+                </h4>
+                {loadingMetrics ? (
+                  <div className="p-6 text-center text-sm text-plum animate-pulse">
+                    Loading study telemetry...
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="p-3 rounded-xl bg-white border border-plum/20">
+                      <div className="text-xs text-muted-label">Time Spent Today</div>
+                      <div className="text-xl font-black text-plum mt-0.5">
+                        {Math.round(((selectedUserMetrics?.totalStudySeconds || 0) % 3600) / 60)} mins
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-white border border-plum/20">
+                      <div className="text-xs text-muted-label">Total Month Usage</div>
+                      <div className="text-xl font-black text-plum mt-0.5">
+                        {Math.max(1, Math.round((selectedUserMetrics?.totalStudySeconds || 0) / 60))} mins
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-white border border-plum/20">
+                      <div className="text-xs text-muted-label">Words Mastered</div>
+                      <div className="text-xl font-black text-plum mt-0.5">
+                        {selectedUserMetrics?.masteredCount || 0}
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-white border border-plum/20">
+                      <div className="text-xs text-muted-label">Highest Grammar</div>
+                      <div className="text-xl font-black text-body-dark mt-0.5">
+                        {selectedUserMetrics?.highestGrammarScore
+                          ? `${selectedUserMetrics.highestGrammarScore.percent}%`
+                          : "No Drills"}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* User Activity Logs Trail */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-label">
+                  Recent Candidate Activity Logs
+                </h4>
+                <div className="max-h-48 overflow-y-auto rounded-xl border border-plum/15 divide-y divide-plum/10 text-xs">
+                  {auditLogs
+                    .filter(
+                      (l) =>
+                        l.userName?.toLowerCase() === selectedUser.name?.toLowerCase() ||
+                        l.accessId === selectedUser.id ||
+                        l.accessId === selectedUser.accessId
+                    )
+                    .slice(0, 10)
+                    .map((log) => (
+                      <div key={log._id} className="p-2.5 flex items-center justify-between">
+                        <div>
+                          <span className="font-bold text-plum mr-2">[{log.action}]</span>
+                          <span className="text-body-dark">{log.details}</span>
+                        </div>
+                        <span className="text-muted-label font-mono shrink-0 ml-2">
+                          {new Date(log.timestamp).toLocaleTimeString()}
+                        </span>
+                      </div>
+                    ))}
+                  {auditLogs.filter(
+                    (l) =>
+                      l.userName?.toLowerCase() === selectedUser.name?.toLowerCase() ||
+                      l.accessId === selectedUser.id ||
+                      l.accessId === selectedUser.accessId
+                  ).length === 0 && (
+                    <div className="p-4 text-center text-muted-label">
+                      No recent activity logs recorded for this candidate.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Modal Footer Controls */}
+              <div className="flex flex-col sm:flex-row items-center justify-between pt-4 border-t border-plum/15 gap-3">
+                <div className="text-xs text-muted-label">
+                  Permissions are updated immediately in the database.
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedUser(null)}
+                  className="imlaa-btn-secondary py-2 px-5 text-sm font-semibold w-full sm:w-auto"
+                >
+                  Close Inspector
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

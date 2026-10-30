@@ -1,19 +1,21 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import LandingPage from "./pages/LandingPage";
-import AccessPendingPage from "./pages/AccessPendingPage";
-import AccessRejectedPage from "./pages/AccessRejectedPage";
 import WorkspaceLayout from "./components/WorkspaceLayout";
-import VocabularyPage from "./pages/VocabularyPage";
+import FlashcardPage from "./pages/FlashcardPage";
+import SpellingPage from "./pages/SpellingPage";
 import GrammarPage from "./pages/GrammarPage";
 import UploadStudyPage from "./pages/UploadStudyPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
 import VocabMonitorPage from "./pages/VocabMonitorPage";
 import ProfilePage from "./pages/ProfilePage";
+import ContributePage from "./pages/ContributePage";
 
 import AboutPage from "./pages/AboutPage";
 import ContactPage from "./pages/ContactPage";
 import NotFoundPage from "./pages/NotFoundPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
+import CapacityGuardModal from "./components/CapacityGuardModal";
 
 // Protected Route Guard
 function ProtectedRoute({ children, requiredRole }) {
@@ -23,7 +25,7 @@ function ProtectedRoute({ children, requiredRole }) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-xl text-plum font-semibold animate-pulse">
-          Validating Hardware Key...
+          Authenticating...
         </div>
       </div>
     );
@@ -52,15 +54,18 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <CapacityGuardModal />
         <Routes>
-          {/* Public Landing & Login */}
+          {/* Public Landing & Information */}
           <Route path="/" element={<LandingPage />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/contact" element={<ContactPage />} />
+          <Route path="/contribute" element={<ContributePage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
 
-          {/* Access status screens */}
-          <Route path="/access/pending" element={<AccessPendingPage />} />
-          <Route path="/access/rejected" element={<AccessRejectedPage />} />
+          {/* Access status legacy redirects */}
+          <Route path="/access/pending" element={<Navigate to="/" replace />} />
+          <Route path="/access/rejected" element={<Navigate to="/" replace />} />
 
           {/* Authenticated Workspace Shell */}
           <Route
@@ -71,9 +76,12 @@ export default function App() {
               </ProtectedRoute>
             }
           >
-            <Route index element={<Navigate to="vocab" replace />} />
-            <Route path="vocab" element={<VocabularyPage />} />
+            <Route index element={<Navigate to="flashcard" replace />} />
+            <Route path="flashcard" element={<FlashcardPage />} />
+            <Route path="spelling" element={<SpellingPage />} />
+            <Route path="vocab" element={<Navigate to="/workspace/flashcard" replace />} />
             <Route path="grammar" element={<GrammarPage />} />
+            <Route path="contribute" element={<ContributePage />} />
             <Route
               path="upload"
               element={

@@ -12,6 +12,7 @@ export default function ContactPage() {
   const [accessId, setAccessId] = useState("");
   const [category, setCategory] = useState("id-request");
   const [message, setMessage] = useState("");
+  const [honeypot, setHoneypot] = useState(""); // Anti-spam bot honeypot
   const [sending, setSending] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -26,6 +27,24 @@ export default function ContactPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // 1. Anti-Bot Honeypot Trap: Real users never fill this invisible field
+    if (honeypot.trim()) {
+      console.warn("Spam bot submission caught by honeypot");
+      setSubmitted(true);
+      return;
+    }
+
+    // 2. Anti-Raid Rate Limiter: Minimum 60s cooldown between submissions
+    const lastSubmitTime = localStorage.getItem("imlaa_contact_last_ts");
+    if (lastSubmitTime && Date.now() - Number(lastSubmitTime) < 60000) {
+      const waitSeconds = Math.ceil((60000 - (Date.now() - Number(lastSubmitTime))) / 1000);
+      showErrorAlert(
+        "Anti-Spam Cooldown",
+        `Please wait ${waitSeconds} seconds before submitting another inquiry to prevent spamming.`
+      );
+      return;
+    }
 
     if (!name.trim()) {
       showErrorAlert("Missing Name", "Please provide your full name so we can address your inquiry.");
@@ -61,6 +80,7 @@ export default function ContactPage() {
       if (publicKey) {
         // Direct EmailJS send via API
         await emailjs.send(serviceId, templateId, templateParams, publicKey);
+        localStorage.setItem("imlaa_contact_last_ts", Date.now().toString());
         showSuccessToast("Message Delivered", `Your inquiry was delivered directly to ${TARGET_GMAIL}.`);
         setSubmitted(true);
       } else {
@@ -77,6 +97,7 @@ export default function ContactPage() {
           `----------------------------------------\n\n` +
           `Message Details:\n${message.trim()}\n`
         );
+        localStorage.setItem("imlaa_contact_last_ts", Date.now().toString());
         window.location.href = `mailto:${TARGET_GMAIL}?subject=${subject}&body=${formattedBody}`;
         showSuccessToast("Email Formatted", "Your email client was opened with your structured message.");
         setSubmitted(true);
@@ -153,6 +174,18 @@ export default function ContactPage() {
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-5">
+              {/* Anti-Bot Invisible Honeypot (Item 9) */}
+              <input
+                type="text"
+                name="website_shield"
+                value={honeypot}
+                onChange={(e) => setHoneypot(e.target.value)}
+                tabIndex="-1"
+                autoComplete="off"
+                aria-hidden="true"
+                style={{ display: "none", position: "absolute", left: "-9999px" }}
+              />
+
               {/* Name */}
               <div>
                 <label className="block text-sm font-bold text-body-dark uppercase tracking-wider mb-2">
