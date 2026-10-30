@@ -72,7 +72,8 @@ export default function ProfilePage() {
         if (isMounted) {
           setProfileMeta({
             createdAt: profileRecord?.created_at || user?.createdAt || null,
-            lastActiveAt: profileRecord?.last_active_at || user?.lastActiveAt || null,
+            lastActiveAt:
+              profileRecord?.last_active_at || user?.lastActiveAt || null,
           });
         }
       } catch (err) {
@@ -119,7 +120,9 @@ export default function ProfilePage() {
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      setEditError("Selected photo is larger than 5MB. Please choose a smaller photo.");
+      setEditError(
+        "Selected photo is larger than 5MB. Please choose a smaller photo.",
+      );
       return;
     }
 
@@ -146,17 +149,21 @@ export default function ProfilePage() {
         const formData = new FormData();
         formData.append("image", avatarFile);
 
+        const imgbbApiKey = import.meta.env.VITE_IMAGEBB_KEY;
+
         const imgbbRes = await fetch(
-          "https://api.imgbb.com/1/upload?key=7c2f3a90374b4dfe4c951fe54501a00a",
+          `https://api.imgbb.com/1/upload?key=${imgbbApiKey}`,
           {
             method: "POST",
             body: formData,
-          }
+          },
         );
 
         const imgbbData = await imgbbRes.json();
         if (!imgbbData.success) {
-          throw new Error(imgbbData.error?.message || "Failed to upload image to ImgBB.");
+          throw new Error(
+            imgbbData.error?.message || "Failed to upload image to ImgBB.",
+          );
         }
 
         finalAvatarUrl = imgbbData.data?.display_url || imgbbData.data?.url;
@@ -169,14 +176,19 @@ export default function ProfilePage() {
       });
 
       if (res.success) {
-        showSuccessToast("Profile Updated", "Your profile credentials have been saved successfully.");
+        showSuccessToast(
+          "Profile Updated",
+          "Your profile credentials have been saved successfully.",
+        );
         setIsEditOpen(false);
       } else {
         setEditError(res.message || "Failed to update profile.");
       }
     } catch (err) {
       console.error("Profile save error:", err);
-      setEditError(err.message || "An unexpected error occurred while saving profile.");
+      setEditError(
+        err.message || "An unexpected error occurred while saving profile.",
+      );
     } finally {
       setIsUploading(false);
     }
@@ -207,7 +219,8 @@ export default function ProfilePage() {
             User Profile & Learning Analytics
           </h1>
           <p className="text-xs sm:text-base text-muted-label mt-1">
-            Personal academic record, session performance, and account credentials.
+            Personal academic record, session performance, and account
+            credentials.
           </p>
         </div>
 
@@ -285,7 +298,9 @@ export default function ProfilePage() {
                   <span>
                     Member Since:{" "}
                     <strong className="text-body-dark">
-                      {formatFormattedDate(profileMeta.createdAt || user?.createdAt)}
+                      {formatFormattedDate(
+                        profileMeta.createdAt || user?.createdAt,
+                      )}
                     </strong>
                   </span>
                 </div>
@@ -311,9 +326,7 @@ export default function ProfilePage() {
             <div className="inline-flex items-center space-x-1.5 px-3.5 py-1 rounded-full bg-plum/10 text-plum text-sm font-bold border border-plum/20">
               <HiShieldCheck className="w-4 h-4 text-plum" />
               <span>
-                {role === "admin"
-                  ? "Platform Admin"
-                  : "General Member"}
+                {role === "admin" ? "Platform Admin" : "General Member"}
               </span>
             </div>
           </div>
@@ -327,7 +340,9 @@ export default function ProfilePage() {
               <span>Study Analytics & Learning Performance</span>
             </h3>
             <p className="text-xs sm:text-sm text-muted-label max-w-xl">
-              Track your real-time vocabulary progress, practice drill counts, completed corpus sets, and active spelling mistakes on your learning dashboard.
+              Track your real-time vocabulary progress, practice drill counts,
+              completed corpus sets, and active spelling mistakes on your
+              learning dashboard.
             </p>
           </div>
           <button
@@ -356,21 +371,39 @@ export default function ProfilePage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="bg-white p-4 rounded-xl border border-plum/15">
-              <div className="text-xs uppercase font-bold text-muted-label">Operating System</div>
-              <div className="text-base font-bold text-body-dark mt-1">{deviceInfo.os}</div>
-              <div className="text-xs text-muted-label mt-0.5">{deviceInfo.platform}</div>
+              <div className="text-xs uppercase font-bold text-muted-label">
+                Operating System
+              </div>
+              <div className="text-base font-bold text-body-dark mt-1">
+                {deviceInfo.os}
+              </div>
+              <div className="text-xs text-muted-label mt-0.5">
+                {deviceInfo.platform}
+              </div>
             </div>
 
             <div className="bg-white p-4 rounded-xl border border-plum/15">
-              <div className="text-xs uppercase font-bold text-muted-label">Current Browser</div>
-              <div className="text-base font-bold text-body-dark mt-1">{deviceInfo.browser}</div>
-              <div className="text-xs text-muted-label mt-0.5">Language: {deviceInfo.language}</div>
+              <div className="text-xs uppercase font-bold text-muted-label">
+                Current Browser
+              </div>
+              <div className="text-base font-bold text-body-dark mt-1">
+                {deviceInfo.browser}
+              </div>
+              <div className="text-xs text-muted-label mt-0.5">
+                Language: {deviceInfo.language}
+              </div>
             </div>
 
             <div className="bg-white p-4 rounded-xl border border-plum/15">
-              <div className="text-xs uppercase font-bold text-muted-label">Display & Viewport</div>
-              <div className="text-base font-bold text-body-dark mt-1 font-mono">{deviceInfo.screenResolution}</div>
-              <div className="text-xs text-muted-label mt-0.5">High-DPI Calibrated</div>
+              <div className="text-xs uppercase font-bold text-muted-label">
+                Display & Viewport
+              </div>
+              <div className="text-base font-bold text-body-dark mt-1 font-mono">
+                {deviceInfo.screenResolution}
+              </div>
+              <div className="text-xs text-muted-label mt-0.5">
+                High-DPI Calibrated
+              </div>
             </div>
           </div>
         </div>
@@ -476,14 +509,18 @@ export default function ProfilePage() {
                       />
                     ) : (
                       <div className="w-20 h-20 rounded-2xl bg-plum/15 text-plum font-black text-2xl flex items-center justify-center border-2 border-plum/30 shrink-0">
-                        {(editName || user?.name || "U").charAt(0).toUpperCase()}
+                        {(editName || user?.name || "U")
+                          .charAt(0)
+                          .toUpperCase()}
                       </div>
                     )}
 
                     <div className="space-y-2">
                       <label className="imlaa-btn-secondary py-2 px-3.5 text-xs font-bold space-x-1.5 cursor-pointer inline-flex items-center">
                         <HiCamera className="w-4 h-4 text-plum" />
-                        <span>{avatarPreview ? "Change Photo" : "Upload Photo"}</span>
+                        <span>
+                          {avatarPreview ? "Change Photo" : "Upload Photo"}
+                        </span>
                         <input
                           type="file"
                           accept="image/png, image/jpeg, image/jpg, image/webp"
@@ -506,7 +543,8 @@ export default function ProfilePage() {
                       )}
 
                       <p className="text-[11px] text-muted-label">
-                        Supports JPG, PNG, WebP up to 5MB. Hosted securely on ImgBB.
+                        Supports JPG, PNG, WebP up to 5MB. Hosted securely on
+                        ImgBB.
                       </p>
                     </div>
                   </div>
@@ -543,7 +581,8 @@ export default function ProfilePage() {
                     <HiEnvelope className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-label" />
                   </div>
                   <p className="text-[11px] text-muted-label mt-1">
-                    Email is bound to your Supabase security session and cannot be changed here.
+                    Email is bound to your Supabase security session and cannot
+                    be changed here.
                   </p>
                 </div>
 
@@ -576,7 +615,7 @@ export default function ProfilePage() {
               </form>
             </div>
           </div>,
-          document.body
+          document.body,
         )}
     </div>
   );
