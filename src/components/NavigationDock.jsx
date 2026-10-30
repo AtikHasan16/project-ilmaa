@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from "react-router";
 import { useAuth } from "../context/AuthContext";
 import {
+  HiSquares2X2,
   HiBookOpen,
   HiPencilSquare,
   HiAcademicCap,
@@ -41,6 +42,12 @@ export default function NavigationDock() {
   };
 
   const navItems = [
+    {
+      to: "/workspace/dashboard",
+      label: "Dashboard",
+      icon: HiSquares2X2,
+      show: true,
+    },
     {
       to: "/workspace/flashcard",
       label: "Flashcards",

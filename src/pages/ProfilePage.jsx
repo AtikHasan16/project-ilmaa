@@ -4,11 +4,8 @@ import { useAuth } from "../context/AuthContext";
 import {
   HiShieldCheck,
   HiArrowRightOnRectangle,
-  HiClock,
   HiAcademicCap,
-  HiTrophy,
   HiComputerDesktop,
-  HiCheckCircle,
   HiArrowPath,
   HiHeart,
   HiPencilSquare,
@@ -28,19 +25,10 @@ export default function ProfilePage() {
   const navigate = useNavigate();
   const deviceInfo = getDeviceInfo();
 
-  const [metrics, setMetrics] = useState({
-    totalSessions: 0,
-    totalStudySeconds: 0,
-    masteredCount: 0,
-    inProgressCount: 0,
-    totalVocabInCorpus: 0,
-    highestGrammarScore: null,
-  });
   const [profileMeta, setProfileMeta] = useState({
     createdAt: null,
     lastActiveAt: null,
   });
-  const [loading, setLoading] = useState(true);
 
   // Profile Edit Modal State
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -69,76 +57,34 @@ export default function ProfilePage() {
     };
   }, [isEditOpen, isUploading]);
 
-  // Fetch candidate profile study metrics & timestamps
+  // Fetch candidate profile timestamps
   useEffect(() => {
     let isMounted = true;
-    const fetchMetrics = async () => {
-      if (!user?.id) {
-        setLoading(false);
-        return;
-      }
+    const fetchTimestamps = async () => {
+      if (!user?.id) return;
       try {
-        const [
-          { data: spellingData },
-          { data: flashcardData },
-          { data: grammarData },
-          { count: totalVocab },
-          { data: profileRecord },
-        ] = await Promise.all([
-          supabase.from("spelling_progress").select("*").eq("user_id", user.id),
-          supabase.from("flashcard_progress").select("*").eq("user_id", user.id),
-          supabase.from("grammar_progress").select("*").eq("user_id", user.id).maybeSingle(),
-          supabase.from("vocabularies").select("*", { count: "exact", head: true }),
-          supabase.from("profiles").select("created_at, last_active_at").eq("id", user.id).maybeSingle(),
-        ]);
+        const { data: profileRecord } = await supabase
+          .from("profiles")
+          .select("created_at, last_active_at")
+          .eq("id", user.id)
+          .maybeSingle();
 
         if (isMounted) {
-          // Aggregate spelling + flashcard mastery
-          let mastered = 0;
-          let incorrect = 0;
-          for (const sp of spellingData || []) {
-            mastered += sp.mastered_words?.length || 0;
-            incorrect += sp.incorrect_words?.length || 0;
-          }
-
-          setMetrics({
-            totalSessions:
-              (spellingData?.length || 0) + (flashcardData?.length || 0) || (mastered > 0 ? 1 : 0),
-            totalStudySeconds: mastered * 30 + incorrect * 20,
-            masteredCount: mastered,
-            inProgressCount: incorrect,
-            totalVocabInCorpus: totalVocab || 28,
-            highestGrammarScore: grammarData?.highest_score
-              ? { score: grammarData.highest_score, total: grammarData.total_questions || 4 }
-              : null,
-          });
-
           setProfileMeta({
             createdAt: profileRecord?.created_at || user?.createdAt || null,
             lastActiveAt: profileRecord?.last_active_at || user?.lastActiveAt || null,
           });
         }
       } catch (err) {
-        console.warn("Could not fetch user profile metrics:", err);
-      } finally {
-        if (isMounted) setLoading(false);
+        console.warn("Could not fetch user profile metadata:", err);
       }
     };
 
-    fetchMetrics();
+    fetchTimestamps();
     return () => {
       isMounted = false;
     };
   }, [user]);
-
-  const formatTimeSpent = (seconds) => {
-    if (!seconds || seconds <= 0) return "0 min";
-    const mins = Math.round(seconds / 60);
-    if (mins < 60) return `${mins} min`;
-    const hrs = Math.floor(mins / 60);
-    const remMins = mins % 60;
-    return remMins > 0 ? `${hrs}h ${remMins}m` : `${hrs} hrs`;
-  };
 
   const formatFormattedDate = (isoStr) => {
     if (!isoStr) return "Recent Member";
@@ -373,97 +319,25 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Section 1: Study Metrics & Academic Activity */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xl font-bold text-body-dark flex items-center space-x-2">
-              <HiAcademicCap className="w-6 h-6 text-plum" />
-              <span>Study Performance & Metrics</span>
+        {/* Learning Analytics Portal Card */}
+        <div className="p-5 sm:p-6 rounded-2xl border border-plum/20 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs">
+          <div className="space-y-1">
+            <h3 className="text-base sm:text-lg font-bold text-body-dark flex items-center space-x-2">
+              <HiAcademicCap className="w-5 h-5 text-plum" />
+              <span>Study Analytics & Learning Performance</span>
             </h3>
-            {loading && (
-              <span className="text-sm text-plum animate-pulse flex items-center space-x-1">
-                <HiArrowPath className="w-4 h-4 animate-spin" />
-                <span>Syncing metrics...</span>
-              </span>
-            )}
+            <p className="text-xs sm:text-sm text-muted-label max-w-xl">
+              Track your real-time vocabulary progress, practice drill counts, completed corpus sets, and active spelling mistakes on your learning dashboard.
+            </p>
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Metric 1: Total Study Sessions */}
-            <div className="p-5 rounded-xl border border-plum/20 bg-plum/5 flex flex-col justify-between space-y-2">
-              <div className="flex items-center justify-between text-muted-label">
-                <span className="text-sm font-bold uppercase tracking-wider text-plum">
-                  Study Sessions
-                </span>
-                <HiClock className="w-5 h-5 text-plum" />
-              </div>
-              <div className="text-3xl font-black text-body-dark font-mono">
-                {metrics.totalSessions}
-              </div>
-              <div className="text-xs text-muted-label">
-                Interactive drills launched
-              </div>
-            </div>
-
-            {/* Metric 2: Time Spent */}
-            <div className="p-5 rounded-xl border border-plum/20 bg-plum/5 flex flex-col justify-between space-y-2">
-              <div className="flex items-center justify-between text-muted-label">
-                <span className="text-sm font-bold uppercase tracking-wider text-plum">
-                  Time Spent
-                </span>
-                <HiClock className="w-5 h-5 text-plum" />
-              </div>
-              <div className="text-3xl font-black text-body-dark font-mono">
-                {formatTimeSpent(metrics.totalStudySeconds)}
-              </div>
-              <div className="text-xs text-muted-label">
-                Total active practice duration
-              </div>
-            </div>
-
-            {/* Metric 3: Vocabulary Mastered */}
-            <div className="p-5 rounded-xl border border-plum/20 bg-plum/5 flex flex-col justify-between space-y-2">
-              <div className="flex items-center justify-between text-muted-label">
-                <span className="text-sm font-bold uppercase tracking-wider text-plum">
-                  Vocabulary Mastery
-                </span>
-                <HiCheckCircle className="w-5 h-5 text-emerald-600" />
-              </div>
-              <div className="flex items-baseline space-x-2">
-                <span className="text-3xl font-black text-emerald-700 font-mono">
-                  {metrics.masteredCount}
-                </span>
-                <span className="text-base text-muted-label font-medium">
-                  / {metrics.inProgressCount} review
-                </span>
-              </div>
-              <div className="text-xs text-muted-label">
-                {metrics.masteredCount} Mastered vs {metrics.inProgressCount} In-Progress
-              </div>
-            </div>
-
-            {/* Metric 4: Grammar Drill */}
-            <div className="p-5 rounded-xl border border-plum/20 bg-plum/5 flex flex-col justify-between space-y-2">
-              <div className="flex items-center justify-between text-muted-label">
-                <span className="text-sm font-bold uppercase tracking-wider text-plum">
-                  Highest Grammar Drill
-                </span>
-                <HiTrophy className="w-5 h-5 text-amber-600" />
-              </div>
-              <div className="text-3xl font-black text-body-dark font-mono">
-                {metrics.highestGrammarScore ? (
-                  <span className="text-plum">
-                    {metrics.highestGrammarScore.score}/{metrics.highestGrammarScore.total}
-                  </span>
-                ) : (
-                  <span className="text-muted-label text-xl">Not started</span>
-                )}
-              </div>
-              <div className="text-xs text-muted-label">
-                Grammar questions mastered
-              </div>
-            </div>
-          </div>
+          <button
+            type="button"
+            onClick={() => navigate("/workspace/dashboard")}
+            className="imlaa-btn-primary py-2.5 px-5 text-xs sm:text-sm font-semibold shrink-0 space-x-2 self-start sm:self-auto min-h-11"
+          >
+            <span>Open Learning Dashboard</span>
+            <span>&rarr;</span>
+          </button>
         </div>
 
         {/* Section 2: Environment Details */}
@@ -504,6 +378,13 @@ export default function ProfilePage() {
         {/* Action Controls */}
         <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
+            <button
+              type="button"
+              onClick={() => navigate("/workspace/dashboard")}
+              className="imlaa-btn-secondary w-full sm:w-auto py-2.5 sm:py-3 px-4 sm:px-6 text-sm sm:text-base font-semibold min-h-11 text-plum border-plum/30 bg-plum/5 hover:bg-plum/10"
+            >
+              Dashboard
+            </button>
             <button
               type="button"
               onClick={() => navigate("/workspace/flashcard")}

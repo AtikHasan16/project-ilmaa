@@ -42,6 +42,11 @@ const apiClient = {
     // 1. Vocabulary Stats
     if (url === "/vocabulary/stats") {
       const { data: allWords } = await supabase.from("vocabularies").select("topic, uploaded_by");
+      const reqUserId = params.userId || "";
+      const reqUserRole = params.userRole || "general";
+      const reqUserName = (params.userName || "").toLowerCase();
+      const isAdmin = reqUserRole === "admin";
+
       const byTopic = {};
       const uploadedTopicsMap = {};
       const activeTopicsMap = {};
@@ -50,10 +55,9 @@ const apiClient = {
 
       for (const w of allWords || []) {
         const top = w.topic || "Academic Word List: Sublist A";
-        byTopic[top] = (byTopic[top] || 0) + 1;
-
         const lowerTopic = top.toLowerCase();
         const uploadedBy = (w.uploaded_by || "").toLowerCase();
+        const uploaderRaw = w.uploaded_by || "";
 
         // 1. Check if explicitly tagged in uploaded_by (e.g. 'active:...', 'listening:...', 'uploaded:...')
         const isTaggedActive = uploadedBy.startsWith("active:") || uploadedBy.includes("active") || uploadedBy === "admin";
@@ -69,13 +73,56 @@ const apiClient = {
 
         const isAcademicTitle = lowerTopic.includes("academic word list");
 
+        let assignedTab;
         if (isTaggedListening || (!isTaggedActive && !isTaggedUploaded && isListeningTitle)) {
-          listeningTopicsMap[top] = (listeningTopicsMap[top] || 0) + 1;
+          assignedTab = "listening";
         } else if (isTaggedActive || isAcademicTitle) {
+          assignedTab = "active";
+        } else {
+          assignedTab = "uploaded";
+        }
+
+        // Parse uploader name: "uploaded:userId:userName" or "uploaded:userName"
+        let parsedUploaderName = "";
+        let parsedUploaderId = "";
+        if (uploaderRaw.includes(":")) {
+          const segs = uploaderRaw.split(":");
+          if (segs.length >= 3) {
+            parsedUploaderId = segs[1];
+            parsedUploaderName = segs.slice(2).join(":");
+          } else if (segs.length === 2) {
+            parsedUploaderName = segs[1];
+          }
+        }
+
+        // Rule 1: Uploaded vocabulary is ONLY visible to the candidate who uploaded it (or Admin)
+        if (assignedTab === "uploaded" && !isAdmin) {
+          const matchesId = reqUserId && (parsedUploaderId === reqUserId || uploadedBy.includes(reqUserId.toLowerCase()));
+          const matchesName = reqUserName && (parsedUploaderName.toLowerCase() === reqUserName || uploadedBy.includes(reqUserName));
+          if (!matchesId && !matchesName) {
+            // Belongs to someone else -> hide from this candidate
+            continue;
+          }
+        }
+
+        byTopic[top] = (byTopic[top] || 0) + 1;
+
+        if (assignedTab === "listening") {
+          listeningTopicsMap[top] = (listeningTopicsMap[top] || 0) + 1;
+        } else if (assignedTab === "active") {
           activeTopicsMap[top] = (activeTopicsMap[top] || 0) + 1;
         } else {
           totalUploaded += 1;
-          uploadedTopicsMap[top] = (uploadedTopicsMap[top] || 0) + 1;
+          if (!uploadedTopicsMap[top]) {
+            uploadedTopicsMap[top] = {
+              count: 0,
+              uploaderName: parsedUploaderName || (isAdmin ? "Admin" : (params.userName || "Candidate")),
+            };
+          }
+          uploadedTopicsMap[top].count += 1;
+          if (parsedUploaderName && !uploadedTopicsMap[top].uploaderName) {
+            uploadedTopicsMap[top].uploaderName = parsedUploaderName;
+          }
         }
       }
 
@@ -84,9 +131,10 @@ const apiClient = {
         activeTopicsMap["Academic Word List: Sublist A"] = byTopic["Academic Word List: Sublist A"] || 300;
       }
 
-      const uploadedTopics = Object.entries(uploadedTopicsMap).map(([title, count]) => ({
+      const uploadedTopics = Object.entries(uploadedTopicsMap).map(([title, info]) => ({
         title,
-        count,
+        count: info.count,
+        uploaderName: info.uploaderName,
       }));
 
       const activeTopics = Object.entries(activeTopicsMap).map(([title, count]) => ({
@@ -122,7 +170,34 @@ const apiClient = {
         query = query.not("uploaded_by", "is", null);
       }
       const { data } = await query;
-      return { data: { success: true, count: (data || []).length, data: toCamel(data || []) } };
+      let words = toCamel(data || []);
+
+      // If user is not admin, filter out any uploaded words that do not belong to this user
+      const reqUserId = params.userId || "";
+      const reqUserName = (params.userName || "").toLowerCase();
+      const isAdmin = params.userRole === "admin";
+
+      if (!isAdmin && (reqUserId || reqUserName)) {
+        words = words.filter((w) => {
+          const uploaderRaw = (w.uploadedBy || w.uploaded_by || "").toLowerCase();
+          const isTaggedActive = uploaderRaw.startsWith("active:") || uploaderRaw.includes("active") || uploaderRaw === "admin";
+          const isTaggedListening = uploaderRaw.startsWith("listening:") || uploaderRaw.includes("listening");
+          const top = (w.topic || "").toLowerCase();
+          const isAcademic = top.includes("academic word list");
+          const isListening = top.includes("studying university") || top.includes("subjects") || top.includes("listening") || top.includes("1200");
+
+          if (isTaggedActive || isTaggedListening || isAcademic || isListening) {
+            return true;
+          }
+
+          // If uploaded, verify ownership
+          const matchesId = reqUserId && uploaderRaw.includes(reqUserId.toLowerCase());
+          const matchesName = reqUserName && uploaderRaw.includes(reqUserName);
+          return matchesId || matchesName;
+        });
+      }
+
+      return { data: { success: true, count: words.length, data: words } };
     }
 
     // 3. Vocabulary Progress
@@ -877,10 +952,12 @@ const apiClient = {
         }
       }
 
+      const safeUserName = userName || (isAdmin ? "Admin" : "Candidate");
+      const safeUserId = userId || (isAdmin ? "admin" : "anon");
       const resolvedUploader =
-        uploadedBy && uploadedBy.includes(":")
+        uploadedBy && uploadedBy.includes(":") && uploadedBy.split(":").length >= 3
           ? uploadedBy
-          : `${targetTab}:${userId || uploadedBy || "bulk-import"}`;
+          : `${targetTab}:${safeUserId}:${safeUserName}`;
 
       const docs = (items || []).map((row) => ({
         word: row.word.trim(),

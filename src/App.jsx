@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import LandingPage from "./pages/LandingPage";
 import WorkspaceLayout from "./components/WorkspaceLayout";
+import DashboardPage from "./pages/DashboardPage";
 import FlashcardPage from "./pages/FlashcardPage";
 import SpellingPage from "./pages/SpellingPage";
 import GrammarPage from "./pages/GrammarPage";
@@ -70,7 +71,8 @@ export default function App() {
               </ProtectedRoute>
             }
           >
-            <Route index element={<Navigate to="flashcard" replace />} />
+            <Route index element={<Navigate to="dashboard" replace />} />
+            <Route path="dashboard" element={<DashboardPage />} />
             <Route path="flashcard" element={<FlashcardPage />} />
             <Route path="spelling" element={<SpellingPage />} />
             <Route path="vocab" element={<Navigate to="/workspace/flashcard" replace />} />

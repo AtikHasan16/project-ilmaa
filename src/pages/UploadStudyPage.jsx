@@ -125,7 +125,7 @@ export default function UploadStudyPage() {
         items: previewItems,
         defaultTopic: bulkTopic,
         targetTab: targetDestination,
-        uploadedBy: `${targetDestination}:${isAdmin ? "admin" : (user?.name || "bulk-import")}`,
+        uploadedBy: `${targetDestination}:${isAdmin ? "admin" : (user?.id || "anon")}:${user?.name || (isAdmin ? "Admin" : "Candidate")}`,
         userId: user?.id,
         userName: user?.name || user?.email,
         userRole: user?.role || "general",

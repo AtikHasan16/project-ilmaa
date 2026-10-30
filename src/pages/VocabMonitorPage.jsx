@@ -314,6 +314,7 @@ export default function VocabMonitorPage() {
                 <tr className="border-b border-plum/20 text-muted-label uppercase text-sm font-bold">
                   <th className="py-3 px-3">Topic Title</th>
                   <th className="py-3 px-3">Destination Tab</th>
+                  <th className="py-3 px-3">Source / Uploader</th>
                   <th className="py-3 px-3">Word Count</th>
                   <th className="py-3 px-3 text-right">Delete Card</th>
                 </tr>
@@ -328,6 +329,16 @@ export default function VocabMonitorPage() {
                       <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-plum/10 text-plum border border-plum/15">
                         {topic.tab}
                       </span>
+                    </td>
+                    <td className="py-3.5 px-3 text-xs">
+                      {topic.tab === "Uploaded" ? (
+                        <span className="inline-flex items-center space-x-1 font-semibold text-plum bg-plum/5 px-2 py-0.5 rounded border border-plum/15">
+                          <span>Uploaded by</span>
+                          <strong>{topic.uploaderName || "Candidate"}</strong>
+                        </span>
+                      ) : (
+                        <span className="text-muted-label font-medium">Curriculum</span>
+                      )}
                     </td>
                     <td className="py-3.5 px-3 font-semibold text-body-dark">
                       {topic.count} Lexemes

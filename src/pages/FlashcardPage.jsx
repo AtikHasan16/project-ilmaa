@@ -13,6 +13,8 @@ import {
   HiArrowLeft,
   HiSparkles,
   HiLanguage,
+  HiUser,
+  HiAcademicCap,
 } from "react-icons/hi2";
 
 // Corpus groups matching design
@@ -29,7 +31,7 @@ const LANGUAGE_TRANSLATIONS = {
 };
 
 export default function FlashcardPage() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
 
   // Navigation & View States: 'sets' | 'drill' | 'finished' | 'quiz'
   const [activePart, setActivePart] = useState("All Active");
@@ -97,14 +99,20 @@ export default function FlashcardPage() {
   // Fetch vocabulary statistics
   const fetchStats = useCallback(async () => {
     try {
-      const res = await apiClient.get("/vocabulary/stats");
+      const res = await apiClient.get("/vocabulary/stats", {
+        params: {
+          userId: user?.id,
+          userRole: user?.role || "general",
+          userName: user?.name,
+        },
+      });
       if (res.data?.success) {
         setVocabStats(res.data);
       }
     } catch (err) {
       console.warn("Could not load stats:", err);
     }
-  }, []);
+  }, [user]);
 
   // Fetch candidate's flashcard progress
   const fetchProgress = useCallback(async () => {
@@ -207,6 +215,7 @@ export default function FlashcardPage() {
         title: up.title,
         description: `Custom uploaded corpus category with ${up.count} terms.`,
         wordsCount: up.count,
+        uploaderName: up.uploaderName || (isAdmin ? "Admin" : (user?.name || "You")),
         knownCount: 0,
         mistakesCount: 0,
         percent: 0,
@@ -222,11 +231,22 @@ export default function FlashcardPage() {
     setHasAnsweredCurrent(false);
     try {
       const res = await apiClient.get("/vocabulary", {
-        params: { topic: group.title },
+        params: {
+          topic: group.title,
+          userId: user?.id,
+          userRole: user?.role || "general",
+          userName: user?.name,
+        },
       });
       let loaded = res.data?.data || [];
       if (loaded.length === 0) {
-        const fb = await apiClient.get("/vocabulary");
+        const fb = await apiClient.get("/vocabulary", {
+          params: {
+            userId: user?.id,
+            userRole: user?.role || "general",
+            userName: user?.name,
+          },
+        });
         loaded = fb.data?.data || [];
       }
 
@@ -247,7 +267,7 @@ export default function FlashcardPage() {
     } finally {
       setLoading(false);
     }
-  }, [userProgress]);
+  }, [userProgress, user]);
 
   // Start Flashcard Practice
   const handleStartDrill = (group, isMistakes = false) => {
@@ -577,9 +597,25 @@ export default function FlashcardPage() {
                     )}
                   </div>
 
-                  <h3 className="text-xl font-bold text-body-dark leading-snug mb-2">
+                  <h3 className="text-xl font-bold text-body-dark leading-snug mb-1">
                     {group.title}
                   </h3>
+
+                  {/* Corpus Uploader or Curriculum Pill */}
+                  <div className="mb-3">
+                    {group.part === "Uploaded" ? (
+                      <span className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-md bg-plum/10 text-plum text-xs font-semibold border border-plum/20">
+                        <HiUser className="w-3.5 h-3.5 text-plum" />
+                        <span>Uploaded by {group.uploaderName || user?.name || "You"}</span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-md bg-stone-100 text-stone-700 text-xs font-semibold border border-stone-200">
+                        <HiAcademicCap className="w-3.5 h-3.5 text-plum" />
+                        <span>Curriculum Corpus</span>
+                      </span>
+                    )}
+                  </div>
+
                   <p className="text-base text-muted-label leading-relaxed mb-4">
                     {group.description}
                   </p>
