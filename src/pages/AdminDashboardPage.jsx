@@ -45,11 +45,6 @@ export default function AdminDashboardPage() {
   const [selectedUserUploadedWords, setSelectedUserUploadedWords] = useState([]);
   const [loadingUserLogs, setLoadingUserLogs] = useState(false);
 
-  // Platform bulk uploaded words monitoring state
-  const [uploadedWords, setUploadedWords] = useState([]);
-  const [loadingUploadedWords, setLoadingUploadedWords] = useState(false);
-  const [uploadedWordSearch, setUploadedWordSearch] = useState("");
-
   // Lock body scroll and listen for ESC key when inspector modal is open
   useEffect(() => {
     if (!selectedUser) return;
@@ -146,29 +141,8 @@ export default function AdminDashboardPage() {
     }
   }, []);
 
-  // Fetch words uploaded by candidates across platform
-  const fetchUploadedWords = useCallback(async () => {
-    setLoadingUploadedWords(true);
-    try {
-      const { data, error } = await supabase
-        .from("vocabularies")
-        .select("id, word, pos, bangla_meaning, topic, uploaded_by, created_at")
-        .ilike("uploaded_by", "%uploaded%")
-        .order("created_at", { ascending: false })
-        .limit(100);
-      if (!error && data) {
-        setUploadedWords(data);
-      }
-    } catch (err) {
-      console.warn("Could not load uploaded words:", err);
-    } finally {
-      setLoadingUploadedWords(false);
-    }
-  }, []);
-
   useEffect(() => {
     fetchAuditData();
-    fetchUploadedWords();
 
     // Auto refresh active user statuses every 45s
     const interval = setInterval(() => {
@@ -176,7 +150,7 @@ export default function AdminDashboardPage() {
     }, 45000);
 
     return () => clearInterval(interval);
-  }, [fetchAuditData, fetchUploadedWords]);
+  }, [fetchAuditData]);
 
   // Delete an uploaded word (Admin moderation)
   const handleDeleteUploadedWord = async (wordId, wordText) => {
@@ -195,7 +169,6 @@ export default function AdminDashboardPage() {
       const { error } = await supabase.from("vocabularies").delete().eq("id", wordId);
       if (error) throw error;
 
-      setUploadedWords((prev) => prev.filter((w) => w.id !== wordId));
       setSelectedUserUploadedWords((prev) => prev.filter((w) => w.id !== wordId));
       showSuccessToast("Word Removed", `"${wordText}" deleted from database.`);
 
@@ -351,17 +324,6 @@ export default function AdminDashboardPage() {
       u.id?.toLowerCase().includes(q) ||
       u.accessId?.toLowerCase().includes(q);
     return matchesRole && matchesSearch;
-  });
-
-  const filteredUploadedWords = uploadedWords.filter((w) => {
-    const q = uploadedWordSearch.toLowerCase().trim();
-    if (!q) return true;
-    return (
-      w.word?.toLowerCase().includes(q) ||
-      w.bangla_meaning?.toLowerCase().includes(q) ||
-      w.topic?.toLowerCase().includes(q) ||
-      w.uploaded_by?.toLowerCase().includes(q)
-    );
   });
 
   return (
@@ -700,125 +662,7 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* ==================================================== */}
-      {/* 2.5 Bulk Uploaded Vocabulary Monitor (Item 4)        */}
-      {/* ==================================================== */}
-      <div className="imlaa-card p-6 sm:p-8 space-y-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-plum/15">
-          <div>
-            <div className="flex items-center space-x-3">
-              <h3 className="text-xl font-bold text-body-dark">
-                Bulk Uploaded Vocabulary Monitor
-              </h3>
-              <span className="imlaa-badge text-xs">Admin Moderation</span>
-            </div>
-            <p className="text-base text-muted-label mt-0.5">
-              Review and moderate custom vocabulary imported by candidates. Delete improper words with 1 click.
-            </p>
-          </div>
-
-          <div className="flex items-center space-x-3">
-            <span className="imlaa-badge text-base">
-              {filteredUploadedWords.length} / {uploadedWords.length} Words
-            </span>
-            <button
-              type="button"
-              onClick={fetchUploadedWords}
-              title="Refresh Uploaded Words"
-              className="imlaa-btn-secondary py-1.5 px-3 text-sm space-x-1"
-            >
-              <HiArrowPath className={`w-4 h-4 ${loadingUploadedWords ? "animate-spin" : ""}`} />
-              <span>Refresh</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Search for uploaded words */}
-        <div className="flex items-center justify-between gap-4">
-          <div className="relative w-full sm:w-80">
-            <input
-              type="text"
-              placeholder="Filter by word, Bengali, topic, candidate..."
-              value={uploadedWordSearch}
-              onChange={(e) => setUploadedWordSearch(e.target.value)}
-              className="imlaa-input py-2 pl-9 pr-3 text-xs w-full bg-white"
-            />
-            <HiMagnifyingGlass className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-label" />
-          </div>
-          {uploadedWords.length > 0 && (
-            <span className="text-xs text-muted-label">
-              Showing newest submissions
-            </span>
-          )}
-        </div>
-
-        {/* Uploaded words table */}
-        <div className="overflow-x-auto max-h-96">
-          <table className="w-full text-left text-base">
-            <thead className="sticky top-0 bg-white">
-              <tr className="border-b border-plum/20 text-muted-label uppercase text-sm font-bold">
-                <th className="py-2.5 px-3">Word</th>
-                <th className="py-2.5 px-3">POS</th>
-                <th className="py-2.5 px-3">Bengali Meaning</th>
-                <th className="py-2.5 px-3">Topic Category</th>
-                <th className="py-2.5 px-3">Uploader</th>
-                <th className="py-2.5 px-3">Date</th>
-                <th className="py-2.5 px-3 text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-plum/10">
-              {loadingUploadedWords ? (
-                <tr>
-                  <td colSpan={7} className="py-8 text-center text-muted-label text-sm">
-                    Loading candidate uploaded vocabulary...
-                  </td>
-                </tr>
-              ) : filteredUploadedWords.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="py-8 text-center text-muted-label text-sm">
-                    No custom uploaded words found matching current search.
-                  </td>
-                </tr>
-              ) : (
-                filteredUploadedWords.map((item) => (
-                  <tr key={item.id} className="hover:bg-plum/5 transition-colors">
-                    <td className="py-3 px-3 font-bold text-body-dark">
-                      {item.word}
-                    </td>
-                    <td className="py-3 px-3 italic text-xs text-plum">
-                      {item.pos || "—"}
-                    </td>
-                    <td className="py-3 px-3 text-body-dark font-medium text-sm">
-                      {item.bangla_meaning}
-                    </td>
-                    <td className="py-3 px-3 text-xs font-mono text-plum">
-                      {item.topic || "Uploaded"}
-                    </td>
-                    <td className="py-3 px-3 text-xs text-muted-label font-mono">
-                      {item.uploaded_by?.replace(/^uploaded:/, "") || "candidate"}
-                    </td>
-                    <td className="py-3 px-3 text-xs text-muted-label whitespace-nowrap">
-                      {item.created_at ? new Date(item.created_at).toLocaleDateString() : "Recent"}
-                    </td>
-                    <td className="py-3 px-3 text-right">
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteUploadedWord(item.id, item.word)}
-                        title="Delete this uploaded word"
-                        className="p-1.5 rounded-lg text-muted-label hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
-                      >
-                        <HiTrash className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* ==================================================== */}
-      {/* 3. Audit Log Trail (With Clear / Delete Options)     */}
+      {/* 2. Audit Log Trail (With Clear / Delete Options)     */}
       {/* ==================================================== */}
       <div className="imlaa-card p-6 sm:p-8 space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-plum/15">
