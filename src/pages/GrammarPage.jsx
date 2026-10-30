@@ -183,7 +183,7 @@ export default function GrammarPage() {
           grammarScore: score,
           totalQuestions: currentIndex + 1,
         })
-        .catch(() => {});
+        .catch((err) => console.warn("Could not save study session:", err));
     }
 
     setSelectedTopic(null);

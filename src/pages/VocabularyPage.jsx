@@ -55,10 +55,11 @@ export default function VocabularyPage() {
 
   // Fetch candidate's personal saved progress
   const fetchProgress = useCallback(async () => {
-    if (!user?.accessId) return;
+    const userId = user?.id || user?.accessId;
+    if (!userId) return;
     try {
       const res = await apiClient.get("/vocabulary/progress", {
-        params: { accessId: user.accessId },
+        params: { userId },
       });
       if (res.data?.success && res.data.data) {
         setUserProgress(res.data.data);
@@ -286,10 +287,11 @@ export default function VocabularyPage() {
 
   // Reset progress for group
   const handleResetProgress = async (group) => {
-    if (!user?.accessId) return;
+    const userId = user?.id || user?.accessId;
+    if (!userId) return;
     try {
       await apiClient.post("/vocabulary/progress/reset", {
-        accessId: user.accessId,
+        userId,
         topic: group.title,
       });
       fetchProgress();
@@ -361,14 +363,15 @@ export default function VocabularyPage() {
   const handleReturnToSets = () => {
     // Record study session duration to backend
     const startTime = vocabSessionStartRef.current;
-    if (user?.accessId && startTime) {
+    const userId = user?.id || user?.accessId;
+    if (userId && startTime) {
       const durationSeconds = Math.max(1, Math.round((Date.now() - startTime) / 1000));
       apiClient
         .post("/user/study-session", {
-          accessId: user.accessId,
+          userId,
           durationSeconds,
         })
-        .catch(() => {});
+        .catch((err) => console.warn("Could not save study session:", err));
     }
 
     setSelectedGroup(null);
@@ -422,10 +425,11 @@ export default function VocabularyPage() {
     const isCorrect = cleanInput === cleanTarget;
 
     // Send answer to backend asynchronously to persist progress and resume point
-    if (user?.accessId) {
+    const userId = user?.id || user?.accessId;
+    if (userId) {
       apiClient
         .post("/vocabulary/progress", {
-          accessId: user.accessId,
+          userId,
           word: currentWord.word,
           isCorrect,
           topic: selectedGroup?.title || "Academic Word List: Sublist A",

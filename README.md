@@ -28,9 +28,9 @@ Imlaa follows an intentional, minimalist design system tailored for academic foc
 
 ## 🚀 Key Features
 
-### 1. Hardware & Device-Locked Authentication
-- **10-Digit Access ID**: Enrolled users receive a unique, randomly-generated 10-digit ID.
-- **Device Fingerprint / Token**: On initial approved login, the user's browser device UUID is permanently bound. Unauthorized access from unfamiliar devices is routed to access pending or rejected queues.
+### 1. Authentication
+- Sign in with Supabase Auth using Google or email/password.
+- User profile and role information is stored in Supabase; database access is governed by row-level security policies.
 
 ### 2. Auditory Vocabulary Flashcards
 - **Front Side (Recall)**: Web Speech API pronunciation trigger with interactive waveform visualization and keyboard-friendly text spelling submission.
@@ -46,9 +46,8 @@ Imlaa follows an intentional, minimalist design system tailored for academic foc
 - Instant rule explanations displayed immediately upon answer selection.
 
 ### 4. Role-Gated Capabilities
-- **General**: Full access to Vocabulary & Grammar modules.
-- **Advance**: Access to **Upload to Study** to inject custom academic vocabulary.
-- **Admin**: Access to **Admin Dashboard** with live ID generation, user role assignment, and pending device approval/rejection queues.
+- **General**: Access to vocabulary and grammar study modules, plus personal uploads.
+- **Admin**: Access to administrative dashboards and corpus management.
 
 ---
 
@@ -57,21 +56,27 @@ Imlaa follows an intentional, minimalist design system tailored for academic foc
 ### Frontend (`project-ilmaa`)
 - **React 19** + **Vite 8**
 - **Tailwind CSS v4** (`@tailwindcss/vite`) + **DaisyUI v5**
-- **React Router v7/v8**
+- **React Router**
 - **React Icons** (filled Heroicons `hi2`)
-- **Axios** (centralized API client with automatic device token interceptors)
+- **Supabase Auth and Postgres** (direct client access protected by RLS)
 
 ### Backend (`server`)
-- **Express.js** + **CORS** + **Dotenv**
-- **Local JSON Collection Database** (`server/db.js`) — zero third-party network dependency, persistent local storage.
+- **Express.js** and **node-edge-tts** for server-side speech generation
+- Admin and user-data REST routes require a verified Supabase bearer token.
+- The legacy device-token authentication API returns `410 Gone`.
 
 ---
 
 ## 🏃 Getting Started
 
+### Supabase database setup
+
+- For an existing Supabase project, run [`supabase_security_policies.sql`](../supabase_security_policies.sql) in the Supabase SQL Editor to apply the RLS and role-protection changes. This migration does not insert seed data.
+- For a new project, run [`supabase_schema.sql`](../supabase_schema.sql) first, then run the security migration. Do not rerun the full schema against a populated project because it includes seed inserts.
+
 ### 1. Start the Backend Server
 ```bash
-cd server
+cd ../server
 npm install
 npm run dev
 # Server will run on http://localhost:5000
@@ -79,12 +84,11 @@ npm run dev
 
 ### 2. Start the Frontend Client
 ```bash
-cd project-ilmaa
 npm install
 npm run dev
 # Vite client will run on http://localhost:5173
 ```
 
-### 3. Initial Login Credentials
-- **Full Name**: `Admin User`
-- **10-Digit Access ID**: `1234567890`
+Configure frontend environment values from `.env.example` and server-side
+Supabase settings in `server/.env`. Use Supabase Auth for sign-in; there are no
+default application credentials.

@@ -254,7 +254,7 @@ export default function SpellingPage() {
       apiClient.post("/user/study-session", {
         accessId: user?.id || user?.accessId,
         durationSeconds,
-      }).catch(() => {});
+      }).catch((err) => console.warn("Could not save study session:", err));
     }
 
     setViewMode("sets");

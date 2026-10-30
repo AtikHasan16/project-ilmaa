@@ -84,8 +84,7 @@ export function AuthProvider({ children }) {
         cached?.avatarUrl ||
         fallbackAvatar;
 
-      const isAdminEmail = authUser.email?.toLowerCase() === "akhasannaeem@gmail.com";
-      const resolvedRole = (profile?.role === "admin" || isAdminEmail) ? "admin" : "general";
+      const resolvedRole = profile?.role === "admin" ? "admin" : "general";
 
       const resolvedUser = {
         id: authUser.id,
@@ -135,12 +134,11 @@ export function AuthProvider({ children }) {
     } catch (err) {
       console.warn("Profile sync error:", err);
       const cached = getCachedProfile(authUser.id);
-      const isAdminEmail = authUser.email?.toLowerCase() === "akhasannaeem@gmail.com";
       const fallbackUser = {
         id: authUser.id,
         name: cached?.name || authUser.user_metadata?.full_name || authUser.email?.split("@")[0] || "Candidate",
         email: authUser.email,
-        role: (cached?.role === "admin" || isAdminEmail) ? "admin" : "general",
+        role: "general",
         avatarUrl: cached?.avatarUrl || null,
         authProvider: authUser.app_metadata?.provider || "email",
         createdAt: authUser.created_at || new Date().toISOString(),
@@ -606,6 +604,7 @@ export function AuthProvider({ children }) {
       // 5. Record activity in audit_logs
       try {
         await supabase.from("audit_logs").insert({
+          user_id: user.id,
           action: "PROFILE_UPDATE",
           user_name: updates.name || user.name,
           access_id: user.id,

@@ -85,7 +85,7 @@ export default function UploadStudyPage() {
       const { count, error: countErr } = await supabase
         .from("vocabularies")
         .select("*", { count: "exact", head: true })
-        .eq("uploaded_by", user?.id)
+        .ilike("uploaded_by", `uploaded:${user?.id}:%`)
         .gte("created_at", today.toISOString());
 
       if (!countErr) {

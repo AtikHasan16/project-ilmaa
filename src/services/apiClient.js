@@ -31,6 +31,45 @@ function toCamel(obj) {
   return newObj;
 }
 
+function requireSupabaseUserId(userId) {
+  const cleanId = String(userId || "").trim();
+  if (!/^[\da-f]{8}-(?:[\da-f]{4}-){3}[\da-f]{12}$/i.test(cleanId)) {
+    throw new Error("A valid signed-in Supabase user ID is required for progress.");
+  }
+  return cleanId;
+}
+
+async function loadVocabularyProgress(userId) {
+  const { data, error } = await supabase
+    .from("spelling_progress")
+    .select("topic, mastered_words, incorrect_words, last_index")
+    .eq("user_id", userId);
+
+  if (error) throw error;
+
+  const masteredWords = new Set();
+  const incorrectWords = new Set();
+  const progressByTopic = {};
+
+  for (const row of data || []) {
+    const mastered = row.mastered_words || [];
+    const incorrect = row.incorrect_words || [];
+    mastered.forEach((word) => masteredWords.add(word));
+    incorrect.forEach((word) => incorrectWords.add(word));
+    progressByTopic[row.topic] = {
+      mastered: mastered.length,
+      incorrect: incorrect.length,
+      lastIndex: row.last_index || 0,
+    };
+  }
+
+  return {
+    masteredWords: [...masteredWords],
+    incorrectWords: [...incorrectWords],
+    progressByTopic,
+  };
+}
+
 /**
  * Direct Supabase API Client implementing apiClient.get, .post, .patch, .delete
  * completely replacing localhost:5000 with direct Supabase HTTPS Port 443 calls!
@@ -202,21 +241,9 @@ const apiClient = {
 
     // 3. Vocabulary Progress
     if (url === "/vocabulary/progress") {
-      const accessId = params.accessId || config.headers?.["x-access-id"];
+      const accessId = params.userId || params.accessId || config.headers?.["x-access-id"];
       if (!accessId) return { data: { success: false, data: null } };
-
-      const { data } = await supabase
-        .from("vocabulary_progress")
-        .select("*")
-        .eq("access_id", String(accessId).trim())
-        .limit(1);
-
-      const record = data && data[0] ? toCamel(data[0]) : {
-        accessId,
-        masteredWords: [],
-        incorrectWords: [],
-        progressByTopic: {},
-      };
+      const record = await loadVocabularyProgress(requireSupabaseUserId(accessId));
       return { data: { success: true, data: record } };
     }
 
@@ -254,28 +281,63 @@ const apiClient = {
 
     // 6. User Profile Metrics
     if (url === "/user/profile-metrics") {
-      const accessId = params.accessId;
-      const [{ data: progData }, { count: totalVocab }] = await Promise.all([
-        supabase.from("vocabulary_progress").select("*").eq("access_id", String(accessId).trim()).limit(1),
+      const userId = requireSupabaseUserId(params.userId || params.accessId);
+      const [
+        { data: spellingRows, error: spellingError },
+        { data: flashcardRows, error: flashcardError },
+        { data: activityRows, error: activityError },
+        { data: grammarData, error: grammarError },
+        { count: totalVocab, error: vocabError },
+      ] = await Promise.all([
+        supabase.from("spelling_progress").select("mastered_words, incorrect_words").eq("user_id", userId),
+        supabase.from("flashcard_progress").select("known_words, unknown_words, forgot_words").eq("user_id", userId),
+        supabase.from("user_activity_logs").select("duration_seconds").eq("user_id", userId).eq("action", "STUDY_SESSION"),
+        supabase.from("grammar_progress").select("highest_score, total_questions").eq("user_id", userId).maybeSingle(),
         supabase.from("vocabularies").select("*", { count: "exact", head: true }),
       ]);
 
-      const p = progData && progData[0] ? toCamel(progData[0]) : null;
-      const masteredCount = p?.masteredWords?.length || 0;
-      const inProgressCount = p?.incorrectWords?.length || 0;
-      const totalSessions = p?.totalSessions || (masteredCount > 0 ? 1 : 0);
-      const totalStudySeconds = p?.totalStudySeconds || masteredCount * 30 + inProgressCount * 20;
+      const queryError = spellingError || flashcardError || activityError || grammarError || vocabError;
+      if (queryError) throw queryError;
+
+      const masteredWords = new Set();
+      const inProgressWords = new Set();
+      for (const row of spellingRows || []) {
+        (row.mastered_words || []).forEach((word) => masteredWords.add(word));
+        (row.incorrect_words || []).forEach((word) => inProgressWords.add(word));
+      }
+      for (const row of flashcardRows || []) {
+        (row.known_words || []).forEach((word) => masteredWords.add(word));
+        (row.unknown_words || []).forEach((word) => inProgressWords.add(word));
+        (row.forgot_words || []).forEach((word) => inProgressWords.add(word));
+      }
+
+      const totalSessions = (activityRows || []).length || (masteredWords.size > 0 ? 1 : 0);
+      const recordedSeconds = (activityRows || []).reduce(
+        (total, row) => total + Math.max(0, Number(row.duration_seconds) || 0),
+        0,
+      );
+      const totalStudySeconds =
+        recordedSeconds || masteredWords.size * 30 + inProgressWords.size * 20;
+      const highestGrammarScore = grammarData?.highest_score
+        ? {
+            score: grammarData.highest_score,
+            total: grammarData.total_questions || 0,
+            percent: grammarData.total_questions
+              ? Math.round((grammarData.highest_score / grammarData.total_questions) * 100)
+              : 0,
+          }
+        : null;
 
       return {
         data: {
           success: true,
           data: {
             totalVocabInCorpus: totalVocab || 300,
-            masteredCount,
-            inProgressCount,
+            masteredCount: masteredWords.size,
+            inProgressCount: inProgressWords.size,
             totalSessions,
             totalStudySeconds,
-            highestGrammarScore: p?.highestGrammarScore || null,
+            highestGrammarScore,
           },
         },
       };
@@ -347,38 +409,24 @@ const apiClient = {
         return { data: { success: false, data: { knownWords: [], unknownWords: [], forgotWords: [], lastIndex: 0 } } };
       }
 
-      try {
-        const { data, error } = await supabase
-          .from("flashcard_progress")
-          .select("*")
-          .eq("user_id", userId)
-          .eq("topic", topic)
-          .maybeSingle();
-
-        if (!error && data) {
-          return { data: { success: true, data: toCamel(data) } };
-        }
-      } catch (err) {
-        console.warn("flashcard_progress query fallback:", err);
-      }
-
-      // Fallback: check vocabulary_progress
-      const { data: legacyData } = await supabase
-        .from("vocabulary_progress")
+      const cleanId = requireSupabaseUserId(userId);
+      const { data, error } = await supabase
+        .from("flashcard_progress")
         .select("*")
-        .eq("access_id", String(userId).trim())
-        .limit(1);
+        .eq("user_id", cleanId)
+        .eq("topic", topic)
+        .maybeSingle();
 
-      const legacy = legacyData && legacyData[0] ? toCamel(legacyData[0]) : null;
+      if (error) throw error;
       return {
         data: {
           success: true,
-          data: {
-            knownWords: legacy?.masteredWords || [],
-            unknownWords: legacy?.incorrectWords || [],
-            forgotWords: [],
-            lastIndex: legacy?.progressByTopic?.[topic]?.lastIndex || 0,
-          },
+          data: toCamel(data || {
+            known_words: [],
+            unknown_words: [],
+            forgot_words: [],
+            last_index: 0,
+          }),
         },
       };
     }
@@ -391,37 +439,23 @@ const apiClient = {
         return { data: { success: false, data: { masteredWords: [], incorrectWords: [], lastIndex: 0 } } };
       }
 
-      try {
-        const { data, error } = await supabase
-          .from("spelling_progress")
-          .select("*")
-          .eq("user_id", userId)
-          .eq("topic", topic)
-          .maybeSingle();
-
-        if (!error && data) {
-          return { data: { success: true, data: toCamel(data) } };
-        }
-      } catch (err) {
-        console.warn("spelling_progress query fallback:", err);
-      }
-
-      // Fallback: check vocabulary_progress
-      const { data: legacyData } = await supabase
-        .from("vocabulary_progress")
+      const cleanId = requireSupabaseUserId(userId);
+      const { data, error } = await supabase
+        .from("spelling_progress")
         .select("*")
-        .eq("access_id", String(userId).trim())
-        .limit(1);
+        .eq("user_id", cleanId)
+        .eq("topic", topic)
+        .maybeSingle();
 
-      const legacy = legacyData && legacyData[0] ? toCamel(legacyData[0]) : null;
+      if (error) throw error;
       return {
         data: {
           success: true,
-          data: {
-            masteredWords: legacy?.masteredWords || [],
-            incorrectWords: legacy?.incorrectWords || [],
-            lastIndex: legacy?.progressByTopic?.[topic]?.lastIndex || 0,
-          },
+          data: toCamel(data || {
+            mastered_words: [],
+            incorrect_words: [],
+            last_index: 0,
+          }),
         },
       };
     }
@@ -578,17 +612,23 @@ const apiClient = {
 
     // 4. Record Vocabulary Progress
     if (url === "/vocabulary/progress") {
-      const { accessId, word, isCorrect, topic = "Academic Word List: Sublist A" } = body;
-      const cleanId = String(accessId).trim();
-      const cleanWord = String(word).trim();
+      const { userId, accessId, word, isCorrect, topic = "Academic Word List: Sublist A", currentIndex = 0 } = body;
+      const cleanId = requireSupabaseUserId(userId || accessId);
+      const cleanWord = String(word || "").trim();
+      if (!cleanWord) {
+        return { data: { success: false, message: "Missing word" } };
+      }
 
-      const { data } = await supabase.from("vocabulary_progress").select("*").eq("access_id", cleanId).limit(1);
-      let record = data && data[0] ? toCamel(data[0]) : null;
+      const { data: existing, error: selectError } = await supabase
+        .from("spelling_progress")
+        .select("mastered_words, incorrect_words")
+        .eq("user_id", cleanId)
+        .eq("topic", topic)
+        .maybeSingle();
+      if (selectError) throw selectError;
 
-      let mastered = record?.masteredWords ? [...record.masteredWords] : [];
-      let incorrect = record?.incorrectWords ? [...record.incorrectWords] : [];
-      const topicStats = record?.progressByTopic || {};
-      const currTopic = topicStats[topic] || { mastered: 0, incorrect: 0 };
+      let mastered = existing?.mastered_words || [];
+      let incorrect = existing?.incorrect_words || [];
 
       if (isCorrect) {
         if (!mastered.includes(cleanWord)) mastered.push(cleanWord);
@@ -598,141 +638,110 @@ const apiClient = {
         mastered = mastered.filter((w) => w !== cleanWord);
       }
 
-      currTopic.mastered = mastered.length;
-      currTopic.incorrect = incorrect.length;
-      topicStats[topic] = currTopic;
-
       const payload = {
-        access_id: cleanId,
+        user_id: cleanId,
+        topic,
         mastered_words: mastered,
         incorrect_words: incorrect,
-        progress_by_topic: topicStats,
+        last_index: currentIndex,
         updated_at: new Date().toISOString(),
       };
 
-      await supabase.from("vocabulary_progress").upsert(payload, { onConflict: "access_id" });
+      const { error: upsertError } = await supabase
+        .from("spelling_progress")
+        .upsert(payload, { onConflict: "user_id,topic" });
+      if (upsertError) throw upsertError;
 
       return {
         data: {
           success: true,
-          data: {
-            masteredWords: mastered,
-            incorrectWords: incorrect,
-            progressByTopic: topicStats,
-          },
+          data: await loadVocabularyProgress(cleanId),
         },
       };
     }
 
     // 5. Reset Topic Progress
     if (url === "/vocabulary/progress/reset") {
-      const { accessId, topic } = body;
-      const cleanId = String(accessId).trim();
-      const { data } = await supabase.from("vocabulary_progress").select("*").eq("access_id", cleanId).limit(1);
-      const record = data && data[0] ? toCamel(data[0]) : null;
-
-      if (record) {
-        const topicStats = record.progressByTopic || {};
-        if (topic) delete topicStats[topic];
-        await supabase.from("vocabulary_progress").update({
-          mastered_words: topic ? record.masteredWords : [],
-          incorrect_words: topic ? record.incorrectWords : [],
-          progress_by_topic: topic ? topicStats : {},
-          updated_at: new Date().toISOString(),
-        }).eq("access_id", cleanId);
-      }
+      const cleanId = requireSupabaseUserId(body.userId || body.accessId);
+      let query = supabase.from("spelling_progress").delete().eq("user_id", cleanId);
+      if (body.topic) query = query.eq("topic", body.topic);
+      const { error } = await query;
+      if (error) throw error;
       return { data: { success: true, message: "Progress reset successfully" } };
     }
 
     // 5b. Record Flashcard Progress (Known, Unknown, Forgot)
     if (url === "/flashcard/progress") {
       const { userId, accessId, topic = "Academic Word List: Sublist A", word, status, lastIndex = 0 } = body;
-      const targetUserId = userId || accessId;
+      const targetUserId = requireSupabaseUserId(userId || accessId);
       const cleanWord = String(word || "").trim();
-      if (!targetUserId || !cleanWord) {
+      if (!cleanWord) {
         return { data: { success: false, message: "Missing userId or word" } };
       }
 
-      try {
-        // Fetch existing record
-        const { data: existing } = await supabase
-          .from("flashcard_progress")
-          .select("*")
-          .eq("user_id", targetUserId)
-          .eq("topic", topic)
-          .maybeSingle();
+      const { data: existing, error: selectError } = await supabase
+        .from("flashcard_progress")
+        .select("*")
+        .eq("user_id", targetUserId)
+        .eq("topic", topic)
+        .maybeSingle();
+      if (selectError) throw selectError;
 
-        let known = existing?.known_words || [];
-        let unknown = existing?.unknown_words || [];
-        let forgot = existing?.forgot_words || [];
+      let known = existing?.known_words || [];
+      let unknown = existing?.unknown_words || [];
+      let forgot = existing?.forgot_words || [];
 
-        // Remove from all first
-        known = known.filter((w) => w !== cleanWord);
-        unknown = unknown.filter((w) => w !== cleanWord);
-        forgot = forgot.filter((w) => w !== cleanWord);
+      known = known.filter((w) => w !== cleanWord);
+      unknown = unknown.filter((w) => w !== cleanWord);
+      forgot = forgot.filter((w) => w !== cleanWord);
 
-        if (status === "knew") {
-          known.push(cleanWord);
-        } else if (status === "forgot") {
-          forgot.push(cleanWord);
-        } else {
-          unknown.push(cleanWord);
-        }
-
-        const payload = {
-          user_id: targetUserId,
-          topic,
-          known_words: known,
-          unknown_words: unknown,
-          forgot_words: forgot,
-          last_index: lastIndex,
-          updated_at: new Date().toISOString(),
-        };
-
-        await supabase
-          .from("flashcard_progress")
-          .upsert(payload, { onConflict: "user_id,topic" });
-
-        return {
-          data: {
-            success: true,
-            data: {
-              knownWords: known,
-              unknownWords: unknown,
-              forgotWords: forgot,
-              lastIndex,
-            },
-          },
-        };
-      } catch (err) {
-        console.warn("flashcard_progress upsert error:", err);
+      if (status === "knew") {
+        known.push(cleanWord);
+      } else if (status === "forgot") {
+        forgot.push(cleanWord);
+      } else {
+        unknown.push(cleanWord);
       }
 
-      // Also sync to legacy vocabulary_progress
-      apiClient.post("/vocabulary/progress", {
-        accessId: targetUserId,
-        word: cleanWord,
-        isCorrect: status === "knew",
+      const payload = {
+        user_id: targetUserId,
         topic,
-      }).catch(() => {});
+        known_words: known,
+        unknown_words: unknown,
+        forgot_words: forgot,
+        last_index: lastIndex,
+        updated_at: new Date().toISOString(),
+      };
 
-      return { data: { success: true } };
+      const { error: upsertError } = await supabase
+        .from("flashcard_progress")
+        .upsert(payload, { onConflict: "user_id,topic" });
+      if (upsertError) throw upsertError;
+
+      return {
+        data: {
+          success: true,
+          data: {
+            knownWords: known,
+            unknownWords: unknown,
+            forgotWords: forgot,
+            lastIndex,
+          },
+        },
+      };
     }
 
     // 5c. Reset Flashcard Progress
     if (url === "/flashcard/progress/reset") {
       const { userId, accessId, topic } = body;
-      const targetUserId = userId || accessId;
+      const targetUserId = requireSupabaseUserId(userId || accessId);
       if (targetUserId && topic) {
-        try {
-          await supabase
-            .from("flashcard_progress")
-            .delete()
-            .eq("user_id", targetUserId)
-            .eq("topic", topic);
-        } catch {
-          // fallback
-        }
+        const { error } = await supabase
+          .from("flashcard_progress")
+          .delete()
+          .eq("user_id", targetUserId)
+          .eq("topic", topic);
+        if (error) throw error;
       }
       return { data: { success: true, message: "Flashcard progress reset" } };
     }
@@ -740,131 +749,151 @@ const apiClient = {
     // 5d. Record Spelling Progress (Mastered vs Incorrect)
     if (url === "/spelling/progress") {
       const { userId, accessId, topic = "Academic Word List: Sublist A", word, isCorrect, lastIndex = 0 } = body;
-      const targetUserId = userId || accessId;
+      const targetUserId = requireSupabaseUserId(userId || accessId);
       const cleanWord = String(word || "").trim();
-      if (!targetUserId || !cleanWord) {
+      if (!cleanWord) {
         return { data: { success: false, message: "Missing userId or word" } };
       }
 
-      try {
-        const { data: existing } = await supabase
-          .from("spelling_progress")
-          .select("*")
-          .eq("user_id", targetUserId)
-          .eq("topic", topic)
-          .maybeSingle();
+      const { data: existing, error: selectError } = await supabase
+        .from("spelling_progress")
+        .select("*")
+        .eq("user_id", targetUserId)
+        .eq("topic", topic)
+        .maybeSingle();
+      if (selectError) throw selectError;
 
-        let mastered = existing?.mastered_words || [];
-        let incorrect = existing?.incorrect_words || [];
+      let mastered = existing?.mastered_words || [];
+      let incorrect = existing?.incorrect_words || [];
 
-        mastered = mastered.filter((w) => w !== cleanWord);
-        incorrect = incorrect.filter((w) => w !== cleanWord);
+      mastered = mastered.filter((w) => w !== cleanWord);
+      incorrect = incorrect.filter((w) => w !== cleanWord);
 
-        if (isCorrect) {
-          mastered.push(cleanWord);
-        } else {
-          incorrect.push(cleanWord);
-        }
-
-        const payload = {
-          user_id: targetUserId,
-          topic,
-          mastered_words: mastered,
-          incorrect_words: incorrect,
-          last_index: lastIndex,
-          updated_at: new Date().toISOString(),
-        };
-
-        await supabase
-          .from("spelling_progress")
-          .upsert(payload, { onConflict: "user_id,topic" });
-
-        return {
-          data: {
-            success: true,
-            data: {
-              masteredWords: mastered,
-              incorrectWords: incorrect,
-              lastIndex,
-            },
-          },
-        };
-      } catch (err) {
-        console.warn("spelling_progress upsert error:", err);
+      if (isCorrect) {
+        mastered.push(cleanWord);
+      } else {
+        incorrect.push(cleanWord);
       }
 
-      // Sync with vocabulary_progress
-      apiClient.post("/vocabulary/progress", {
-        accessId: targetUserId,
-        word: cleanWord,
-        isCorrect,
+      const payload = {
+        user_id: targetUserId,
         topic,
-      }).catch(() => {});
+        mastered_words: mastered,
+        incorrect_words: incorrect,
+        last_index: lastIndex,
+        updated_at: new Date().toISOString(),
+      };
 
-      return { data: { success: true } };
+      const { error: upsertError } = await supabase
+        .from("spelling_progress")
+        .upsert(payload, { onConflict: "user_id,topic" });
+      if (upsertError) throw upsertError;
+
+      return {
+        data: {
+          success: true,
+          data: {
+            masteredWords: mastered,
+            incorrectWords: incorrect,
+            lastIndex,
+          },
+        },
+      };
     }
 
     // 5e. Reset Spelling Progress
     if (url === "/spelling/progress/reset") {
       const { userId, accessId, topic } = body;
-      const targetUserId = userId || accessId;
+      const targetUserId = requireSupabaseUserId(userId || accessId);
       if (targetUserId && topic) {
-        try {
-          await supabase
-            .from("spelling_progress")
-            .delete()
-            .eq("user_id", targetUserId)
-            .eq("topic", topic);
-        } catch {
-          // fallback
-        }
+        const { error } = await supabase
+          .from("spelling_progress")
+          .delete()
+          .eq("user_id", targetUserId)
+          .eq("topic", topic);
+        if (error) throw error;
       }
       return { data: { success: true, message: "Spelling progress reset" } };
     }
 
     // 6. Record Study Session
     if (url === "/user/study-session") {
-      const { accessId, durationSeconds = 0, grammarScore = null, totalQuestions = null } = body;
-      const cleanId = String(accessId).trim();
-      const { data } = await supabase.from("vocabulary_progress").select("*").eq("access_id", cleanId).limit(1);
-      const record = data && data[0] ? toCamel(data[0]) : { totalSessions: 0, totalStudySeconds: 0 };
+      const { userId, accessId, durationSeconds = 0, grammarScore = null, totalQuestions = null } = body;
+      const cleanId = requireSupabaseUserId(userId || accessId);
+      const cleanDuration = Math.max(0, Number.parseInt(durationSeconds, 10) || 0);
+      const timestamp = new Date().toISOString();
+      const hasGrammarScore =
+        grammarScore !== null &&
+        grammarScore !== undefined &&
+        totalQuestions !== null &&
+        totalQuestions !== undefined &&
+        Number.isFinite(Number(grammarScore)) &&
+        Number.isFinite(Number(totalQuestions)) &&
+        Number(totalQuestions) > 0;
 
-      const newSessions = (record.totalSessions || 0) + 1;
-      const newSeconds = (record.totalStudySeconds || 0) + Math.max(0, parseInt(durationSeconds, 10) || 0);
+      const { error: activityError } = await supabase.from("user_activity_logs").insert({
+        user_id: cleanId,
+        action: "STUDY_SESSION",
+        details: hasGrammarScore
+          ? JSON.stringify({ grammarScore: Number(grammarScore), totalQuestions: Number(totalQuestions) })
+          : null,
+        duration_seconds: cleanDuration,
+        timestamp,
+      });
+      if (activityError) throw activityError;
 
-      let highestScore = record.highestGrammarScore || null;
-      if (grammarScore !== null && totalQuestions !== null && totalQuestions > 0) {
-        const currentPct = Math.round((grammarScore / totalQuestions) * 100);
-        const prevPct = highestScore ? Math.round((highestScore.score / highestScore.total) * 100) : -1;
-        if (currentPct > prevPct) {
+      let highestScore = null;
+      if (hasGrammarScore) {
+        const { data: current, error: grammarSelectError } = await supabase
+          .from("grammar_progress")
+          .select("highest_score, total_questions")
+          .eq("user_id", cleanId)
+          .maybeSingle();
+        if (grammarSelectError) throw grammarSelectError;
+
+        const currentPercent = Number(grammarScore) / Number(totalQuestions);
+        const previousPercent = current?.total_questions
+          ? Number(current.highest_score || 0) / Number(current.total_questions)
+          : -1;
+        if (currentPercent > previousPercent) {
+          const { error: grammarUpsertError } = await supabase
+            .from("grammar_progress")
+            .upsert({
+              user_id: cleanId,
+              highest_score: Number(grammarScore),
+              total_questions: Number(totalQuestions),
+              updated_at: timestamp,
+            }, { onConflict: "user_id" });
+          if (grammarUpsertError) throw grammarUpsertError;
           highestScore = {
-            score: grammarScore,
-            total: totalQuestions,
-            percent: currentPct,
-            achievedAt: new Date().toISOString(),
+            score: Number(grammarScore),
+            total: Number(totalQuestions),
+            percent: Math.round(currentPercent * 100),
+            achievedAt: timestamp,
+          };
+        } else if (current) {
+          highestScore = {
+            score: current.highest_score,
+            total: current.total_questions,
+            percent: Math.round(previousPercent * 100),
           };
         }
       }
 
-      await supabase.from("vocabulary_progress").upsert({
-        access_id: cleanId,
-        total_sessions: newSessions,
-        total_study_seconds: newSeconds,
-        highest_grammar_score: highestScore,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: "access_id" });
-
       return {
         data: {
           success: true,
-          data: { totalSessions: newSessions, totalStudySeconds: newSeconds, highestGrammarScore: highestScore },
+          data: {
+            durationSeconds: cleanDuration,
+            highestGrammarScore: highestScore,
+          },
         },
       };
     }
 
     // 7. Upload Single Word
     if (url === "/vocabulary") {
-      const { word, pos, banglaMeaning, synonyms, exampleUsage, topic, targetTab = "active", uploadedBy } = body;
+      const { word, pos, banglaMeaning, synonyms, exampleUsage, topic, targetTab = "active", uploadedBy, userId } = body;
       const synList = Array.isArray(synonyms)
         ? synonyms
         : typeof synonyms === "string"
@@ -884,12 +913,14 @@ const apiClient = {
         synonyms: synList,
         example_usage: (exampleUsage || "").trim(),
         topic: topic || "Uploaded",
+        target_tab: targetTab,
         uploaded_by: resolvedUploader,
       };
 
       const { data } = await supabase.from("vocabularies").insert(newWord).select();
 
       await supabase.from("audit_logs").insert({
+        user_id: userId,
         action: "VOCAB_UPLOADED",
         user_name: uploadedBy || "candidate",
         access_id: "STUDENT",
@@ -966,11 +997,13 @@ const apiClient = {
         synonyms: Array.isArray(row.synonyms) ? row.synonyms : [],
         example_usage: (row.exampleUsage || "").trim(),
         topic: (row.topic || defaultTopic).trim(),
+        target_tab: targetTab,
         uploaded_by: resolvedUploader,
       }));
 
       await supabase.from("vocabularies").insert(docs);
       await supabase.from("audit_logs").insert({
+        user_id: userId,
         action: "VOCAB_BULK_UPLOAD",
         user_name: userName || uploadedBy || (isAdmin ? "Admin" : "Candidate"),
         access_id: userId || (isAdmin ? "ADMIN" : "STUDENT"),
