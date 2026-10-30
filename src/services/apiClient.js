@@ -827,11 +827,60 @@ const apiClient = {
 
     // 8. Bulk Import Words
     if (url === "/vocabulary/bulk") {
-      const { items, defaultTopic = "Uploaded", targetTab = "active", uploadedBy = "bulk-upload" } = body;
+      const {
+        items,
+        defaultTopic = "Uploaded",
+        targetTab = "active",
+        uploadedBy = "bulk-upload",
+        userId,
+        userName,
+        userRole = "general",
+      } = body;
+
+      const isAdmin = userRole === "admin";
+
+      // Validation 1: General users can only upload to the "uploaded" tab
+      if (!isAdmin && targetTab !== "uploaded") {
+        const err = new Error("General users are only permitted to import into the Uploaded tab.");
+        err.response = { data: { success: false, message: err.message } };
+        throw err;
+      }
+
+      // Validation 2: General users 200 words/day limit
+      if (!isAdmin) {
+        if (!items || items.length > 200) {
+          const err = new Error("General users are limited to a maximum of 200 words per day.");
+          err.response = { data: { success: false, message: err.message } };
+          throw err;
+        }
+
+        if (userId) {
+          const startOfDay = new Date();
+          startOfDay.setHours(0, 0, 0, 0);
+          const { count, error: countErr } = await supabase
+            .from("vocabularies")
+            .select("*", { count: "exact", head: true })
+            .ilike("uploaded_by", `%${userId}%`)
+            .gte("created_at", startOfDay.toISOString());
+
+          if (!countErr && typeof count === "number") {
+            const uploadedToday = count;
+            if (uploadedToday + items.length > 200) {
+              const remaining = Math.max(0, 200 - uploadedToday);
+              const err = new Error(
+                `Daily limit exceeded. You have already uploaded ${uploadedToday} words today and have ${remaining} remaining (limit: 200 words/day).`
+              );
+              err.response = { data: { success: false, message: err.message } };
+              throw err;
+            }
+          }
+        }
+      }
+
       const resolvedUploader =
         uploadedBy && uploadedBy.includes(":")
           ? uploadedBy
-          : `${targetTab}:${uploadedBy || "bulk-import"}`;
+          : `${targetTab}:${userId || uploadedBy || "bulk-import"}`;
 
       const docs = (items || []).map((row) => ({
         word: row.word.trim(),
@@ -846,8 +895,8 @@ const apiClient = {
       await supabase.from("vocabularies").insert(docs);
       await supabase.from("audit_logs").insert({
         action: "VOCAB_BULK_UPLOAD",
-        user_name: uploadedBy || "admin",
-        access_id: uploadedBy?.toLowerCase().includes("admin") ? "ADMIN" : "SYSTEM",
+        user_name: userName || uploadedBy || (isAdmin ? "Admin" : "Candidate"),
+        access_id: userId || (isAdmin ? "ADMIN" : "STUDENT"),
         details: `Bulk imported ${docs.length} words under "${defaultTopic}" [tab: ${targetTab}]`,
         timestamp: new Date().toISOString(),
       });

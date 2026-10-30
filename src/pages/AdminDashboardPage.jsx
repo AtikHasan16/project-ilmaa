@@ -12,6 +12,7 @@ import {
   HiMagnifyingGlass,
   HiInformationCircle,
   HiXMark,
+  HiCloudArrowUp,
 } from "react-icons/hi2";
 import {
   showConfirmModal,
@@ -40,6 +41,14 @@ export default function AdminDashboardPage() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [selectedUserMetrics, setSelectedUserMetrics] = useState(null);
   const [loadingMetrics, setLoadingMetrics] = useState(false);
+  const [selectedUserLogs, setSelectedUserLogs] = useState([]);
+  const [selectedUserUploadedWords, setSelectedUserUploadedWords] = useState([]);
+  const [loadingUserLogs, setLoadingUserLogs] = useState(false);
+
+  // Platform bulk uploaded words monitoring state
+  const [uploadedWords, setUploadedWords] = useState([]);
+  const [loadingUploadedWords, setLoadingUploadedWords] = useState(false);
+  const [uploadedWordSearch, setUploadedWordSearch] = useState("");
 
   // Lock body scroll and listen for ESC key when inspector modal is open
   useEffect(() => {
@@ -63,6 +72,10 @@ export default function AdminDashboardPage() {
   const handleOpenUserDetail = async (u) => {
     setSelectedUser(u);
     setLoadingMetrics(true);
+    setLoadingUserLogs(true);
+    setSelectedUserLogs([]);
+    setSelectedUserUploadedWords([]);
+
     try {
       const res = await apiClient.get("/user/profile-metrics", {
         params: { accessId: u.id || u.accessId },
@@ -74,6 +87,34 @@ export default function AdminDashboardPage() {
       console.warn("Failed to fetch user metrics:", err);
     } finally {
       setLoadingMetrics(false);
+    }
+
+    try {
+      // 1. Fetch user-specific audit & activity logs (Profile updates, uploads, role changes)
+      const { data: logsData } = await supabase
+        .from("audit_logs")
+        .select("*")
+        .or(`access_id.eq.${u.id},user_name.ilike.%${u.name || ""}%`)
+        .order("timestamp", { ascending: false })
+        .limit(30);
+      setSelectedUserLogs(logsData || []);
+    } catch (logErr) {
+      console.warn("Failed to fetch user logs:", logErr);
+    }
+
+    try {
+      // 2. Fetch words uploaded by this user
+      const { data: userWords } = await supabase
+        .from("vocabularies")
+        .select("id, word, pos, bangla_meaning, topic, created_at")
+        .ilike("uploaded_by", `%${u.id}%`)
+        .order("created_at", { ascending: false })
+        .limit(30);
+      setSelectedUserUploadedWords(userWords || []);
+    } catch (wordErr) {
+      console.warn("Failed to fetch user uploaded words:", wordErr);
+    } finally {
+      setLoadingUserLogs(false);
     }
   };
 
@@ -105,8 +146,29 @@ export default function AdminDashboardPage() {
     }
   }, []);
 
+  // Fetch words uploaded by candidates across platform
+  const fetchUploadedWords = useCallback(async () => {
+    setLoadingUploadedWords(true);
+    try {
+      const { data, error } = await supabase
+        .from("vocabularies")
+        .select("id, word, pos, bangla_meaning, topic, uploaded_by, created_at")
+        .ilike("uploaded_by", "%uploaded%")
+        .order("created_at", { ascending: false })
+        .limit(100);
+      if (!error && data) {
+        setUploadedWords(data);
+      }
+    } catch (err) {
+      console.warn("Could not load uploaded words:", err);
+    } finally {
+      setLoadingUploadedWords(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchAuditData();
+    fetchUploadedWords();
 
     // Auto refresh active user statuses every 45s
     const interval = setInterval(() => {
@@ -114,7 +176,45 @@ export default function AdminDashboardPage() {
     }, 45000);
 
     return () => clearInterval(interval);
-  }, [fetchAuditData]);
+  }, [fetchAuditData, fetchUploadedWords]);
+
+  // Delete an uploaded word (Admin moderation)
+  const handleDeleteUploadedWord = async (wordId, wordText) => {
+    const res = await showConfirmModal({
+      title: "Delete Uploaded Word?",
+      text: `Are you sure you want to permanently delete "${wordText}" from uploaded vocabulary?`,
+      confirmButtonText: "Accept / Delete",
+      cancelButtonText: "Reject / Cancel",
+      isDanger: true,
+      icon: "warning",
+    });
+
+    if (!res.isConfirmed) return;
+
+    try {
+      const { error } = await supabase.from("vocabularies").delete().eq("id", wordId);
+      if (error) throw error;
+
+      setUploadedWords((prev) => prev.filter((w) => w.id !== wordId));
+      setSelectedUserUploadedWords((prev) => prev.filter((w) => w.id !== wordId));
+      showSuccessToast("Word Removed", `"${wordText}" deleted from database.`);
+
+      // Log deletion
+      try {
+        await supabase.from("audit_logs").insert({
+          action: "VOCAB_DELETED",
+          user_name: "Admin",
+          access_id: "ADMIN",
+          details: `Admin deleted uploaded word "${wordText}"`,
+          timestamp: new Date().toISOString(),
+        });
+      } catch (logErr) {
+        console.warn("Could not log deletion:", logErr);
+      }
+    } catch (err) {
+      showErrorAlert("Delete Failed", err.message || "Failed to delete word");
+    }
+  };
 
   // Delete single log entry
   const handleDeleteLog = async (logId) => {
@@ -162,8 +262,20 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // Change user role (General / Advance / Admin) with audit tracking
+  // Change user role (General / Admin) with audit tracking and accept/reject confirmation
   const handleUpdateRole = async (userId, userName, newRole) => {
+    const roleLabel = newRole === "admin" ? "Platform Administrator" : "General Member";
+    const res = await showConfirmModal({
+      title: "Confirm Role Change?",
+      text: `Are you sure you want to change ${userName || "this candidate"}'s access role to [${roleLabel}]?`,
+      confirmButtonText: "Accept / Confirm",
+      cancelButtonText: "Reject / Cancel",
+      isDanger: newRole !== "admin",
+      icon: "question",
+    });
+
+    if (!res.isConfirmed) return;
+
     try {
       const { error } = await supabase
         .from("profiles")
@@ -187,7 +299,7 @@ export default function AdminDashboardPage() {
 
       showSuccessToast(
         "Permissions Updated",
-        `${userName || "Candidate"} has been granted [${newRole.toUpperCase()}] access.`
+        `${userName || "Candidate"} has been granted [${roleLabel}] access.`
       );
 
       if (selectedUser && (selectedUser.id === userId || selectedUser.accessId === userId)) {
@@ -239,6 +351,17 @@ export default function AdminDashboardPage() {
       u.id?.toLowerCase().includes(q) ||
       u.accessId?.toLowerCase().includes(q);
     return matchesRole && matchesSearch;
+  });
+
+  const filteredUploadedWords = uploadedWords.filter((w) => {
+    const q = uploadedWordSearch.toLowerCase().trim();
+    if (!q) return true;
+    return (
+      w.word?.toLowerCase().includes(q) ||
+      w.bangla_meaning?.toLowerCase().includes(q) ||
+      w.topic?.toLowerCase().includes(q) ||
+      w.uploaded_by?.toLowerCase().includes(q)
+    );
   });
 
   return (
@@ -577,6 +700,124 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* ==================================================== */}
+      {/* 2.5 Bulk Uploaded Vocabulary Monitor (Item 4)        */}
+      {/* ==================================================== */}
+      <div className="imlaa-card p-6 sm:p-8 space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-plum/15">
+          <div>
+            <div className="flex items-center space-x-3">
+              <h3 className="text-xl font-bold text-body-dark">
+                Bulk Uploaded Vocabulary Monitor
+              </h3>
+              <span className="imlaa-badge text-xs">Admin Moderation</span>
+            </div>
+            <p className="text-base text-muted-label mt-0.5">
+              Review and moderate custom vocabulary imported by candidates. Delete improper words with 1 click.
+            </p>
+          </div>
+
+          <div className="flex items-center space-x-3">
+            <span className="imlaa-badge text-base">
+              {filteredUploadedWords.length} / {uploadedWords.length} Words
+            </span>
+            <button
+              type="button"
+              onClick={fetchUploadedWords}
+              title="Refresh Uploaded Words"
+              className="imlaa-btn-secondary py-1.5 px-3 text-sm space-x-1"
+            >
+              <HiArrowPath className={`w-4 h-4 ${loadingUploadedWords ? "animate-spin" : ""}`} />
+              <span>Refresh</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Search for uploaded words */}
+        <div className="flex items-center justify-between gap-4">
+          <div className="relative w-full sm:w-80">
+            <input
+              type="text"
+              placeholder="Filter by word, Bengali, topic, candidate..."
+              value={uploadedWordSearch}
+              onChange={(e) => setUploadedWordSearch(e.target.value)}
+              className="imlaa-input py-2 pl-9 pr-3 text-xs w-full bg-white"
+            />
+            <HiMagnifyingGlass className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-label" />
+          </div>
+          {uploadedWords.length > 0 && (
+            <span className="text-xs text-muted-label">
+              Showing newest submissions
+            </span>
+          )}
+        </div>
+
+        {/* Uploaded words table */}
+        <div className="overflow-x-auto max-h-96">
+          <table className="w-full text-left text-base">
+            <thead className="sticky top-0 bg-white">
+              <tr className="border-b border-plum/20 text-muted-label uppercase text-sm font-bold">
+                <th className="py-2.5 px-3">Word</th>
+                <th className="py-2.5 px-3">POS</th>
+                <th className="py-2.5 px-3">Bengali Meaning</th>
+                <th className="py-2.5 px-3">Topic Category</th>
+                <th className="py-2.5 px-3">Uploader</th>
+                <th className="py-2.5 px-3">Date</th>
+                <th className="py-2.5 px-3 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-plum/10">
+              {loadingUploadedWords ? (
+                <tr>
+                  <td colSpan={7} className="py-8 text-center text-muted-label text-sm">
+                    Loading candidate uploaded vocabulary...
+                  </td>
+                </tr>
+              ) : filteredUploadedWords.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-8 text-center text-muted-label text-sm">
+                    No custom uploaded words found matching current search.
+                  </td>
+                </tr>
+              ) : (
+                filteredUploadedWords.map((item) => (
+                  <tr key={item.id} className="hover:bg-plum/5 transition-colors">
+                    <td className="py-3 px-3 font-bold text-body-dark">
+                      {item.word}
+                    </td>
+                    <td className="py-3 px-3 italic text-xs text-plum">
+                      {item.pos || "—"}
+                    </td>
+                    <td className="py-3 px-3 text-body-dark font-medium text-sm">
+                      {item.bangla_meaning}
+                    </td>
+                    <td className="py-3 px-3 text-xs font-mono text-plum">
+                      {item.topic || "Uploaded"}
+                    </td>
+                    <td className="py-3 px-3 text-xs text-muted-label font-mono">
+                      {item.uploaded_by?.replace(/^uploaded:/, "") || "candidate"}
+                    </td>
+                    <td className="py-3 px-3 text-xs text-muted-label whitespace-nowrap">
+                      {item.created_at ? new Date(item.created_at).toLocaleDateString() : "Recent"}
+                    </td>
+                    <td className="py-3 px-3 text-right">
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteUploadedWord(item.id, item.word)}
+                        title="Delete this uploaded word"
+                        className="p-1.5 rounded-lg text-muted-label hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                      >
+                        <HiTrash className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ==================================================== */}
       {/* 3. Audit Log Trail (With Clear / Delete Options)     */}
       {/* ==================================================== */}
       <div className="imlaa-card p-6 sm:p-8 space-y-5">
@@ -862,40 +1103,127 @@ export default function AdminDashboardPage() {
                 )}
               </div>
 
-              {/* User Activity Logs Trail */}
+              {/* User Activity Logs Trail (Profile Updates, Uploads, Role changes) */}
               <div className="space-y-2">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-label">
-                  Recent Candidate Activity Logs
-                </h4>
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-muted-label">
+                    Candidate Activity Trail (Profile & Upload Logs)
+                  </h4>
+                  {loadingUserLogs && (
+                    <span className="text-[10px] text-plum animate-pulse">Syncing logs...</span>
+                  )}
+                </div>
+
                 <div className="max-h-48 overflow-y-auto rounded-xl border border-plum/15 divide-y divide-plum/10 text-xs">
-                  {auditLogs
-                    .filter(
-                      (l) =>
-                        l.userName?.toLowerCase() === selectedUser.name?.toLowerCase() ||
-                        l.accessId === selectedUser.id ||
-                        l.accessId === selectedUser.accessId
-                    )
-                    .slice(0, 10)
-                    .map((log) => (
-                      <div key={log._id} className="p-2.5 flex items-center justify-between">
-                        <div>
-                          <span className="font-bold text-plum mr-2">[{log.action}]</span>
-                          <span className="text-body-dark">{log.details}</span>
+                  {(() => {
+                    // Combine specific fetched logs and general audit logs
+                    const combined = [...selectedUserLogs];
+                    const existingIds = new Set(combined.map((l) => l.id || l._id));
+                    auditLogs
+                      .filter(
+                        (l) =>
+                          l.userName?.toLowerCase() === selectedUser.name?.toLowerCase() ||
+                          l.accessId === selectedUser.id ||
+                          l.accessId === selectedUser.accessId
+                      )
+                      .forEach((l) => {
+                        if (!existingIds.has(l.id || l._id)) {
+                          combined.push(l);
+                        }
+                      });
+                    
+                    combined.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+                    if (combined.length === 0) {
+                      return (
+                        <div className="p-4 text-center text-muted-label">
+                          No recent activity logs recorded for this candidate.
                         </div>
-                        <span className="text-muted-label font-mono shrink-0 ml-2">
-                          {new Date(log.timestamp).toLocaleTimeString()}
-                        </span>
-                      </div>
-                    ))}
-                  {auditLogs.filter(
-                    (l) =>
-                      l.userName?.toLowerCase() === selectedUser.name?.toLowerCase() ||
-                      l.accessId === selectedUser.id ||
-                      l.accessId === selectedUser.accessId
-                  ).length === 0 && (
+                      );
+                    }
+
+                    return combined.slice(0, 15).map((log, idx) => {
+                      const isProfile = log.action === "PROFILE_UPDATE";
+                      const isUpload = log.action === "VOCAB_BULK_UPLOAD" || log.action === "VOCAB_UPLOADED";
+                      const isRole = log.action === "ROLE_CHANGE";
+
+                      const badgeClass = isProfile
+                        ? "bg-purple-100 text-purple-800 border-purple-300"
+                        : isUpload
+                          ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                          : isRole
+                            ? "bg-amber-100 text-amber-800 border-amber-300"
+                            : "bg-plum/10 text-plum border-plum/20";
+
+                      const label = isProfile
+                        ? "Profile Update"
+                        : isUpload
+                          ? "Vocab Upload"
+                          : isRole
+                            ? "Role Change"
+                            : log.action;
+
+                      return (
+                        <div key={log.id || log._id || idx} className="p-2.5 flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <span className={`px-2 py-0.5 rounded-md font-bold text-[10px] border uppercase ${badgeClass}`}>
+                              {label}
+                            </span>
+                            <span className="text-body-dark font-medium">{log.details}</span>
+                          </div>
+                          <span className="text-muted-label font-mono shrink-0 ml-2 text-[11px]">
+                            {log.timestamp ? new Date(log.timestamp).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"}
+                          </span>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
+
+              {/* Uploaded Vocabulary Words by this Candidate */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-muted-label flex items-center space-x-1.5">
+                    <HiCloudArrowUp className="w-4 h-4 text-plum" />
+                    <span>Uploaded Words by this Candidate ({selectedUserUploadedWords.length})</span>
+                  </h4>
+                  {selectedUserUploadedWords.length > 0 && (
+                    <span className="text-[10px] text-muted-label font-medium">Deletable by admin</span>
+                  )}
+                </div>
+
+                <div className="max-h-40 overflow-y-auto rounded-xl border border-plum/15 divide-y divide-plum/10 text-xs bg-plum/5">
+                  {selectedUserUploadedWords.length === 0 ? (
                     <div className="p-4 text-center text-muted-label">
-                      No recent activity logs recorded for this candidate.
+                      This candidate has not uploaded any custom vocabulary yet.
                     </div>
+                  ) : (
+                    selectedUserUploadedWords.map((w) => (
+                      <div key={w.id} className="p-2.5 flex items-center justify-between bg-white hover:bg-plum/5 transition">
+                        <div>
+                          <span className="font-bold text-body-dark mr-1.5">{w.word}</span>
+                          <span className="italic text-muted-label text-[11px] mr-2">({w.pos || "—"})</span>
+                          <span className="text-body-dark">{w.bangla_meaning}</span>
+                          <span className="ml-2 text-[10px] font-mono text-plum bg-plum/10 px-1.5 py-0.5 rounded">
+                            {w.topic}
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-2 shrink-0 ml-2">
+                          <span className="text-[10px] text-muted-label font-mono">
+                            {w.created_at ? new Date(w.created_at).toLocaleDateString() : ""}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteUploadedWord(w.id, w.word)}
+                            title="Delete this word"
+                            className="p-1 text-muted-label hover:text-rose-600 hover:bg-rose-50 rounded transition cursor-pointer"
+                          >
+                            <HiTrash className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))
                   )}
                 </div>
               </div>

@@ -7,8 +7,8 @@ import {
   HiCloudArrowUp,
   HiCog6Tooth,
   HiFolder,
-  HiHeart,
   HiArrowRightOnRectangle,
+  HiBeaker,
 } from "react-icons/hi2";
 import { showConfirmModal } from "../utils/sweetalert";
 
@@ -63,7 +63,7 @@ export default function NavigationDock() {
       to: "/workspace/upload",
       label: "Upload Study",
       icon: HiCloudArrowUp,
-      show: isAdmin,
+      show: true,
     },
     {
       to: "/workspace/vocab-monitor",
@@ -80,7 +80,7 @@ export default function NavigationDock() {
     {
       to: "/workspace/contribute",
       label: "Contribute",
-      icon: HiHeart,
+      icon: HiBeaker,
       show: true,
     },
   ];

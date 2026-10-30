@@ -267,11 +267,11 @@ export default function ProfilePage() {
 
         <div className="flex items-center space-x-3">
           <Link
-            to="/workspace/contribute"
+            to="/support-us"
             className="imlaa-btn-secondary py-2.5 px-4 text-base space-x-2 text-plum hover:bg-plum/10"
           >
             <HiHeart className="w-5 h-5 text-plum" />
-            <span>Support Platform</span>
+            <span>Support Us</span>
           </Link>
           <span className="imlaa-badge text-base py-1 px-4 uppercase font-bold tracking-wider">
             {role || "general"} Member

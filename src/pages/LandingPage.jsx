@@ -304,11 +304,11 @@ export default function LandingPage() {
             Contact
           </Link>
           <Link
-            to="/contribute"
+            to="/support-us"
             className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg border border-plum/20 bg-plum/5 hover:bg-plum/10 text-plum font-bold transition"
           >
             <HiHeart className="w-4 h-4 text-plum" />
-            <span>Contribute</span>
+            <span>Support Us</span>
           </Link>
         </div>
       </header>
@@ -851,10 +851,10 @@ export default function LandingPage() {
               Contact
             </Link>
             <Link
-              to="/contribute"
+              to="/support-us"
               className="text-plum font-bold hover:underline transition"
             >
-              Support / Donate
+              Support Us
             </Link>
           </div>
 

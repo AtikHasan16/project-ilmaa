@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import apiClient from "../services/apiClient";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -74,6 +75,25 @@ export default function GrammarPage() {
   const [quizTimeRemaining, setQuizTimeRemaining] = useState(0);
   const [isRandomQuiz, setIsRandomQuiz] = useState(false);
   const quizTimerRef = useRef(null);
+
+  // Lock body scroll and listen for ESC key when quiz modal is open
+  useEffect(() => {
+    if (!quizModalOpen) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        setQuizModalOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [quizModalOpen]);
 
   // Fetch dynamic grammar statistics
   useEffect(() => {
@@ -573,82 +593,93 @@ export default function GrammarPage() {
       )}
 
       {/* 5. Random Quiz Modal (Item 6) */}
-      {quizModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="imlaa-card w-full max-w-md p-6 bg-white border border-plum/20 shadow-xl space-y-6">
-            <h3 className="text-2xl font-black text-body-dark">
-              Random Grammar Quiz
-            </h3>
+      {quizModalOpen &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-9999 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setQuizModalOpen(false);
+            }}
+          >
+            <div
+              className="imlaa-card w-full max-w-md p-6 bg-white border border-plum/20 shadow-2xl space-y-6 my-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-2xl font-black text-body-dark">
+                Random Grammar Quiz
+              </h3>
 
-            <div>
-              <label className="text-xs font-bold uppercase tracking-wider text-muted-label block mb-2">
-                Number of Questions
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                {[10, 20, 50].map((qty) => (
-                  <button
-                    key={qty}
-                    type="button"
-                    onClick={() => setQuizQuantity(qty)}
-                    className={`py-2 rounded-xl font-bold border transition ${
-                      quizQuantity === qty
-                        ? "bg-plum text-white border-plum"
-                        : "border-plum/20 text-body-dark hover:bg-plum/5"
-                    }`}
-                  >
-                    {qty} Questions
-                  </button>
-                ))}
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-muted-label block mb-2">
+                  Number of Questions
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[10, 20, 50].map((qty) => (
+                    <button
+                      key={qty}
+                      type="button"
+                      onClick={() => setQuizQuantity(qty)}
+                      className={`py-2 rounded-xl font-bold border transition ${
+                        quizQuantity === qty
+                          ? "bg-plum text-white border-plum"
+                          : "border-plum/20 text-body-dark hover:bg-plum/5"
+                      }`}
+                    >
+                      {qty} Questions
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-muted-label block mb-2">
+                  Timer Limit
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { label: "Untimed", value: 0 },
+                    { label: "1 Min", value: 1 },
+                    { label: "2 Min", value: 2 },
+                    { label: "5 Min", value: 5 },
+                    { label: "10 Min", value: 10 },
+                  ].map((t) => (
+                    <button
+                      key={t.value}
+                      type="button"
+                      onClick={() => setQuizTimerMinutes(t.value)}
+                      className={`py-2 rounded-xl font-bold border transition ${
+                        quizTimerMinutes === t.value
+                          ? "bg-plum text-white border-plum"
+                          : "border-plum/20 text-body-dark hover:bg-plum/5"
+                      }`}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end space-x-3 pt-3 border-t border-plum/10">
+                <button
+                  type="button"
+                  onClick={() => setQuizModalOpen(false)}
+                  className="imlaa-btn-secondary py-2 px-4 text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={launchRandomQuiz}
+                  className="imlaa-btn-primary py-2 px-5 text-sm font-bold"
+                >
+                  Start Quiz
+                </button>
               </div>
             </div>
-
-            <div>
-              <label className="text-xs font-bold uppercase tracking-wider text-muted-label block mb-2">
-                Timer Limit
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { label: "Untimed", value: 0 },
-                  { label: "1 Min", value: 1 },
-                  { label: "2 Min", value: 2 },
-                  { label: "5 Min", value: 5 },
-                  { label: "10 Min", value: 10 },
-                ].map((t) => (
-                  <button
-                    key={t.value}
-                    type="button"
-                    onClick={() => setQuizTimerMinutes(t.value)}
-                    className={`py-2 rounded-xl font-bold border transition ${
-                      quizTimerMinutes === t.value
-                        ? "bg-plum text-white border-plum"
-                        : "border-plum/20 text-body-dark hover:bg-plum/5"
-                    }`}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end space-x-3 pt-3 border-t border-plum/10">
-              <button
-                type="button"
-                onClick={() => setQuizModalOpen(false)}
-                className="imlaa-btn-secondary py-2 px-4 text-sm"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={launchRandomQuiz}
-                className="imlaa-btn-primary py-2 px-5 text-sm font-bold"
-              >
-                Start Quiz
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

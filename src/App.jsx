@@ -10,6 +10,7 @@ import AdminDashboardPage from "./pages/AdminDashboardPage";
 import VocabMonitorPage from "./pages/VocabMonitorPage";
 import ProfilePage from "./pages/ProfilePage";
 import ContributePage from "./pages/ContributePage";
+import SupportUsPage from "./pages/SupportUsPage";
 
 import AboutPage from "./pages/AboutPage";
 import ContactPage from "./pages/ContactPage";
@@ -53,6 +54,7 @@ export default function App() {
           <Route path="/about" element={<AboutPage />} />
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/contribute" element={<ContributePage />} />
+          <Route path="/support-us" element={<SupportUsPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
 
           {/* Access status legacy redirects */}
@@ -74,10 +76,11 @@ export default function App() {
             <Route path="vocab" element={<Navigate to="/workspace/flashcard" replace />} />
             <Route path="grammar" element={<GrammarPage />} />
             <Route path="contribute" element={<ContributePage />} />
+            <Route path="support-us" element={<SupportUsPage />} />
             <Route
               path="upload"
               element={
-                <ProtectedRoute requiredRole="admin">
+                <ProtectedRoute>
                   <UploadStudyPage />
                 </ProtectedRoute>
               }

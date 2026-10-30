@@ -603,6 +603,19 @@ export function AuthProvider({ children }) {
       // 4. Update current user state in React
       setUser(updatedUser);
 
+      // 5. Record activity in audit_logs
+      try {
+        await supabase.from("audit_logs").insert({
+          action: "PROFILE_UPDATE",
+          user_name: updates.name || user.name,
+          access_id: user.id,
+          details: `Candidate updated profile credentials: ${updates.name ? `name changed to "${updates.name}"` : ""} ${updates.avatar_url !== undefined ? "(photo updated)" : ""}`.trim(),
+          timestamp: new Date().toISOString(),
+        });
+      } catch (logErr) {
+        console.warn("Could not insert profile update audit log:", logErr);
+      }
+
       return { success: true, profile: data };
     } catch (err) {
       console.error("Profile update error:", err);
