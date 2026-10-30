@@ -18,7 +18,8 @@ import {
 import { useNavigate, Link } from "react-router";
 import { getDeviceInfo } from "../utils/deviceInfo";
 import { showConfirmModal, showSuccessToast } from "../utils/sweetalert";
-import { supabase } from "../services/apiClient";
+import { supabase } from "../services/supabaseClient";
+import { useModalEffects } from "../hooks/useModalEffects";
 
 export default function ProfilePage() {
   const { user, role, logout, updateProfile } = useAuth();
@@ -38,24 +39,7 @@ export default function ProfilePage() {
   const [isUploading, setIsUploading] = useState(false);
   const [editError, setEditError] = useState("");
 
-  // Lock body scroll and handle ESC key when modal is open
-  useEffect(() => {
-    if (!isEditOpen) return;
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    const handleKeyDown = (e) => {
-      if (e.key === "Escape" && !isUploading) {
-        setIsEditOpen(false);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.body.style.overflow = originalOverflow;
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isEditOpen, isUploading]);
+  useModalEffects(isEditOpen, setIsEditOpen, false, !isUploading);
 
   // Fetch candidate profile timestamps
   useEffect(() => {
@@ -150,6 +134,9 @@ export default function ProfilePage() {
         formData.append("image", avatarFile);
 
         const imgbbApiKey = import.meta.env.VITE_IMAGEBB_KEY;
+        if (!imgbbApiKey) {
+          throw new Error("Image uploads are not configured. Please contact support.");
+        }
 
         const imgbbRes = await fetch(
           `https://api.imgbb.com/1/upload?key=${imgbbApiKey}`,

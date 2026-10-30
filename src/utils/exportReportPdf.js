@@ -1,4 +1,5 @@
-import { showWarningAlert } from "./sweetalert";
+import { showWarningAlert } from "./sweetalert.js";
+import { escapeHtml } from "./escapeHtml.js";
 
 /**
  * Utility to generate and print a clean, executive PDF report for the Access & Audit Log
@@ -19,47 +20,52 @@ export function exportAuditReportPDF({ users, logs, stats }) {
   });
 
   const usersRowsHtml = (users || [])
-    .map(
-      (u, idx) => `
+    .map((u, idx) => {
+      const status = String(u.status || "pending");
+      const lastActive = u.isOnline
+        ? "● ACTIVE NOW"
+        : u.lastActiveAt
+          ? new Date(u.lastActiveAt).toLocaleDateString()
+          : "Never";
+
+      return `
       <tr style="border-bottom: 1px solid #e5e7eb;">
         <td style="padding: 10px; font-weight: 600;">${idx + 1}</td>
-        <td style="padding: 10px; font-weight: 700; color: #1f2937;">${u.name}</td>
-        <td style="padding: 10px; font-family: monospace; font-size: 13px; color: #6D4E56; font-weight: 700;">${u.accessId}</td>
-        <td style="padding: 10px; text-transform: capitalize;">${u.role}</td>
+        <td style="padding: 10px; font-weight: 700; color: #1f2937;">${escapeHtml(u.name)}</td>
+        <td style="padding: 10px; font-family: monospace; font-size: 13px; color: #6D4E56; font-weight: 700;">${escapeHtml(u.id?.slice(0, 8) || "—")}</td>
+        <td style="padding: 10px; text-transform: capitalize;">${escapeHtml(u.role)}</td>
         <td style="padding: 10px;">
           <span style="display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: 700; ${
-            u.status === "approved"
+            status === "approved"
               ? "background: #d1fae5; color: #065f46;"
-              : u.status === "rejected"
+              : status === "rejected"
               ? "background: #fee2e2; color: #991b1b;"
               : "background: #fef3c7; color: #92400e;"
           }">
-            ${u.status.toUpperCase()}
+            ${escapeHtml(status.toUpperCase())}
           </span>
         </td>
         <td style="padding: 10px;">
           <span style="font-weight: 600; color: ${u.isOnline ? "#059669" : "#6b7280"};">
-            ${u.isOnline ? "● ACTIVE NOW" : u.lastActiveAt ? new Date(u.lastActiveAt).toLocaleDateString() : "Never"}
+            ${escapeHtml(lastActive)}
           </span>
         </td>
-        <td style="padding: 10px; font-size: 12px; color: #6b7280;">${new Date(u.createdAt).toLocaleDateString()}</td>
+        <td style="padding: 10px; font-size: 12px; color: #6b7280;">${escapeHtml(new Date(u.createdAt).toLocaleDateString())}</td>
       </tr>
-    `,
-    )
+    `;
+    })
     .join("");
 
   const logsRowsHtml = (logs || [])
     .slice(0, 50)
-    .map(
-      (l) => `
+    .map((l) => `
       <tr style="border-bottom: 1px solid #f3f4f6;">
-        <td style="padding: 8px; font-size: 12px; font-weight: 700; color: #6D4E56;">${l.action}</td>
-        <td style="padding: 8px; font-size: 12px; font-weight: 600;">${l.userName} (${l.accessId || "—"})</td>
-        <td style="padding: 8px; font-size: 12px; color: #374151;">${l.details || "—"}</td>
-        <td style="padding: 8px; font-size: 11px; color: #9ca3af; font-family: monospace;">${new Date(l.timestamp).toLocaleString()}</td>
+        <td style="padding: 8px; font-size: 12px; font-weight: 700; color: #6D4E56;">${escapeHtml(l.action)}</td>
+        <td style="padding: 8px; font-size: 12px; font-weight: 600;">${escapeHtml(l.userName)} (${escapeHtml((l.targetUserId || l.userId)?.slice(0, 8) || "—")})</td>
+        <td style="padding: 8px; font-size: 12px; color: #374151;">${escapeHtml(l.details || "—")}</td>
+        <td style="padding: 8px; font-size: 11px; color: #9ca3af; font-family: monospace;">${escapeHtml(new Date(l.timestamp).toLocaleString())}</td>
       </tr>
-    `,
-    )
+    `)
     .join("");
 
   const html = `
@@ -136,32 +142,32 @@ export function exportAuditReportPDF({ users, logs, stats }) {
             <div class="subtitle">Access Directory & Hardware Device Audit Report</div>
           </div>
           <div style="text-align: right; font-size: 12px; color: #6b7280;">
-            <div>Generated: <strong>${generatedDate}</strong></div>
+            <div>Generated: <strong>${escapeHtml(generatedDate)}</strong></div>
             <div>Classification: <strong>Administrator Confidential</strong></div>
           </div>
         </div>
 
         <div class="stats-grid">
           <div class="stat-box">
-            <div class="stat-value">${stats.totalRegistered || 0}</div>
+            <div class="stat-value">${escapeHtml(stats.totalRegistered || 0)}</div>
             <div class="stat-label">Total Registered</div>
           </div>
           <div class="stat-box">
-            <div class="stat-value" style="color: #059669;">${stats.activeNowCount || 0}</div>
+            <div class="stat-value" style="color: #059669;">${escapeHtml(stats.activeNowCount || 0)}</div>
             <div class="stat-label">Active Right Now</div>
           </div>
           <div class="stat-box">
-            <div class="stat-value">${stats.approvedCount || 0}</div>
+            <div class="stat-value">${escapeHtml(stats.approvedCount || 0)}</div>
             <div class="stat-label">Approved Access</div>
           </div>
           <div class="stat-box">
-            <div class="stat-value">${logs ? logs.length : 0}</div>
+            <div class="stat-value">${escapeHtml(logs ? logs.length : 0)}</div>
             <div class="stat-label">Audit Log Events</div>
           </div>
         </div>
 
         <div class="section-heading">
-          <span>Candidate Access Directory (${users ? users.length : 0})</span>
+          <span>Candidate Access Directory (${escapeHtml(users ? users.length : 0)})</span>
         </div>
         <table>
           <thead>

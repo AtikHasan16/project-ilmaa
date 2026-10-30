@@ -1,69 +1,84 @@
 // Service Worker for Imlaa Linguistic Mastery Platform
-// Provides client-side cache-first strategy for audio files (Microsoft Neural TTS) and static assets
+// Scoped caching: Cache-first for audio TTS and immutable hashed assets.
+// Never caches Supabase/API requests containing sensitive user/auth data.
 
-const CACHE_NAME = "imlaa-offline-cache-v1";
-const AUDIO_CACHE_NAME = "imlaa-audio-cache-v1";
+const CACHE_NAME = "imlaa-offline-cache-v2";
+const AUDIO_CACHE_NAME = "imlaa-audio-cache-v2";
+const MAX_AUDIO_CACHE_ENTRIES = 150;
 
-const STATIC_ASSETS = [
-  "/",
-  "/index.html",
-  "/favicon.svg",
-];
+const STATIC_SHELL_ASSETS = ["/favicon.svg"];
 
-// Install: pre-cache shell assets
+// Helper to trim cache size
+async function trimCache(cacheName, maxEntries) {
+  const cache = await caches.open(cacheName);
+  const keys = await cache.keys();
+  if (keys.length > maxEntries) {
+    const toDelete = keys.slice(0, keys.length - maxEntries);
+    await Promise.all(toDelete.map((key) => cache.delete(key)));
+  }
+}
+
+// Install: pre-cache static shell assets (excluding dynamic index.html)
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS);
-    })
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_SHELL_ASSETS))
   );
   self.skipWaiting();
 });
 
-// Activate: clean up outdated caches
+// Activate: purge older cache generations
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
+    caches.keys().then((keys) =>
+      Promise.all(
         keys.map((key) => {
           if (key !== CACHE_NAME && key !== AUDIO_CACHE_NAME) {
             return caches.delete(key);
           }
+          return Promise.resolve();
         })
-      );
-    })
+      )
+    )
   );
   self.clients.claim();
 });
 
-// Fetch: intercept requests and serve from cache when applicable
+// Fetch handler
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 
-  // Ignore non-http/https requests (e.g., chrome-extension://, moz-extension://, data:)
-  // Browser Cache API strictly disallows non-http/https schemes
-  if (url.protocol !== "http:" && url.protocol !== "https:") {
-    return;
+  // Strictly disallow non-http/https schemes
+  if (url.protocol !== "http:" && url.protocol !== "https:") return;
+
+  // RULE 1: Never intercept or cache Supabase, ImgBB, or external API calls containing user data
+  const isExternalApi =
+    url.hostname.includes("supabase.co") ||
+    url.hostname.includes("api.imgbb.com") ||
+    url.hostname.includes("emailjs.com");
+
+  const isInternalApi =
+    url.pathname.startsWith("/api/") && !url.pathname.includes("/api/v1/tts");
+
+  if (isExternalApi || isInternalApi || event.request.method !== "GET") {
+    return; // Pass through directly to network
   }
 
-  // 1. Audio TTS Requests (/api/v1/tts)
-  // Use Cache-First strategy: If audio for this word is already cached in browser, serve instantly.
+  // RULE 2: Audio TTS Requests (/api/v1/tts)
+  // Cache-first strategy with bounded size limits for audio synthesis
   if (url.pathname.includes("/api/v1/tts")) {
     event.respondWith(
       caches.open(AUDIO_CACHE_NAME).then(async (cache) => {
-        const cachedResponse = await cache.match(event.request);
-        if (cachedResponse) {
-          return cachedResponse;
-        }
+        const cached = await cache.match(event.request);
+        if (cached) return cached;
 
         try {
           const networkResponse = await fetch(event.request);
           if (networkResponse && networkResponse.status === 200) {
             cache.put(event.request, networkResponse.clone());
+            trimCache(AUDIO_CACHE_NAME, MAX_AUDIO_CACHE_ENTRIES).catch(() => {});
           }
           return networkResponse;
         } catch {
-          // If network fetch fails, pass through or let browser audio onerror handle fallback
           return fetch(event.request);
         }
       })
@@ -71,25 +86,31 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // 2. Non-API navigation or asset requests: Network first, cache fallback
-  if (event.request.method === "GET" && !url.pathname.startsWith("/api/")) {
+  // RULE 3: Immutable Vite Bundled Assets (/assets/*.js, /assets/*.css)
+  // Safe to cache because filenames include content hashes
+  if (url.origin === self.location.origin && url.pathname.startsWith("/assets/")) {
     event.respondWith(
-      fetch(event.request)
-        .then((response) => {
-          if (response && response.status === 200) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-          }
-          return response;
-        })
-        .catch(async () => {
-          const cached = await caches.match(event.request);
-          if (cached) return cached;
-          if (event.request.headers.get("accept")?.includes("text/html")) {
-            return caches.match("/index.html");
-          }
-          return new Response("Offline", { status: 503, statusText: "Offline" });
-        })
+      caches.open(CACHE_NAME).then(async (cache) => {
+        const cached = await cache.match(event.request);
+        if (cached) return cached;
+
+        const response = await fetch(event.request);
+        if (response && response.status === 200) {
+          cache.put(event.request, response.clone());
+        }
+        return response;
+      })
+    );
+    return;
+  }
+
+  // RULE 4: HTML Navigations: Network-first, never cache index.html indefinitely
+  if (event.request.mode === "navigate" || event.request.headers.get("accept")?.includes("text/html")) {
+    event.respondWith(
+      fetch(event.request).catch(async () => {
+        const cached = await caches.match(event.request);
+        return cached || new Response("Offline", { status: 503, statusText: "Offline" });
+      })
     );
   }
 });

@@ -1,0 +1,13 @@
+# Cursor AI Ignore Patterns
+node_modules/
+dist/
+dist-ssr/
+.git/
+package-lock.json
+.env
+.env.*
+!.env.example
+*.log
+*.dump
+data/audio_cache/
+*.mp3

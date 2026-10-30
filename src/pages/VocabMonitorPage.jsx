@@ -1,14 +1,15 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import apiClient from "../services/apiClient";
 import { useAuth } from "../context/AuthContext";
 import {
   HiFolder,
   HiClipboardDocumentList,
   HiTrash,
-  HiArrowPath,
   HiMagnifyingGlass,
   HiBookOpen,
   HiClock,
+  HiChevronLeft,
+  HiChevronRight,
 } from "react-icons/hi2";
 import {
   showConfirmModal,
@@ -30,6 +31,15 @@ export default function VocabMonitorPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTopicFilter, setSelectedTopicFilter] = useState("all");
 
+  // Pagination states
+  const [wordsPage, setWordsPage] = useState(1);
+  const wordsPageSize = 25;
+  const [logsPage, setLogsPage] = useState(1);
+  const logsPageSize = 20;
+
+  // Request race condition guard
+  const fetchWordsRequestId = useRef(0);
+
   // Fetch summary stats
   const fetchStats = useCallback(async () => {
     try {
@@ -42,8 +52,9 @@ export default function VocabMonitorPage() {
     }
   }, []);
 
-  // Fetch words list
+  // Fetch words list with request deduplication / stale response discarding
   const fetchWords = useCallback(async () => {
+    const requestId = ++fetchWordsRequestId.current;
     setLoading(true);
     try {
       const params = {};
@@ -51,13 +62,17 @@ export default function VocabMonitorPage() {
         params.topic = selectedTopicFilter;
       }
       const res = await apiClient.get("/vocabulary", { params });
-      if (res.data?.success) {
+      if (fetchWordsRequestId.current === requestId && res.data?.success) {
         setWords(res.data.data || []);
       }
     } catch (err) {
-      console.warn("Failed to fetch words:", err);
+      if (fetchWordsRequestId.current === requestId) {
+        console.warn("Failed to fetch words:", err);
+      }
     } finally {
-      setLoading(false);
+      if (fetchWordsRequestId.current === requestId) {
+        setLoading(false);
+      }
     }
   }, [selectedTopicFilter]);
 
@@ -84,6 +99,11 @@ export default function VocabMonitorPage() {
     }
   }, [activeTab, fetchWords]);
 
+  // Reset pagination when search or filters change
+  useEffect(() => {
+    setWordsPage(1);
+  }, [searchTerm, selectedTopicFilter]);
+
   // Delete entire topic card
   const handleDeleteTopic = async (topicName, count) => {
     const res = await showConfirmModal({
@@ -99,7 +119,11 @@ export default function VocabMonitorPage() {
 
     try {
       const delRes = await apiClient.delete("/vocabulary/topic", {
-        data: { topic: topicName, deletedBy: user?.name || "admin" },
+        data: {
+          topic: topicName,
+          deletedByName: user?.name || "Admin",
+          userId: user?.id,
+        },
       });
       if (delRes.data?.success) {
         showSuccessToast("Topic Deleted", delRes.data.message);
@@ -125,9 +149,9 @@ export default function VocabMonitorPage() {
     if (!res.isConfirmed) return;
 
     try {
-      const delRes = await apiClient.delete(`/vocabulary/${wordObj._id || wordObj.id}`);
+      const delRes = await apiClient.delete(`/vocabulary/${wordObj.id}`);
       if (delRes.data?.success) {
-        setWords((prev) => prev.filter((w) => (w._id || w.id) !== (wordObj._id || wordObj.id)));
+        setWords((prev) => prev.filter((w) => w.id !== wordObj.id));
         showSuccessToast("Word Removed");
         fetchStats();
         fetchAuditLogs();
@@ -159,6 +183,18 @@ export default function VocabMonitorPage() {
     );
   });
 
+  const totalWordsPages = Math.max(1, Math.ceil(filteredWords.length / wordsPageSize));
+  const displayedWords = filteredWords.slice(
+    (wordsPage - 1) * wordsPageSize,
+    wordsPage * wordsPageSize,
+  );
+
+  const totalLogsPages = Math.max(1, Math.ceil(auditLogs.length / logsPageSize));
+  const displayedLogs = auditLogs.slice(
+    (logsPage - 1) * logsPageSize,
+    logsPage * logsPageSize,
+  );
+
   return (
     <div className="w-full flex flex-col space-y-8 animate-slide-up">
       {/* Top Header */}
@@ -176,38 +212,23 @@ export default function VocabMonitorPage() {
             Manage added vocabulary cards, browse terms by topic, and inspect upload reports.
           </p>
         </div>
-
-        <div className="flex items-center space-x-3 self-start sm:self-auto">
-          <button
-            type="button"
-            onClick={() => {
-              fetchStats();
-              fetchAuditLogs();
-              if (activeTab === "words") fetchWords();
-            }}
-            className="imlaa-btn-secondary py-2.5 px-4 text-base space-x-2"
-          >
-            <HiArrowPath className="w-5 h-5" />
-            <span>Refresh</span>
-          </button>
-        </div>
       </div>
 
-      {/* Metrics Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+      {/* Overview Metric Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         <div className="imlaa-card p-6 border border-plum/20 bg-white flex items-center justify-between">
           <div>
             <div className="text-sm uppercase tracking-wider text-muted-label font-bold mb-1">
-              All Active Corpus
+              Active Official Corpus
             </div>
             <div className="text-3xl font-black text-plum">
-              {allActiveTopics.reduce((acc, t) => acc + (t.count || 0), 0)} Lexemes
+              {stats?.activeCount || 0} Lexemes
             </div>
             <div className="text-sm text-muted-label mt-1">
-              {allActiveTopics.length} Curriculum Topics
+              {allActiveTopics.length} Categories
             </div>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-plum/10 text-plum flex items-center justify-center">
+          <div className="w-12 h-12 rounded-xl bg-plum/5 text-plum flex items-center justify-center">
             <HiBookOpen className="w-6 h-6" />
           </div>
         </div>
@@ -215,13 +236,13 @@ export default function VocabMonitorPage() {
         <div className="imlaa-card p-6 border border-plum/20 bg-white flex items-center justify-between">
           <div>
             <div className="text-sm uppercase tracking-wider text-muted-label font-bold mb-1">
-              Listening Vocabs
+              Listening Lexemes
             </div>
-            <div className="text-3xl font-black text-body-dark">
-              {allListeningTopics.reduce((acc, t) => acc + (t.count || 0), 0)} Lexemes
+            <div className="text-3xl font-black text-plum">
+              {stats?.listeningCount || 0} Lexemes
             </div>
             <div className="text-sm text-muted-label mt-1">
-              {allListeningTopics.length} Listening Topics
+              {allListeningTopics.length} Listening Modules
             </div>
           </div>
           <div className="w-12 h-12 rounded-xl bg-plum/5 text-plum flex items-center justify-center">
@@ -252,7 +273,7 @@ export default function VocabMonitorPage() {
         <button
           type="button"
           onClick={() => setActiveTab("topics")}
-          className={`px-4 py-2 rounded-lg text-base font-semibold transition-all cursor-pointer flex items-center space-x-2 ${
+          className={`min-h-11 px-4 py-2 rounded-lg text-base font-semibold transition-all cursor-pointer flex items-center space-x-2 ${
             activeTab === "topics"
               ? "bg-plum text-white shadow-xs"
               : "text-muted-label hover:text-body-dark"
@@ -265,7 +286,7 @@ export default function VocabMonitorPage() {
         <button
           type="button"
           onClick={() => setActiveTab("words")}
-          className={`px-4 py-2 rounded-lg text-base font-semibold transition-all cursor-pointer flex items-center space-x-2 ${
+          className={`min-h-11 px-4 py-2 rounded-lg text-base font-semibold transition-all cursor-pointer flex items-center space-x-2 ${
             activeTab === "words"
               ? "bg-plum text-white shadow-xs"
               : "text-muted-label hover:text-body-dark"
@@ -278,7 +299,7 @@ export default function VocabMonitorPage() {
         <button
           type="button"
           onClick={() => setActiveTab("logs")}
-          className={`px-4 py-2 rounded-lg text-base font-semibold transition-all cursor-pointer flex items-center space-x-2 ${
+          className={`min-h-11 px-4 py-2 rounded-lg text-base font-semibold transition-all cursor-pointer flex items-center space-x-2 ${
             activeTab === "logs"
               ? "bg-plum text-white shadow-xs"
               : "text-muted-label hover:text-body-dark"
@@ -289,9 +310,7 @@ export default function VocabMonitorPage() {
         </button>
       </div>
 
-      {/* ==================================================== */}
-      {/* TAB 1: TOPIC CARDS MANAGEMENT & DELETION            */}
-      {/* ==================================================== */}
+      {/* TAB 1: TOPIC CARDS MANAGEMENT */}
       {activeTab === "topics" && (
         <div className="imlaa-card p-6 sm:p-8 space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-plum/15">
@@ -348,7 +367,7 @@ export default function VocabMonitorPage() {
                         <button
                           type="button"
                           onClick={() => handleDeleteTopic(topic.title, topic.count)}
-                          className="imlaa-btn-secondary py-1.5 px-3 text-sm text-rose-700 border-rose-300 hover:bg-rose-50 space-x-1.5 cursor-pointer"
+                          className="imlaa-btn-secondary min-h-11 py-2 px-3.5 text-sm text-rose-700 border-rose-300 hover:bg-rose-50 space-x-1.5 cursor-pointer"
                           title="Delete entire topic card"
                         >
                           <HiTrash className="w-4 h-4" />
@@ -366,9 +385,7 @@ export default function VocabMonitorPage() {
         </div>
       )}
 
-      {/* ==================================================== */}
-      {/* TAB 2: BROWSE & DELETE INDIVIDUAL WORDS             */}
-      {/* ==================================================== */}
+      {/* TAB 2: BROWSE & DELETE INDIVIDUAL WORDS */}
       {activeTab === "words" && (
         <div className="imlaa-card p-6 sm:p-8 space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-plum/15">
@@ -386,7 +403,7 @@ export default function VocabMonitorPage() {
               <select
                 value={selectedTopicFilter}
                 onChange={(e) => setSelectedTopicFilter(e.target.value)}
-                className="imlaa-input text-base py-2 px-3"
+                className="imlaa-input min-h-11 text-base py-2 px-3"
               >
                 <option value="all">All Topics</option>
                 {combinedTopics.map((t, i) => (
@@ -404,7 +421,7 @@ export default function VocabMonitorPage() {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search word or meaning..."
-                  className="imlaa-input text-base pl-10 py-2 pr-3"
+                  className="imlaa-input min-h-11 text-base pl-10 py-2 pr-3"
                 />
               </div>
             </div>
@@ -419,54 +436,102 @@ export default function VocabMonitorPage() {
               No matching vocabulary words found.
             </div>
           ) : (
-            <div className="overflow-x-auto max-h-150">
-              <table className="w-full text-left text-base">
-                <thead className="sticky top-0 bg-white">
-                  <tr className="border-b border-plum/20 text-muted-label uppercase text-sm font-bold">
-                    <th className="py-3 px-3">Word</th>
-                    <th className="py-3 px-3">POS</th>
-                    <th className="py-3 px-3">Bengali Meaning</th>
-                    <th className="py-3 px-3">Topic</th>
-                    <th className="py-3 px-3 text-right">Delete</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-plum/10">
-                  {filteredWords.map((w, idx) => (
-                    <tr key={w._id || w.id || idx} className="hover:bg-plum/5 transition-colors">
-                      <td className="py-3 px-3 font-bold text-body-dark">
-                        {w.word}
-                      </td>
-                      <td className="py-3 px-3 italic text-plum text-sm">
-                        {w.pos}
-                      </td>
-                      <td className="py-3 px-3 text-body-dark">
-                        {w.banglaMeaning}
-                      </td>
-                      <td className="py-3 px-3 font-mono text-sm text-muted-label">
-                        {w.topic}
-                      </td>
-                      <td className="py-3 px-3 text-right">
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteWord(w)}
-                          title="Delete word"
-                          className="p-1.5 text-muted-label hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
-                        >
-                          <HiTrash className="w-4 h-4" />
-                        </button>
-                      </td>
+            <>
+              <div className="overflow-x-auto max-h-150">
+                <table className="w-full text-left text-base">
+                  <thead className="sticky top-0 bg-white">
+                    <tr className="border-b border-plum/20 text-muted-label uppercase text-sm font-bold">
+                      <th className="py-3 px-3">Word</th>
+                      <th className="py-3 px-3">POS</th>
+                      <th className="py-3 px-3">Bengali Meaning</th>
+                      <th className="py-3 px-3">Topic</th>
+                      <th className="py-3 px-3 text-right">Delete</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-plum/10">
+                    {displayedWords.map((w, idx) => (
+                      <tr key={w.id || idx} className="hover:bg-plum/5 transition-colors">
+                        <td className="py-3 px-3 font-bold text-body-dark">
+                          {w.word}
+                        </td>
+                        <td className="py-3 px-3 italic text-plum text-sm">
+                          {w.pos}
+                        </td>
+                        <td className="py-3 px-3 text-body-dark">
+                          {w.banglaMeaning}
+                        </td>
+                        <td className="py-3 px-3 font-mono text-sm text-muted-label">
+                          {w.topic}
+                        </td>
+                        <td className="py-3 px-3 text-right">
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteWord(w)}
+                            title="Delete word"
+                            className="min-h-11 min-w-11 inline-flex items-center justify-center text-muted-label hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                          >
+                            <HiTrash className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {totalWordsPages > 1 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-plum/10 text-sm">
+                  <span className="text-muted-label">
+                    Showing{" "}
+                    <strong className="text-body-dark">
+                      {(wordsPage - 1) * wordsPageSize + 1}
+                    </strong>{" "}
+                    to{" "}
+                    <strong className="text-body-dark">
+                      {Math.min(wordsPage * wordsPageSize, filteredWords.length)}
+                    </strong>{" "}
+                    of{" "}
+                    <strong className="text-body-dark">
+                      {filteredWords.length}
+                    </strong>{" "}
+                    words
+                  </span>
+
+                  <div className="flex items-center space-x-2">
+                    <button
+                      type="button"
+                      onClick={() => setWordsPage((p) => Math.max(1, p - 1))}
+                      disabled={wordsPage === 1}
+                      className="min-h-11 px-3.5 py-2 rounded-xl border border-plum/20 text-body-dark hover:bg-plum/5 disabled:opacity-40 disabled:cursor-not-allowed flex items-center space-x-1 cursor-pointer"
+                    >
+                      <HiChevronLeft className="w-4 h-4" />
+                      <span>Previous</span>
+                    </button>
+
+                    <span className="px-3 py-2 font-semibold text-body-dark">
+                      Page {wordsPage} of {totalWordsPages}
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setWordsPage((p) => Math.min(totalWordsPages, p + 1))
+                      }
+                      disabled={wordsPage === totalWordsPages}
+                      className="min-h-11 px-3.5 py-2 rounded-xl border border-plum/20 text-body-dark hover:bg-plum/5 disabled:opacity-40 disabled:cursor-not-allowed flex items-center space-x-1 cursor-pointer"
+                    >
+                      <span>Next</span>
+                      <HiChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
 
-      {/* ==================================================== */}
-      {/* TAB 3: UPLOAD AUDIT REPORT LOGS                     */}
-      {/* ==================================================== */}
+      {/* TAB 3: UPLOAD AUDIT REPORT LOGS */}
       {activeTab === "logs" && (
         <div className="imlaa-card p-6 sm:p-8 space-y-6">
           <div className="flex items-center justify-between pb-3 border-b border-plum/15">
@@ -488,36 +553,84 @@ export default function VocabMonitorPage() {
               No audit logs recorded yet.
             </div>
           ) : (
-            <div className="overflow-x-auto max-h-150">
-              <table className="w-full text-left text-base">
-                <thead className="sticky top-0 bg-white">
-                  <tr className="border-b border-plum/20 text-muted-label uppercase text-sm font-bold">
-                    <th className="py-3 px-3">Event Action</th>
-                    <th className="py-3 px-3">Uploaded/Deleted By</th>
-                    <th className="py-3 px-3">Details</th>
-                    <th className="py-3 px-3">Timestamp</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-plum/10">
-                  {auditLogs.map((log, idx) => (
-                    <tr key={log._id || idx} className="hover:bg-plum/5 transition-colors">
-                      <td className="py-3 px-3 font-mono font-bold text-plum text-sm">
-                        {log.action}
-                      </td>
-                      <td className="py-3 px-3 font-semibold text-body-dark">
-                        {log.userName || "admin"}
-                      </td>
-                      <td className="py-3 px-3 text-body-dark text-sm leading-relaxed">
-                        {log.details}
-                      </td>
-                      <td className="py-3 px-3 font-mono text-sm text-muted-label whitespace-nowrap">
-                        {log.timestamp ? new Date(log.timestamp).toLocaleString() : "—"}
-                      </td>
+            <>
+              <div className="overflow-x-auto max-h-150">
+                <table className="w-full text-left text-base">
+                  <thead className="sticky top-0 bg-white">
+                    <tr className="border-b border-plum/20 text-muted-label uppercase text-sm font-bold">
+                      <th className="py-3 px-3">Event Action</th>
+                      <th className="py-3 px-3">Uploaded/Deleted By</th>
+                      <th className="py-3 px-3">Details</th>
+                      <th className="py-3 px-3">Timestamp</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-plum/10">
+                    {displayedLogs.map((log, idx) => (
+                      <tr key={log.id || idx} className="hover:bg-plum/5 transition-colors">
+                        <td className="py-3 px-3 font-mono font-bold text-plum text-sm">
+                          {log.action}
+                        </td>
+                        <td className="py-3 px-3 font-semibold text-body-dark">
+                          {log.userName || "admin"}
+                        </td>
+                        <td className="py-3 px-3 text-body-dark text-sm leading-relaxed">
+                          {log.details}
+                        </td>
+                        <td className="py-3 px-3 font-mono text-sm text-muted-label whitespace-nowrap">
+                          {log.timestamp ? new Date(log.timestamp).toLocaleString() : "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {totalLogsPages > 1 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-plum/10 text-sm">
+                  <span className="text-muted-label">
+                    Showing{" "}
+                    <strong className="text-body-dark">
+                      {(logsPage - 1) * logsPageSize + 1}
+                    </strong>{" "}
+                    to{" "}
+                    <strong className="text-body-dark">
+                      {Math.min(logsPage * logsPageSize, auditLogs.length)}
+                    </strong>{" "}
+                    of{" "}
+                    <strong className="text-body-dark">{auditLogs.length}</strong>{" "}
+                    events
+                  </span>
+
+                  <div className="flex items-center space-x-2">
+                    <button
+                      type="button"
+                      onClick={() => setLogsPage((p) => Math.max(1, p - 1))}
+                      disabled={logsPage === 1}
+                      className="min-h-11 px-3.5 py-2 rounded-xl border border-plum/20 text-body-dark hover:bg-plum/5 disabled:opacity-40 disabled:cursor-not-allowed flex items-center space-x-1 cursor-pointer"
+                    >
+                      <HiChevronLeft className="w-4 h-4" />
+                      <span>Previous</span>
+                    </button>
+
+                    <span className="px-3 py-2 font-semibold text-body-dark">
+                      Page {logsPage} of {totalLogsPages}
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setLogsPage((p) => Math.min(totalLogsPages, p + 1))
+                      }
+                      disabled={logsPage === totalLogsPages}
+                      className="min-h-11 px-3.5 py-2 rounded-xl border border-plum/20 text-body-dark hover:bg-plum/5 disabled:opacity-40 disabled:cursor-not-allowed flex items-center space-x-1 cursor-pointer"
+                    >
+                      <span>Next</span>
+                      <HiChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}

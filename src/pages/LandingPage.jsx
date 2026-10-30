@@ -349,7 +349,7 @@ export default function LandingPage() {
                 type="button"
                 onClick={playPhonemeSample}
                 className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-plum hover:bg-plum-hover text-white flex items-center justify-center transition shadow-xs cursor-pointer active:scale-95 shrink-0"
-                title="Listen to Christopher Neural pronunciation"
+                title="Listen to pronunciation"
               >
                 <HiVolumeUp
                   className={`w-5 h-5 sm:w-6 sm:h-6 ${playingAudio ? "animate-pulse" : ""}`}
@@ -360,7 +360,7 @@ export default function LandingPage() {
                   Listen to Native Phonetics
                 </div>
                 <div className="text-xs sm:text-sm text-muted-label">
-                  Voice Synthesis via Microsoft Christopher Neural
+                  Browser speech synthesis preview
                 </div>
               </div>
             </div>

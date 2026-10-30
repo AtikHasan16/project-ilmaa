@@ -1,23 +1,43 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router";
 import { AuthProvider, useAuth } from "./context/AuthContext";
-import LandingPage from "./pages/LandingPage";
-import WorkspaceLayout from "./components/WorkspaceLayout";
-import DashboardPage from "./pages/DashboardPage";
-import FlashcardPage from "./pages/FlashcardPage";
-import SpellingPage from "./pages/SpellingPage";
-import GrammarPage from "./pages/GrammarPage";
-import UploadStudyPage from "./pages/UploadStudyPage";
-import AdminDashboardPage from "./pages/AdminDashboardPage";
-import VocabMonitorPage from "./pages/VocabMonitorPage";
-import ProfilePage from "./pages/ProfilePage";
-import ContributePage from "./pages/ContributePage";
-import SupportUsPage from "./pages/SupportUsPage";
-
-import AboutPage from "./pages/AboutPage";
-import ContactPage from "./pages/ContactPage";
-import NotFoundPage from "./pages/NotFoundPage";
-import ResetPasswordPage from "./pages/ResetPasswordPage";
+import ErrorBoundary from "./components/ErrorBoundary";
 import CapacityGuardModal from "./components/CapacityGuardModal";
+
+const LandingPage = lazy(() => import("./pages/LandingPage"));
+const WorkspaceLayout = lazy(() => import("./components/WorkspaceLayout"));
+const DashboardPage = lazy(() => import("./pages/DashboardPage"));
+const FlashcardPage = lazy(() => import("./pages/FlashcardPage"));
+const SpellingPage = lazy(() => import("./pages/SpellingPage"));
+const GrammarPage = lazy(() => import("./pages/GrammarPage"));
+const UploadStudyPage = lazy(() => import("./pages/UploadStudyPage"));
+const AdminDashboardPage = lazy(() => import("./pages/AdminDashboardPage"));
+const VocabMonitorPage = lazy(() => import("./pages/VocabMonitorPage"));
+const ProfilePage = lazy(() => import("./pages/ProfilePage"));
+const ContributePage = lazy(() => import("./pages/ContributePage"));
+const SupportUsPage = lazy(() => import("./pages/SupportUsPage"));
+const AboutPage = lazy(() => import("./pages/AboutPage"));
+const ContactPage = lazy(() => import("./pages/ContactPage"));
+const NotFoundPage = lazy(() => import("./pages/NotFoundPage"));
+const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
+
+function PageRoute({ component: Page }) {
+  return (
+    <ErrorBoundary>
+      <Suspense
+        fallback={
+          <div className="min-h-screen flex items-center justify-center bg-white">
+            <div className="text-lg font-semibold text-plum animate-pulse">
+              Loading page...
+            </div>
+          </div>
+        }
+      >
+        <Page />
+      </Suspense>
+    </ErrorBoundary>
+  );
+}
 
 // Protected Route Guard
 function ProtectedRoute({ children, requiredRole }) {
@@ -51,14 +71,14 @@ export default function App() {
         <CapacityGuardModal />
         <Routes>
           {/* Public Landing & Information */}
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/about" element={<AboutPage />} />
-          <Route path="/contact" element={<ContactPage />} />
-          <Route path="/contribute" element={<ContributePage />} />
-          <Route path="/support-us" element={<SupportUsPage />} />
-          <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/" element={<PageRoute component={LandingPage} />} />
+          <Route path="/about" element={<PageRoute component={AboutPage} />} />
+          <Route path="/contact" element={<PageRoute component={ContactPage} />} />
+          <Route path="/contribute" element={<PageRoute component={ContributePage} />} />
+          <Route path="/support-us" element={<PageRoute component={SupportUsPage} />} />
+          <Route path="/reset-password" element={<PageRoute component={ResetPasswordPage} />} />
 
-          {/* Access status legacy redirects */}
+          {/* Preserve old access-status URLs as redirects after retiring those pages. */}
           <Route path="/access/pending" element={<Navigate to="/" replace />} />
           <Route path="/access/rejected" element={<Navigate to="/" replace />} />
 
@@ -67,23 +87,23 @@ export default function App() {
             path="/workspace"
             element={
               <ProtectedRoute>
-                <WorkspaceLayout />
+                <PageRoute component={WorkspaceLayout} />
               </ProtectedRoute>
             }
           >
             <Route index element={<Navigate to="dashboard" replace />} />
-            <Route path="dashboard" element={<DashboardPage />} />
-            <Route path="flashcard" element={<FlashcardPage />} />
-            <Route path="spelling" element={<SpellingPage />} />
+            <Route path="dashboard" element={<PageRoute component={DashboardPage} />} />
+            <Route path="flashcard" element={<PageRoute component={FlashcardPage} />} />
+            <Route path="spelling" element={<PageRoute component={SpellingPage} />} />
             <Route path="vocab" element={<Navigate to="/workspace/flashcard" replace />} />
-            <Route path="grammar" element={<GrammarPage />} />
-            <Route path="contribute" element={<ContributePage />} />
-            <Route path="support-us" element={<SupportUsPage />} />
+            <Route path="grammar" element={<PageRoute component={GrammarPage} />} />
+            <Route path="contribute" element={<PageRoute component={ContributePage} />} />
+            <Route path="support-us" element={<PageRoute component={SupportUsPage} />} />
             <Route
               path="upload"
               element={
                 <ProtectedRoute>
-                  <UploadStudyPage />
+                  <PageRoute component={UploadStudyPage} />
                 </ProtectedRoute>
               }
             />
@@ -91,7 +111,7 @@ export default function App() {
               path="admin"
               element={
                 <ProtectedRoute requiredRole="admin">
-                  <AdminDashboardPage />
+                  <PageRoute component={AdminDashboardPage} />
                 </ProtectedRoute>
               }
             />
@@ -99,15 +119,15 @@ export default function App() {
               path="vocab-monitor"
               element={
                 <ProtectedRoute requiredRole="admin">
-                  <VocabMonitorPage />
+                  <PageRoute component={VocabMonitorPage} />
                 </ProtectedRoute>
               }
             />
-            <Route path="profile" element={<ProfilePage />} />
+            <Route path="profile" element={<PageRoute component={ProfilePage} />} />
           </Route>
 
           {/* Catch-all 404 */}
-          <Route path="*" element={<NotFoundPage />} />
+          <Route path="*" element={<PageRoute component={NotFoundPage} />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

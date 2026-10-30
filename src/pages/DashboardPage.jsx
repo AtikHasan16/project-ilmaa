@@ -1,7 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, Link } from "react-router";
 import { useAuth } from "../context/AuthContext";
-import apiClient, { supabase } from "../services/apiClient";
+import apiClient from "../services/apiClient";
+import { supabase } from "../services/supabaseClient";
+import { toCamel } from "../services/dataMappers";
 import {
   HiBookOpen,
   HiPencilSquare,
@@ -54,6 +56,14 @@ export default function DashboardPage() {
 
   // Detailed Corpus Sets Progress
   const [corpusList, setCorpusList] = useState([]);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const fetchDashboardData = useCallback(async () => {
     if (!user?.id) {
@@ -74,14 +84,17 @@ export default function DashboardPage() {
 
       // 2. Fetch user progress across spelling, flashcard, grammar
       const [
-        { data: spellingRows },
-        { data: flashcardRows },
-        { data: grammarData },
+        { data: rawSpellingRows },
+        { data: rawFlashcardRows },
+        { data: rawGrammarData },
       ] = await Promise.all([
         supabase.from("spelling_progress").select("*").eq("user_id", user.id),
         supabase.from("flashcard_progress").select("*").eq("user_id", user.id),
         supabase.from("grammar_progress").select("*").eq("user_id", user.id).maybeSingle(),
       ]);
+      const spellingRows = toCamel(rawSpellingRows || []);
+      const flashcardRows = toCamel(rawFlashcardRows || []);
+      const grammarData = toCamel(rawGrammarData);
 
       // Maps of progress by topic
       const spellingByTopic = {};
@@ -89,8 +102,8 @@ export default function DashboardPage() {
       const uniqueSpellingIncorrect = new Set();
       (spellingRows || []).forEach((row) => {
         spellingByTopic[row.topic] = row;
-        (row.mastered_words || []).forEach((w) => uniqueSpellingMastered.add(w));
-        (row.incorrect_words || []).forEach((w) => uniqueSpellingIncorrect.add(w));
+        (row.masteredWords || []).forEach((w) => uniqueSpellingMastered.add(w));
+        (row.incorrectWords || []).forEach((w) => uniqueSpellingIncorrect.add(w));
       });
 
       const flashcardByTopic = {};
@@ -98,9 +111,9 @@ export default function DashboardPage() {
       const uniqueFlashcardMistakes = new Set();
       (flashcardRows || []).forEach((row) => {
         flashcardByTopic[row.topic] = row;
-        (row.known_words || []).forEach((w) => uniqueFlashcardKnown.add(w));
-        (row.unknown_words || []).forEach((w) => uniqueFlashcardMistakes.add(w));
-        (row.forgot_words || []).forEach((w) => uniqueFlashcardMistakes.add(w));
+        (row.knownWords || []).forEach((w) => uniqueFlashcardKnown.add(w));
+        (row.unknownWords || []).forEach((w) => uniqueFlashcardMistakes.add(w));
+        (row.forgotWords || []).forEach((w) => uniqueFlashcardMistakes.add(w));
       });
 
       // Combine unique mastered & mistakes
@@ -115,19 +128,19 @@ export default function DashboardPage() {
 
       // A. All Active Topics
       (vocabStats.activeTopics || []).forEach((act) => {
-        const total = act.count || (act.title === "Academic Word List: Sublist A" ? 300 : 0);
+        const total = act.count ?? 0;
         totalVocab += total;
         const spProg = spellingByTopic[act.title];
         const fcProg = flashcardByTopic[act.title];
 
         const masteredInSet = new Set([
-          ...(spProg?.mastered_words || []),
-          ...(fcProg?.known_words || []),
+          ...(spProg?.masteredWords || []),
+          ...(fcProg?.knownWords || []),
         ]).size;
         const mistakesInSet = new Set([
-          ...(spProg?.incorrect_words || []),
-          ...(fcProg?.unknown_words || []),
-          ...(fcProg?.forgot_words || []),
+          ...(spProg?.incorrectWords || []),
+          ...(fcProg?.unknownWords || []),
+          ...(fcProg?.forgotWords || []),
         ]).size;
 
         const percent = total > 0 ? Math.min(100, Math.round((masteredInSet / total) * 100)) : 0;
@@ -145,20 +158,6 @@ export default function DashboardPage() {
         });
       });
 
-      // Default Academic Word List if activeTopics was empty
-      if (combinedCorpus.length === 0) {
-        combinedCorpus.push({
-          title: "Academic Word List: Sublist A",
-          category: "All Active",
-          wordsCount: 300,
-          masteredCount: allMastered.size,
-          mistakesCount: allMistakes.size,
-          percent: Math.min(100, Math.round((allMastered.size / 300) * 100)),
-          status: allMastered.size >= 300 ? "completed" : allMastered.size > 0 ? "in-progress" : "not-started",
-        });
-        totalVocab += 300;
-      }
-
       // B. Listening Topics
       (vocabStats.listeningTopics || []).forEach((lis) => {
         const total = lis.count || 0;
@@ -167,13 +166,13 @@ export default function DashboardPage() {
         const fcProg = flashcardByTopic[lis.title];
 
         const masteredInSet = new Set([
-          ...(spProg?.mastered_words || []),
-          ...(fcProg?.known_words || []),
+          ...(spProg?.masteredWords || []),
+          ...(fcProg?.knownWords || []),
         ]).size;
         const mistakesInSet = new Set([
-          ...(spProg?.incorrect_words || []),
-          ...(fcProg?.unknown_words || []),
-          ...(fcProg?.forgot_words || []),
+          ...(spProg?.incorrectWords || []),
+          ...(fcProg?.unknownWords || []),
+          ...(fcProg?.forgotWords || []),
         ]).size;
 
         const percent = total > 0 ? Math.min(100, Math.round((masteredInSet / total) * 100)) : 0;
@@ -199,13 +198,13 @@ export default function DashboardPage() {
         const fcProg = flashcardByTopic[up.title];
 
         const masteredInSet = new Set([
-          ...(spProg?.mastered_words || []),
-          ...(fcProg?.known_words || []),
+          ...(spProg?.masteredWords || []),
+          ...(fcProg?.knownWords || []),
         ]).size;
         const mistakesInSet = new Set([
-          ...(spProg?.incorrect_words || []),
-          ...(fcProg?.unknown_words || []),
-          ...(fcProg?.forgot_words || []),
+          ...(spProg?.incorrectWords || []),
+          ...(fcProg?.unknownWords || []),
+          ...(fcProg?.forgotWords || []),
         ]).size;
 
         const percent = total > 0 ? Math.min(100, Math.round((masteredInSet / total) * 100)) : 0;
@@ -227,10 +226,12 @@ export default function DashboardPage() {
       const totalPractices =
         (spellingRows?.length || 0) +
         (flashcardRows?.length || 0) +
-        (grammarData?.tests_taken || (grammarData?.highest_score ? 1 : 0));
+        (grammarData?.testsTaken || (grammarData?.highestScore ? 1 : 0));
 
       const totalStudySeconds = allMastered.size * 35 + allMistakes.size * 25;
       const overallMastery = totalVocab > 0 ? Math.min(100, Math.round((allMastered.size / totalVocab) * 100)) : 0;
+
+      if (!isMountedRef.current) return;
 
       setMetrics({
         masteredWordsCount: allMastered.size,
@@ -245,17 +246,21 @@ export default function DashboardPage() {
         totalMistakesCount: allMistakes.size,
         flashcardMistakesCount: uniqueFlashcardMistakes.size,
         spellingMistakesCount: uniqueSpellingIncorrect.size,
-        grammarScore: grammarData?.highest_score
-          ? { score: grammarData.highest_score, total: grammarData.total_questions || 4 }
+        grammarScore: grammarData?.highestScore
+          ? { score: grammarData.highestScore, total: grammarData.totalQuestions || 0 }
           : null,
       });
 
       setCorpusList(combinedCorpus);
     } catch (err) {
-      console.warn("Could not load dashboard data:", err);
+      if (isMountedRef.current) {
+        console.warn("Could not load dashboard data:", err);
+      }
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   }, [user, role, isAdmin]);
 

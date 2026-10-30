@@ -9,20 +9,20 @@ const TARGET_GMAIL = "akhasannaeem@gmail.com";
 export default function ContactPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [accessId, setAccessId] = useState("");
-  const [category, setCategory] = useState("id-request");
+  const [contextNote, setContextNote] = useState("");
+  const [category, setCategory] = useState("general");
   const [message, setMessage] = useState("");
   const [honeypot, setHoneypot] = useState(""); // Anti-spam bot honeypot
   const [sending, setSending] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
   const categoryLabels = {
-    "id-request": "Request a New 10-Digit Access ID",
-    "device-reset": "Reset Bound Browser / Device",
-    "access-pending": "Inquiry about Pending Access Request",
+    "general": "General Inquiry or Feedback",
+    "account": "Account & Authentication Support",
     "vocab-grammar": "Feedback on Vocabulary or Grammar Question",
     "technical": "Technical Support or Bug Report",
-    "other": "Other General Inquiry",
+    "curriculum": "Curriculum or Corpus Suggestion",
+    "other": "Other Inquiry",
   };
 
   const handleSubmit = async (e) => {
@@ -68,7 +68,7 @@ export default function ContactPage() {
       recipient_name: "Atik Hasan Naeem",
       from_name: name.trim(),
       from_email: email.trim() || "Not provided (Anonymous)",
-      access_id: accessId.trim() || "Not provided",
+      context_note: contextNote.trim() || "Not provided",
       category_key: category,
       category_label: categoryLabels[category] || category,
       message: message.trim(),
@@ -91,7 +91,7 @@ export default function ContactPage() {
           `----------------------------------------\n` +
           `Candidate Name : ${name.trim()}\n` +
           `Candidate Email: ${email.trim() || "Not provided"}\n` +
-          `Access ID      : ${accessId.trim() || "Not provided"}\n` +
+          `Context / Topic: ${contextNote.trim() || "Not provided"}\n` +
           `Reason/Category: ${categoryLabels[category]}\n` +
           `Timestamp      : ${new Date().toLocaleString()}\n` +
           `----------------------------------------\n\n` +
@@ -109,7 +109,7 @@ export default function ContactPage() {
       const fallbackBody = encodeURIComponent(
         `Candidate Name : ${name.trim()}\n` +
         `Candidate Email: ${email.trim() || "Not provided"}\n` +
-        `Access ID      : ${accessId.trim() || "Not provided"}\n` +
+        `Context / Topic: ${contextNote.trim() || "Not provided"}\n` +
         `Inquiry Type   : ${categoryLabels[category]}\n\n` +
         `Message:\n${message.trim()}`
       );
@@ -225,27 +225,26 @@ export default function ContactPage() {
                   onChange={(e) => setCategory(e.target.value)}
                   className="imlaa-input w-full py-3 px-4 text-base bg-white"
                 >
-                  <option value="id-request">Request a New 10-Digit Access ID</option>
-                  <option value="device-reset">Reset Bound Browser / Device</option>
-                  <option value="access-pending">Inquiry about Pending Access Request</option>
+                  <option value="general">General Inquiry or Feedback</option>
+                  <option value="account">Account & Authentication Support</option>
                   <option value="vocab-grammar">Feedback on Vocabulary or Grammar Question</option>
                   <option value="technical">Technical Support or Bug Report</option>
-                  <option value="other">Other General Inquiry</option>
+                  <option value="curriculum">Curriculum or Corpus Suggestion</option>
+                  <option value="other">Other Inquiry</option>
                 </select>
               </div>
 
-              {/* Access ID (Optional) */}
+              {/* Context Note (Optional) */}
               <div>
                 <label className="block text-sm font-bold text-body-dark uppercase tracking-wider mb-2">
-                  Access ID <span className="text-xs text-muted-label font-normal">(Optional, if already assigned)</span>
+                  Relevant Topic or Word <span className="text-xs text-muted-label font-normal">(Optional)</span>
                 </label>
                 <input
                   type="text"
-                  maxLength={10}
-                  value={accessId}
-                  onChange={(e) => setAccessId(e.target.value.replace(/\D/g, ""))}
-                  placeholder="10-digit numeric ID"
-                  className="imlaa-input w-full py-3 px-4 font-mono text-base"
+                  value={contextNote}
+                  onChange={(e) => setContextNote(e.target.value)}
+                  placeholder="e.g. Sublist A, word 'aberration', or grammar rule"
+                  className="imlaa-input w-full py-3 px-4 text-base"
                 />
               </div>
 

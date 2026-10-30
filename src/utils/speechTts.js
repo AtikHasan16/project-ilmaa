@@ -1,3 +1,6 @@
+import { supabase } from "../services/supabaseClient";
+import { telemetry } from "../services/telemetryService";
+
 /**
  * High-fidelity Speech Synthesis utility with Instant Browser Fallback
  * - Prioritizes Microsoft Christopher Neural TTS via backend
@@ -60,13 +63,28 @@ export async function speakWithMicrosoftTTS(text, {
     }
   };
 
+  const ttsStart = Date.now();
   try {
-    const encodedText = encodeURIComponent(cleanText);
-    const encodedVoice = encodeURIComponent(voice);
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession();
+    if (sessionError || !session?.access_token) {
+      telemetry.trackTtsPerformance({
+        durationMs: Date.now() - ttsStart,
+        success: false,
+        voice,
+        fallbackUsed: true,
+        error: sessionError || new Error("No active session"),
+      });
+      fallbackToSpeechSynthesis();
+      return;
+    }
+
     const backendBase =
       (typeof import.meta !== "undefined" && import.meta.env?.VITE_BACKEND_URL) ||
       "https://ilmaa-server.onrender.com";
-    const audioUrl = `${backendBase}/api/v1/tts?text=${encodedText}&voice=${encodedVoice}`;
+    const audioUrl = `${backendBase}/api/tts`;
 
     // Fast check: Abort controller with 2.8s timeout to handle Render cold-start without blocking user
     const controller = new AbortController();
@@ -74,12 +92,32 @@ export async function speakWithMicrosoftTTS(text, {
 
     let blob;
     try {
-      const response = await fetch(audioUrl, { signal: controller.signal });
+      const response = await fetch(audioUrl, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ text: cleanText, voice }),
+        signal: controller.signal,
+      });
       clearTimeout(timeoutId);
-      if (!response.ok) throw new Error("TTS server response not ok");
+      if (!response.ok) throw new Error(`TTS server responded with ${response.status}`);
       blob = await response.blob();
-    } catch {
+      telemetry.trackTtsPerformance({
+        durationMs: Date.now() - ttsStart,
+        success: true,
+        voice,
+      });
+    } catch (fetchErr) {
       clearTimeout(timeoutId);
+      telemetry.trackTtsPerformance({
+        durationMs: Date.now() - ttsStart,
+        success: false,
+        voice,
+        fallbackUsed: true,
+        error: fetchErr,
+      });
       // Backend is sleeping on Render or error: trigger instant native speech fallback
       fallbackToSpeechSynthesis();
       return;

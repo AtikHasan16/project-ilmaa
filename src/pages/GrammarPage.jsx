@@ -1,7 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { createPortal } from "react-dom";
+import { useState, useEffect, useCallback } from "react";
+import RandomQuizSetupModal from "../components/RandomQuizSetupModal";
+import { useCountdownTimer } from "../hooks/useCountdownTimer";
+import { useModalEffects } from "../hooks/useModalEffects";
 import apiClient from "../services/apiClient";
 import { useAuth } from "../context/AuthContext";
+import { secureShuffle } from "../utils/cryptoRandom";
 import {
   HiCheckCircle,
   HiXCircle,
@@ -74,26 +77,9 @@ export default function GrammarPage() {
   const [quizTimerMinutes, setQuizTimerMinutes] = useState(0);
   const [quizTimeRemaining, setQuizTimeRemaining] = useState(0);
   const [isRandomQuiz, setIsRandomQuiz] = useState(false);
-  const quizTimerRef = useRef(null);
-
-  // Lock body scroll and listen for ESC key when quiz modal is open
-  useEffect(() => {
-    if (!quizModalOpen) return;
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    const handleKeyDown = (e) => {
-      if (e.key === "Escape") {
-        setQuizModalOpen(false);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.body.style.overflow = originalOverflow;
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [quizModalOpen]);
+  const { startTimer: startQuizTimer, stopTimer: stopQuizTimer } =
+    useCountdownTimer(setQuizTimeRemaining, () => setViewMode("finished"));
+  useModalEffects(quizModalOpen, setQuizModalOpen);
 
   // Fetch dynamic grammar statistics
   useEffect(() => {
@@ -111,7 +97,6 @@ export default function GrammarPage() {
     fetchGrammarStats();
     return () => {
       isMounted = false;
-      if (quizTimerRef.current) clearInterval(quizTimerRef.current);
     };
   }, []);
 
@@ -173,12 +158,11 @@ export default function GrammarPage() {
   );
 
   const handleReturnToTopics = () => {
-    if (quizTimerRef.current) clearInterval(quizTimerRef.current);
-    if ((user?.id || user?.accessId) && drillStartTime) {
+    stopQuizTimer();
+    if (user?.id && drillStartTime) {
       const durationSeconds = Math.max(1, Math.round((Date.now() - drillStartTime) / 1000));
       apiClient
         .post("/user/study-session", {
-          accessId: user?.id || user?.accessId,
           durationSeconds,
           grammarScore: score,
           totalQuestions: currentIndex + 1,
@@ -209,7 +193,7 @@ export default function GrammarPage() {
       const allQ = res.data?.data || [];
       if (allQ.length === 0) return;
 
-      const shuffled = [...allQ].sort(() => 0.5 - Math.random());
+      const shuffled = secureShuffle(allQ);
       const selected = shuffled.slice(0, Math.min(quizQuantity, shuffled.length));
 
       setQuestions(selected);
@@ -218,27 +202,8 @@ export default function GrammarPage() {
         description: "Timed synthesis across all grammatical structures.",
       });
 
-      if (quizTimerMinutes > 0) {
-        setQuizTimeRemaining(quizTimerMinutes * 60);
-      } else {
-        setQuizTimeRemaining(0);
-      }
-
       setViewMode("quiz");
-
-      if (quizTimerRef.current) clearInterval(quizTimerRef.current);
-      if (quizTimerMinutes > 0) {
-        quizTimerRef.current = setInterval(() => {
-          setQuizTimeRemaining((prev) => {
-            if (prev <= 1) {
-              clearInterval(quizTimerRef.current);
-              setViewMode("finished");
-              return 0;
-            }
-            return prev - 1;
-          });
-        }, 1000);
-      }
+      startQuizTimer(quizTimerMinutes);
     } finally {
       setLoading(false);
     }
@@ -261,7 +226,7 @@ export default function GrammarPage() {
       setSelectedOption(null);
       setIsAnswered(false);
     } else {
-      if (quizTimerRef.current) clearInterval(quizTimerRef.current);
+      stopQuizTimer();
       setViewMode("finished");
     }
   };
@@ -277,7 +242,7 @@ export default function GrammarPage() {
       ? dynamicGrammarTopics
       : dynamicGrammarTopics.filter((t) => t.category === activeCategory);
 
-  const totalQuestionsInDatabase = grammarStats?.totalCount || 286;
+  const totalQuestionsInDatabase = grammarStats?.totalCount ?? 0;
 
   return (
     <div className="w-full flex flex-col space-y-7 animate-slide-up">
@@ -592,94 +557,18 @@ export default function GrammarPage() {
         </div>
       )}
 
-      {/* 5. Random Quiz Modal (Item 6) */}
-      {quizModalOpen &&
-        typeof document !== "undefined" &&
-        createPortal(
-          <div
-            className="fixed inset-0 z-9999 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) setQuizModalOpen(false);
-            }}
-          >
-            <div
-              className="imlaa-card w-full max-w-md p-6 bg-white border border-plum/20 shadow-2xl space-y-6 my-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3 className="text-2xl font-black text-body-dark">
-                Random Grammar Quiz
-              </h3>
-
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-muted-label block mb-2">
-                  Number of Questions
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {[10, 20, 50].map((qty) => (
-                    <button
-                      key={qty}
-                      type="button"
-                      onClick={() => setQuizQuantity(qty)}
-                      className={`py-2 rounded-xl font-bold border transition ${
-                        quizQuantity === qty
-                          ? "bg-plum text-white border-plum"
-                          : "border-plum/20 text-body-dark hover:bg-plum/5"
-                      }`}
-                    >
-                      {qty} Questions
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-muted-label block mb-2">
-                  Timer Limit
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { label: "Untimed", value: 0 },
-                    { label: "1 Min", value: 1 },
-                    { label: "2 Min", value: 2 },
-                    { label: "5 Min", value: 5 },
-                    { label: "10 Min", value: 10 },
-                  ].map((t) => (
-                    <button
-                      key={t.value}
-                      type="button"
-                      onClick={() => setQuizTimerMinutes(t.value)}
-                      className={`py-2 rounded-xl font-bold border transition ${
-                        quizTimerMinutes === t.value
-                          ? "bg-plum text-white border-plum"
-                          : "border-plum/20 text-body-dark hover:bg-plum/5"
-                      }`}
-                    >
-                      {t.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end space-x-3 pt-3 border-t border-plum/10">
-                <button
-                  type="button"
-                  onClick={() => setQuizModalOpen(false)}
-                  className="imlaa-btn-secondary py-2 px-4 text-sm"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={launchRandomQuiz}
-                  className="imlaa-btn-primary py-2 px-5 text-sm font-bold"
-                >
-                  Start Quiz
-                </button>
-              </div>
-            </div>
-          </div>,
-          document.body
-        )}
+      {quizModalOpen && (
+        <RandomQuizSetupModal
+          title="Random Grammar Quiz"
+          questionLabel="Number of Questions"
+          quantity={quizQuantity}
+          onQuantityChange={setQuizQuantity}
+          timerMinutes={quizTimerMinutes}
+          onTimerChange={setQuizTimerMinutes}
+          onCancel={() => setQuizModalOpen(false)}
+          onStart={launchRandomQuiz}
+        />
+      )}
     </div>
   );
 }

@@ -60,19 +60,33 @@ Imlaa follows an intentional, minimalist design system tailored for academic foc
 - **React Icons** (filled Heroicons `hi2`)
 - **Supabase Auth and Postgres** (direct client access protected by RLS)
 
-### Backend (`server`)
+### TTS service (`server`)
 - **Express.js** and **node-edge-tts** for server-side speech generation
-- Admin and user-data REST routes require a verified Supabase bearer token.
-- The legacy device-token authentication API returns `410 Gone`.
+- Only exposes authenticated, rate-limited `POST /api/tts` and a health check.
+- Normal application data access uses Supabase PostgREST with RLS; there are no
+  Express CRUD or admin routes.
 
 ---
+
+## Architecture & Data Contracts
+
+For the complete technical specification of the system topology, single-pipeline data contract, database RPCs, security boundary model, and caching architecture, see **[`docs/architecture.md`](./docs/architecture.md)**.
+
+- `src/App.jsx` owns route composition. Route screens are lazy-loaded and have
+  loading and render-error fallbacks.
+- `src/auth/` owns session/profile synchronization and focused sign-in, OTP,
+  password-reset, and account-action hooks. `src/context/AuthContext.jsx`
+  composes these behind the existing `useAuth()` interface.
+- `src/services/` contains focused domain services (`vocabularyService.js`, `progressService.js`, `adminService.js`, `auditService.js`, `grammarService.js`, `studySessionService.js`). `apiClient.js` remains a compatibility facade.
+- `src/features/` contains feature-specific UI (admin directory, user inspector, role changes, audit tables), while `src/components/` and `src/hooks/` hold reusable UI and interaction behavior.
+- Application data flows from React screens directly to Supabase Auth/PostgREST, with row-level security enforcing access. Authenticated speech requests use the separate Express TTS service.
 
 ## 🏃 Getting Started
 
 ### Supabase database setup
 
-- For an existing Supabase project, run [`supabase_security_policies.sql`](../supabase_security_policies.sql) in the Supabase SQL Editor to apply the RLS and role-protection changes. This migration does not insert seed data.
-- For a new project, run [`supabase_schema.sql`](../supabase_schema.sql) first, then run the security migration. Do not rerun the full schema against a populated project because it includes seed inserts.
+- For an existing Supabase project, run [`database/security_policies.sql`](./database/security_policies.sql) in the Supabase SQL Editor to apply the RLS and role-protection changes. This migration does not insert seed data.
+- For a new project, run [`database/schema.sql`](./database/schema.sql) first, then run the security migration. Its seed inserts are idempotent.
 
 ### 1. Start the Backend Server
 ```bash
@@ -89,6 +103,7 @@ npm run dev
 # Vite client will run on http://localhost:5173
 ```
 
-Configure frontend environment values from `.env.example` and server-side
-Supabase settings in `server/.env`. Use Supabase Auth for sign-in; there are no
-default application credentials.
+Configure frontend values from `.env.example` and the TTS service values from
+`../server/.env.example`. The service needs the Supabase anon key to verify
+sessions, not a service-role key. Public landing-page audio uses browser speech
+synthesis; authenticated workspace audio uses the TTS service.

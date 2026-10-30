@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import apiClient, { supabase } from "../services/apiClient";
+import apiClient from "../services/apiClient";
 import { useAuth } from "../context/AuthContext";
 import {
   HiCloudArrowUp,
@@ -68,7 +68,7 @@ export default function UploadStudyPage() {
     e.target.value = "";
   };
 
-  // Perform bulk array POST to server
+  // Submit the import through the database RPC, which enforces the daily quota.
   const handleBulkSubmit = async () => {
     if (previewItems.length === 0) {
       showErrorAlert(
@@ -76,35 +76,6 @@ export default function UploadStudyPage() {
         "Please paste valid tabular data or upload a CSV file first.",
       );
       return;
-    }
-
-    // 200 words/day limit for general users
-    if (!isAdmin && targetDestination === "uploaded") {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const { count, error: countErr } = await supabase
-        .from("vocabularies")
-        .select("*", { count: "exact", head: true })
-        .ilike("uploaded_by", `uploaded:${user?.id}:%`)
-        .gte("created_at", today.toISOString());
-
-      if (!countErr) {
-        const remaining = 200 - (count || 0);
-        if (remaining <= 0) {
-          showErrorAlert(
-            "Daily Limit Reached",
-            "You have reached the 200 words/day upload limit. Please try again tomorrow.",
-          );
-          return;
-        }
-        if (previewItems.length > remaining) {
-          showErrorAlert(
-            "Exceeds Daily Limit",
-            `You can only upload ${remaining} more words today (200/day limit). Please reduce your import to ${remaining} or fewer entries.`,
-          );
-          return;
-        }
-      }
     }
 
     const destLabel = targetDestination === "active" ? "All Active Corpus" : "Uploaded Corpus";
@@ -125,10 +96,6 @@ export default function UploadStudyPage() {
         items: previewItems,
         defaultTopic: bulkTopic,
         targetTab: targetDestination,
-        uploadedBy: `${targetDestination}:${isAdmin ? "admin" : (user?.id || "anon")}:${user?.name || (isAdmin ? "Admin" : "Candidate")}`,
-        userId: user?.id,
-        userName: user?.name || user?.email,
-        userRole: user?.role || "general",
       });
 
       if (res.data?.success) {

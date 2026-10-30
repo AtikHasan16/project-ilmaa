@@ -13,7 +13,7 @@ export default function CapacityGuardModal() {
 
     async function checkCapacity() {
       try {
-        const res = await apiClient.get("/admin/users-audit");
+        const res = await apiClient.get("/capacity/active-count");
         if (mounted && res.data?.success) {
           const count = res.data.activeNowCount || 0;
           setActiveCount(count);
@@ -21,17 +21,15 @@ export default function CapacityGuardModal() {
             setIsOverCapacity(true);
           }
         }
-      } catch {
-        // Silently continue if stats unavailable
+      } catch (error) {
+        console.warn("Could not check active user count:", error);
       }
     }
 
     checkCapacity();
-    const interval = setInterval(checkCapacity, 30000); // Check every 30 seconds
 
     return () => {
       mounted = false;
-      clearInterval(interval);
     };
   }, []);
 

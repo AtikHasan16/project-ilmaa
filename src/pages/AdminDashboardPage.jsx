@@ -1,18 +1,19 @@
 import { useState, useEffect, useCallback } from "react";
-import { createPortal } from "react-dom";
-import apiClient, { supabase } from "../services/apiClient";
+import apiClient from "../services/apiClient";
+import { supabase } from "../services/supabaseClient";
+import { useAuth } from "../context/AuthContext";
+import { toCamel } from "../services/dataMappers";
+import { recordAuditLog } from "../services/auditService";
+import AuditLogTable from "../features/admin/AuditLogTable";
+import UserInspector from "../features/admin/UserInspector";
+import UserDirectory from "../features/admin/UserDirectory";
+import { useModalEffects } from "../hooks/useModalEffects";
 import {
   HiUsers,
   HiArrowPath,
   HiArrowDownTray,
-  HiTrash,
   HiSignal,
   HiSparkles,
-  HiShieldCheck,
-  HiMagnifyingGlass,
-  HiInformationCircle,
-  HiXMark,
-  HiCloudArrowUp,
 } from "react-icons/hi2";
 import {
   showConfirmModal,
@@ -22,7 +23,7 @@ import {
 import { exportAuditReportPDF } from "../utils/exportReportPdf";
 
 export default function AdminDashboardPage() {
-  // Audit state
+  const { user } = useAuth();
   const [auditStats, setAuditStats] = useState({
     totalRegistered: 0,
     approvedCount: 0,
@@ -32,12 +33,6 @@ export default function AdminDashboardPage() {
   const [auditLogs, setAuditLogs] = useState([]);
   const [loadingAudit, setLoadingAudit] = useState(true);
 
-  // Candidate filtering & permission explainer states
-  const [roleFilter, setRoleFilter] = useState("all"); // 'all' | 'general' | 'advance' | 'admin'
-  const [searchQuery, setSearchQuery] = useState("");
-  const [showPermissionGuide, setShowPermissionGuide] = useState(false);
-
-  // Selected candidate profile inspection modal state
   const [selectedUser, setSelectedUser] = useState(null);
   const [selectedUserMetrics, setSelectedUserMetrics] = useState(null);
   const [loadingMetrics, setLoadingMetrics] = useState(false);
@@ -45,24 +40,7 @@ export default function AdminDashboardPage() {
   const [selectedUserUploadedWords, setSelectedUserUploadedWords] = useState([]);
   const [loadingUserLogs, setLoadingUserLogs] = useState(false);
 
-  // Lock body scroll and listen for ESC key when inspector modal is open
-  useEffect(() => {
-    if (!selectedUser) return;
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    const handleKeyDown = (e) => {
-      if (e.key === "Escape") {
-        setSelectedUser(null);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.body.style.overflow = originalOverflow;
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [selectedUser]);
+  useModalEffects(selectedUser, setSelectedUser, null);
 
   const handleOpenUserDetail = async (u) => {
     setSelectedUser(u);
@@ -73,7 +51,7 @@ export default function AdminDashboardPage() {
 
     try {
       const res = await apiClient.get("/user/profile-metrics", {
-        params: { accessId: u.id || u.accessId },
+        params: { userId: u.id },
       });
       if (res.data?.success) {
         setSelectedUserMetrics(res.data.data);
@@ -89,10 +67,10 @@ export default function AdminDashboardPage() {
       const { data: logsData } = await supabase
         .from("audit_logs")
         .select("*")
-        .or(`access_id.eq.${u.id},user_name.ilike.%${u.name || ""}%`)
+        .or(`user_id.eq.${u.id},target_user_id.eq.${u.id}`)
         .order("timestamp", { ascending: false })
         .limit(30);
-      setSelectedUserLogs(logsData || []);
+      setSelectedUserLogs(toCamel(logsData || []));
     } catch (logErr) {
       console.warn("Failed to fetch user logs:", logErr);
     }
@@ -102,10 +80,10 @@ export default function AdminDashboardPage() {
       const { data: userWords } = await supabase
         .from("vocabularies")
         .select("id, word, pos, bangla_meaning, topic, created_at")
-        .ilike("uploaded_by", `%${u.id}%`)
+        .eq("uploaded_by_id", u.id)
         .order("created_at", { ascending: false })
         .limit(30);
-      setSelectedUserUploadedWords(userWords || []);
+      setSelectedUserUploadedWords(toCamel(userWords || []));
     } catch (wordErr) {
       console.warn("Failed to fetch user uploaded words:", wordErr);
     } finally {
@@ -113,7 +91,6 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // Fetch users audit and activity stats
   const fetchAuditData = useCallback(async () => {
     setLoadingAudit(true);
     try {
@@ -143,13 +120,6 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     fetchAuditData();
-
-    // Auto refresh active user statuses every 45s
-    const interval = setInterval(() => {
-      fetchAuditData();
-    }, 45000);
-
-    return () => clearInterval(interval);
   }, [fetchAuditData]);
 
   // Delete an uploaded word (Admin moderation)
@@ -174,10 +144,11 @@ export default function AdminDashboardPage() {
 
       // Log deletion
       try {
-        await supabase.from("audit_logs").insert({
+        await recordAuditLog({
+          userId: user?.id,
           action: "VOCAB_DELETED",
-          user_name: "Admin",
-          access_id: "ADMIN",
+          userName: user?.name || "Admin",
+          targetUserId: selectedUser?.id || null,
           details: `Admin deleted uploaded word "${wordText}"`,
           timestamp: new Date().toISOString(),
         });
@@ -204,7 +175,7 @@ export default function AdminDashboardPage() {
     try {
       const apiRes = await apiClient.delete(`/admin/audit-logs/${logId}`);
       if (apiRes.data?.success) {
-        setAuditLogs((prev) => prev.filter((l) => l._id !== logId));
+        setAuditLogs((prev) => prev.filter((log) => log.id !== logId));
         showSuccessToast("Log Entry Removed");
       }
     } catch (err) {
@@ -250,32 +221,17 @@ export default function AdminDashboardPage() {
     if (!res.isConfirmed) return;
 
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({ role: newRole })
-        .eq("id", userId);
-
-      if (error) throw error;
-
-      // Log into audit trail
-      try {
-        await supabase.from("audit_logs").insert({
-          action: "ROLE_CHANGE",
-          user_name: userName || "Candidate",
-          access_id: userId,
-          details: `Role updated to [${newRole.toUpperCase()}] by administrator`,
-          timestamp: new Date().toISOString(),
-        });
-      } catch (logErr) {
-        console.warn("Could not insert audit log:", logErr);
-      }
+      await apiClient.post("/admin/profile-role", {
+        userId,
+        role: newRole,
+      });
 
       showSuccessToast(
         "Permissions Updated",
         `${userName || "Candidate"} has been granted [${roleLabel}] access.`
       );
 
-      if (selectedUser && (selectedUser.id === userId || selectedUser.accessId === userId)) {
+      if (selectedUser?.id === userId) {
         setSelectedUser((prev) => ({ ...prev, role: newRole }));
       }
 
@@ -285,7 +241,6 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // Trigger PDF export
   const handleExportPDF = () => {
     exportAuditReportPDF({
       users: auditUsers,
@@ -294,37 +249,8 @@ export default function AdminDashboardPage() {
     });
   };
 
-  const formatDate = (isoStr) => {
-    if (!isoStr) return "Never";
-    try {
-      const d = new Date(isoStr);
-      if (Number.isNaN(d.getTime())) return "Never";
-      return d.toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      });
-    } catch {
-      return "Never";
-    }
-  };
-
-  // Role counters & filtered candidates
   const generalCount = auditUsers.filter((u) => u.role !== "admin").length;
   const adminCount = auditUsers.filter((u) => u.role === "admin").length;
-
-  const filteredUsers = auditUsers.filter((u) => {
-    const r = u.role === "admin" ? "admin" : "general";
-    const matchesRole = roleFilter === "all" || r === roleFilter;
-    const q = searchQuery.toLowerCase().trim();
-    const matchesSearch =
-      !q ||
-      u.name?.toLowerCase().includes(q) ||
-      u.email?.toLowerCase().includes(q) ||
-      u.id?.toLowerCase().includes(q) ||
-      u.accessId?.toLowerCase().includes(q);
-    return matchesRole && matchesSearch;
-  });
 
   return (
     <div className="w-full flex flex-col space-y-8 animate-slide-up pb-12">
@@ -424,672 +350,32 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* ==================================================== */}
-      {/* 2. Candidate Access Directory (Simplified & Unified) */}
-      {/* ==================================================== */}
-      <div className="imlaa-card p-6 sm:p-8 space-y-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-plum/15">
-          <div>
-            <div className="flex items-center space-x-3">
-              <h3 className="text-xl font-bold text-body-dark">
-                Candidate Access Directory
-              </h3>
-              <button
-                type="button"
-                onClick={() => setShowPermissionGuide(!showPermissionGuide)}
-                className="inline-flex items-center space-x-1 text-xs font-bold text-plum hover:underline cursor-pointer"
-              >
-                <HiInformationCircle className="w-4 h-4" />
-                <span>{showPermissionGuide ? "Hide Tier Guide" : "View Tier Guide"}</span>
-              </button>
-            </div>
-            <p className="text-base text-muted-label mt-0.5">
-              Full directory of registered users with role assignments and privilege controls.
-            </p>
-          </div>
+      <UserDirectory
+        users={auditUsers}
+        generalCount={generalCount}
+        adminCount={adminCount}
+        onOpenUser={handleOpenUserDetail}
+        onUpdateRole={handleUpdateRole}
+      />
 
-          <span className="imlaa-badge text-base">
-            {filteredUsers.length} / {auditUsers.length} Candidates
-          </span>
-        </div>
+      <AuditLogTable
+        logs={auditLogs}
+        onClear={handleClearAllLogs}
+        onDelete={handleDeleteLog}
+      />
 
-        {/* Collapsible Permission Tiers Guide (Harmonious Plum Palette) */}
-        {showPermissionGuide && (
-          <div className="p-5 rounded-2xl border border-plum/20 bg-plum/5 space-y-4 animate-slide-up">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-black text-plum uppercase tracking-wider flex items-center space-x-1.5">
-                <HiShieldCheck className="w-5 h-5 text-plum" />
-                <span>Platform Permission Matrix & Feature Tiers</span>
-              </span>
-              <button
-                type="button"
-                onClick={() => setShowPermissionGuide(false)}
-                className="text-xs text-muted-label hover:text-body-dark font-bold cursor-pointer"
-              >
-                ✕ Close
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-              {/* Tier 1: General Free */}
-              <div className="p-4 rounded-xl bg-white border border-plum/15 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-plum uppercase text-xs">General Member</span>
-                  <span className="imlaa-badge text-[11px] py-0.5 px-2">Free</span>
-                </div>
-                <ul className="text-muted-label space-y-1.5 list-disc list-inside">
-                  <li>Full Flashcards & Spelling drills</li>
-                  <li>Standard Grammar interactive quizzes</li>
-                  <li>Personal learning metrics & progress tracking</li>
-                  <li>Standard visitor rate limit queues</li>
-                </ul>
-              </div>
-
-              {/* Tier 2: Admin Superuser */}
-              <div className="p-4 rounded-xl bg-plum/10 border border-plum/35 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-plum uppercase text-xs">Platform Admin</span>
-                  <span className="px-2 py-0.5 rounded-full bg-plum text-white text-[11px] font-bold">Authority</span>
-                </div>
-                <ul className="text-muted-label space-y-1.5 list-disc list-inside">
-                  <li>Promote / demote candidate tiers directly</li>
-                  <li>Device binding reset & browser telemetry inspection</li>
-                  <li>Full security audit log inspection & purge</li>
-                  <li>Export candidate analytics reports to PDF</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Filter Controls Bar (Search + Role Pills - Strict Plum Palette) */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          {/* Role Filter Pills */}
-          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-            <button
-              type="button"
-              onClick={() => setRoleFilter("all")}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                roleFilter === "all"
-                  ? "bg-plum text-white shadow-xs"
-                  : "bg-plum/5 text-muted-label hover:bg-plum/10 hover:text-plum border border-plum/15"
-              }`}
-            >
-              All ({auditUsers.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setRoleFilter("general")}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                roleFilter === "general"
-                  ? "bg-plum text-white shadow-xs"
-                  : "bg-plum/5 text-muted-label hover:bg-plum/10 hover:text-plum border border-plum/15"
-              }`}
-            >
-              General ({generalCount})
-            </button>
-            <button
-              type="button"
-              onClick={() => setRoleFilter("admin")}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                roleFilter === "admin"
-                  ? "bg-plum text-white shadow-xs"
-                  : "bg-plum/5 text-muted-label hover:bg-plum/10 hover:text-plum border border-plum/15"
-              }`}
-            >
-              Admin ({adminCount})
-            </button>
-          </div>
-
-          {/* Search Input */}
-          <div className="relative w-full sm:w-72">
-            <input
-              type="text"
-              placeholder="Search by name, email, ID..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="imlaa-input py-2 pl-9 pr-3 text-xs w-full bg-white"
-            />
-            <HiMagnifyingGlass className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-label" />
-          </div>
-        </div>
-
-        {/* Directory Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-base">
-            <thead>
-              <tr className="border-b border-plum/20 text-muted-label uppercase text-sm font-bold">
-                <th className="py-3 px-3">User / Candidate</th>
-                <th className="py-3 px-3">Email & Auth</th>
-                <th className="py-3 px-3">Assigned Role</th>
-                <th className="py-3 px-3">Live Presence</th>
-                <th className="py-3 px-3 text-right">Role Management</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-plum/10">
-              {filteredUsers.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="py-8 text-center text-muted-label text-sm">
-                    No candidates matched the current role filter or search criteria.
-                  </td>
-                </tr>
-              ) : (
-                filteredUsers.map((u) => (
-                  <tr
-                    key={u.id || u.accessId}
-                    className="hover:bg-plum/5 transition-colors cursor-pointer"
-                    onClick={() => handleOpenUserDetail(u)}
-                  >
-                    <td className="py-3.5 px-3">
-                      <div className="flex items-center space-x-3">
-                        {u.avatarUrl ? (
-                          <img
-                            src={u.avatarUrl}
-                            alt={u.name}
-                            className="w-10 h-10 rounded-full border border-plum object-cover shrink-0"
-                          />
-                        ) : (
-                          <div className="w-10 h-10 rounded-full bg-plum/15 text-plum font-bold flex items-center justify-center shrink-0 text-sm">
-                            {(u.name || u.email || "U").charAt(0).toUpperCase()}
-                          </div>
-                        )}
-                        <div>
-                          <div className="font-bold text-body-dark hover:text-plum flex items-center space-x-1.5">
-                            <span>{u.name || "Candidate"}</span>
-                            <span className="text-[10px] text-plum bg-plum/10 px-1.5 py-0.2 rounded font-semibold">
-                              Inspect
-                            </span>
-                          </div>
-                          <div className="text-xs text-muted-label font-mono">
-                            ID: {u.id?.slice(0, 8) || u.accessId}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-
-                    <td className="py-3.5 px-3">
-                      <div className="text-sm font-medium text-body-dark">{u.email || "—"}</div>
-                      <div className="text-xs text-muted-label uppercase font-mono">
-                        Via {u.authProvider || "email"}
-                      </div>
-                    </td>
-
-                    <td className="py-3.5 px-3">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold uppercase ${
-                          u.role === "admin"
-                            ? "bg-plum text-white"
-                            : "bg-plum/5 text-muted-label border border-plum/15"
-                        }`}
-                      >
-                        <span>{u.role === "admin" ? "Admin" : "General"}</span>
-                      </span>
-                    </td>
-
-                    <td className="py-3.5 px-3">
-                      {u.isOnline ? (
-                        <span className="inline-flex items-center space-x-2 text-emerald-700 font-bold text-sm">
-                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                          <span>Active Now</span>
-                        </span>
-                      ) : (
-                        <span className="text-muted-label text-sm">
-                          {u.lastActiveAt
-                            ? `Seen ${new Date(u.lastActiveAt).toLocaleDateString()}`
-                            : "Never logged in"}
-                        </span>
-                      )}
-                    </td>
-
-                    <td className="py-3.5 px-3 text-right" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center justify-end">
-                        <select
-                          value={u.role === "admin" ? "admin" : "general"}
-                          onChange={(e) => handleUpdateRole(u.id, u.name, e.target.value)}
-                          className="imlaa-input text-xs py-1.5 px-3 bg-white font-semibold border-plum/25 text-body-dark hover:border-plum focus:border-plum cursor-pointer rounded-xl max-w-37.5"
-                        >
-                          <option value="general">General Member</option>
-                          <option value="admin">Platform Admin</option>
-                        </select>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* ==================================================== */}
-      {/* 2. Audit Log Trail (With Clear / Delete Options)     */}
-      {/* ==================================================== */}
-      <div className="imlaa-card p-6 sm:p-8 space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-plum/15">
-          <div>
-            <h3 className="text-xl font-bold text-body-dark">
-              Security & Access Audit Trail
-            </h3>
-            <p className="text-base text-muted-label mt-0.5">
-              Historical access event logs, role promotions, and security events.
-            </p>
-          </div>
-
-          <div className="flex items-center space-x-3">
-            <span className="imlaa-badge text-base">
-              {auditLogs.length} Events
-            </span>
-            {auditLogs.length > 0 && (
-              <button
-                type="button"
-                onClick={handleClearAllLogs}
-                className="imlaa-btn-secondary py-1.5 px-3 text-sm text-rose-700 border-rose-300 hover:bg-rose-50 space-x-1"
-              >
-                <HiTrash className="w-4 h-4" />
-                <span>Clear All Logs</span>
-              </button>
-            )}
-          </div>
-        </div>
-
-        {auditLogs.length === 0 ? (
-          <div className="p-8 text-center text-muted-label text-base">
-            No audit log records recorded yet.
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-base">
-              <thead>
-                <tr className="border-b border-plum/20 text-muted-label uppercase text-sm font-bold">
-                  <th className="py-3 px-3">Action</th>
-                  <th className="py-3 px-3">Candidate & ID</th>
-                  <th className="py-3 px-3">Event Details</th>
-                  <th className="py-3 px-3">Timestamp</th>
-                  <th className="py-3 px-3 text-right">Delete</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-plum/10">
-                {auditLogs.map((log) => (
-                  <tr key={log._id || log.timestamp} className="hover:bg-plum/5 transition-colors">
-                    <td className="py-3 px-3 font-mono font-bold text-plum text-sm">
-                      {log.action}
-                    </td>
-                    <td className="py-3 px-3 font-semibold text-body-dark">
-                      {log.userName} <span className="font-mono text-xs text-muted-label">({log.accessId || "—"})</span>
-                    </td>
-                    <td className="py-3 px-3 text-body-dark">
-                      {log.details}
-                    </td>
-                    <td className="py-3 px-3 font-mono text-sm text-muted-label whitespace-nowrap">
-                      {new Date(log.timestamp).toLocaleString()}
-                    </td>
-                    <td className="py-3 px-3 text-right">
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteLog(log._id)}
-                        title="Delete log entry"
-                        className="p-1.5 rounded-lg text-muted-label hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
-                      >
-                        <HiTrash className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* ==================================================== */}
-      {/* 4. USER PROFILE INSPECTOR MODAL (Portaled to Body)   */}
-      {/* ==================================================== */}
-      {selectedUser &&
-        typeof document !== "undefined" &&
-        createPortal(
-          <div
-            className="fixed inset-0 z-9999 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) setSelectedUser(null);
-            }}
-          >
-            <div
-              className="imlaa-card w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 sm:p-8 bg-white border border-plum/20 shadow-2xl space-y-6 my-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Header with Avatar & Online Status */}
-              <div className="flex items-start justify-between pb-4 border-b border-plum/15">
-                <div className="flex items-center space-x-4">
-                  {selectedUser.avatarUrl ? (
-                    <img
-                      src={selectedUser.avatarUrl}
-                      alt={selectedUser.name}
-                      className="w-16 h-16 rounded-2xl border-2 border-plum object-cover shadow-sm"
-                    />
-                  ) : (
-                    <div className="w-16 h-16 rounded-2xl bg-plum/15 text-plum font-bold flex items-center justify-center text-2xl border-2 border-plum/30">
-                      {(selectedUser.name || selectedUser.email || "U").charAt(0).toUpperCase()}
-                    </div>
-                  )}
-                  <div>
-                    <div className="flex items-center space-x-2">
-                      <h3 className="text-2xl font-black text-body-dark">
-                        {selectedUser.name || "Candidate"}
-                      </h3>
-                      <span
-                        className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase ${
-                          selectedUser.role === "admin"
-                            ? "bg-plum text-white"
-                            : "bg-plum/10 text-plum border border-plum/15"
-                        }`}
-                      >
-                        {selectedUser.role === "admin" ? "Admin" : "General"}
-                      </span>
-                    </div>
-                    <div className="text-sm text-muted-label mt-0.5">
-                      {selectedUser.email || "No email linked"} • Auth via {selectedUser.authProvider || "email"}
-                    </div>
-                    <div className="flex items-center space-x-3 mt-1 text-xs">
-                      {selectedUser.isOnline ? (
-                        <span className="inline-flex items-center space-x-1.5 text-emerald-700 font-bold">
-                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                          <span>Active Online Now</span>
-                        </span>
-                      ) : (
-                        <span className="text-muted-label">
-                          Last Active: {selectedUser.lastActiveAt ? new Date(selectedUser.lastActiveAt).toLocaleString() : "Never"}
-                        </span>
-                      )}
-
-                      <span className="text-muted-label font-mono">
-                        Member Since: {formatDate(selectedUser.createdAt)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setSelectedUser(null)}
-                  className="text-muted-label hover:text-body-dark text-xl font-bold p-2 cursor-pointer"
-                >
-                  <HiXMark className="w-6 h-6" />
-                </button>
-              </div>
-
-              {/* Role & Permission Privileges Box (Unified Plum Family) */}
-              <div className="p-4 rounded-xl border border-plum/20 bg-plum/5 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-black uppercase tracking-wider text-plum flex items-center space-x-1">
-                    <HiShieldCheck className="w-4 h-4 text-plum" />
-                    <span>Assigned Access Tier & Capabilities</span>
-                  </span>
-                  <span className="text-xs font-bold font-mono text-muted-label">
-                    ID: {selectedUser.id?.slice(0, 8) || selectedUser.accessId}
-                  </span>
-                </div>
-
-                <div className="text-xs text-muted-label leading-relaxed">
-                  {selectedUser.role === "admin" ? (
-                    <p className="text-body-dark font-medium">
-                      <strong className="text-plum">Platform Administrator:</strong> Full platform authority to manage candidate credentials, review audit trails, and alter system parameters.
-                    </p>
-                  ) : (
-                    <p>
-                      <strong className="text-body-dark">General Free Tier:</strong> Candidate has access to Core Vocabulary Flashcards, Spelling Drills, and standard Grammar tests.
-                    </p>
-                  )}
-                </div>
-
-                {/* 1-Click Role Change Action Buttons (Platform Color Palette) */}
-                <div className="pt-2 flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-bold text-body-dark mr-1">Quick Permissions:</span>
-
-                  <button
-                    type="button"
-                    onClick={() => handleUpdateRole(selectedUser.id, selectedUser.name, "general")}
-                    disabled={selectedUser.role !== "admin"}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-                      selectedUser.role !== "admin"
-                        ? "bg-plum/15 text-plum border border-plum/30 cursor-default"
-                        : "bg-white hover:bg-plum/10 text-body-dark border border-plum/20 cursor-pointer"
-                    }`}
-                  >
-                    ↩ Set as General
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleUpdateRole(selectedUser.id, selectedUser.name, "admin")}
-                    disabled={selectedUser.role === "admin"}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-                      selectedUser.role === "admin"
-                        ? "bg-plum text-white font-bold shadow-xs cursor-default"
-                        : "bg-plum/5 hover:bg-plum/15 text-plum font-bold border border-plum/25 cursor-pointer"
-                    }`}
-                  >
-                    🛡️ Promote to Admin
-                  </button>
-                </div>
-              </div>
-
-              {/* Device & Browser Telemetry */}
-              <div className="space-y-2">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-label">
-                  Device & Browser Telemetry
-                </h4>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-                  <div className="p-3 rounded-xl bg-plum/5 border border-plum/10">
-                    <div className="text-xs text-muted-label">Browser</div>
-                    <div className="font-bold text-body-dark mt-0.5">
-                      {selectedUser.deviceInfo?.browser || "Web Browser"}
-                    </div>
-                  </div>
-                  <div className="p-3 rounded-xl bg-plum/5 border border-plum/10">
-                    <div className="text-xs text-muted-label">Operating System</div>
-                    <div className="font-bold text-body-dark mt-0.5">
-                      {selectedUser.deviceInfo?.os || "Desktop OS"}
-                    </div>
-                  </div>
-                  <div className="p-3 rounded-xl bg-plum/5 border border-plum/10">
-                    <div className="text-xs text-muted-label">Platform Form</div>
-                    <div className="font-bold text-body-dark mt-0.5">
-                      {selectedUser.deviceInfo?.platform || "Desktop Workstation"}
-                    </div>
-                  </div>
-                  <div className="p-3 rounded-xl bg-plum/5 border border-plum/10">
-                    <div className="text-xs text-muted-label">Display Specs</div>
-                    <div className="font-bold text-body-dark mt-0.5 text-xs">
-                      {selectedUser.deviceInfo?.screenResolution || "1920 × 1080"}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Study Time & Activity Usage */}
-              <div className="space-y-2">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-label">
-                  Usage & Academic Engagement
-                </h4>
-                {loadingMetrics ? (
-                  <div className="p-6 text-center text-sm text-plum animate-pulse">
-                    Loading study telemetry...
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <div className="p-3 rounded-xl bg-white border border-plum/20">
-                      <div className="text-xs text-muted-label">Time Spent Today</div>
-                      <div className="text-xl font-black text-plum mt-0.5">
-                        {Math.round(((selectedUserMetrics?.totalStudySeconds || 0) % 3600) / 60)} mins
-                      </div>
-                    </div>
-                    <div className="p-3 rounded-xl bg-white border border-plum/20">
-                      <div className="text-xs text-muted-label">Total Month Usage</div>
-                      <div className="text-xl font-black text-plum mt-0.5">
-                        {Math.max(1, Math.round((selectedUserMetrics?.totalStudySeconds || 0) / 60))} mins
-                      </div>
-                    </div>
-                    <div className="p-3 rounded-xl bg-white border border-plum/20">
-                      <div className="text-xs text-muted-label">Words Mastered</div>
-                      <div className="text-xl font-black text-plum mt-0.5">
-                        {selectedUserMetrics?.masteredCount || 0}
-                      </div>
-                    </div>
-                    <div className="p-3 rounded-xl bg-white border border-plum/20">
-                      <div className="text-xs text-muted-label">Highest Grammar</div>
-                      <div className="text-xl font-black text-body-dark mt-0.5">
-                        {selectedUserMetrics?.highestGrammarScore
-                          ? `${selectedUserMetrics.highestGrammarScore.percent}%`
-                          : "No Drills"}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* User Activity Logs Trail (Profile Updates, Uploads, Role changes) */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-muted-label">
-                    Candidate Activity Trail (Profile & Upload Logs)
-                  </h4>
-                  {loadingUserLogs && (
-                    <span className="text-[10px] text-plum animate-pulse">Syncing logs...</span>
-                  )}
-                </div>
-
-                <div className="max-h-48 overflow-y-auto rounded-xl border border-plum/15 divide-y divide-plum/10 text-xs">
-                  {(() => {
-                    // Combine specific fetched logs and general audit logs
-                    const combined = [...selectedUserLogs];
-                    const existingIds = new Set(combined.map((l) => l.id || l._id));
-                    auditLogs
-                      .filter(
-                        (l) =>
-                          l.userName?.toLowerCase() === selectedUser.name?.toLowerCase() ||
-                          l.accessId === selectedUser.id ||
-                          l.accessId === selectedUser.accessId
-                      )
-                      .forEach((l) => {
-                        if (!existingIds.has(l.id || l._id)) {
-                          combined.push(l);
-                        }
-                      });
-                    
-                    combined.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
-                    if (combined.length === 0) {
-                      return (
-                        <div className="p-4 text-center text-muted-label">
-                          No recent activity logs recorded for this candidate.
-                        </div>
-                      );
-                    }
-
-                    return combined.slice(0, 15).map((log, idx) => {
-                      const isProfile = log.action === "PROFILE_UPDATE";
-                      const isUpload = log.action === "VOCAB_BULK_UPLOAD" || log.action === "VOCAB_UPLOADED";
-                      const isRole = log.action === "ROLE_CHANGE";
-
-                      const badgeClass = isProfile
-                        ? "bg-purple-100 text-purple-800 border-purple-300"
-                        : isUpload
-                          ? "bg-emerald-100 text-emerald-800 border-emerald-300"
-                          : isRole
-                            ? "bg-amber-100 text-amber-800 border-amber-300"
-                            : "bg-plum/10 text-plum border-plum/20";
-
-                      const label = isProfile
-                        ? "Profile Update"
-                        : isUpload
-                          ? "Vocab Upload"
-                          : isRole
-                            ? "Role Change"
-                            : log.action;
-
-                      return (
-                        <div key={log.id || log._id || idx} className="p-2.5 flex items-center justify-between">
-                          <div className="flex items-center space-x-2">
-                            <span className={`px-2 py-0.5 rounded-md font-bold text-[10px] border uppercase ${badgeClass}`}>
-                              {label}
-                            </span>
-                            <span className="text-body-dark font-medium">{log.details}</span>
-                          </div>
-                          <span className="text-muted-label font-mono shrink-0 ml-2 text-[11px]">
-                            {log.timestamp ? new Date(log.timestamp).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"}
-                          </span>
-                        </div>
-                      );
-                    });
-                  })()}
-                </div>
-              </div>
-
-              {/* Uploaded Vocabulary Words by this Candidate */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-muted-label flex items-center space-x-1.5">
-                    <HiCloudArrowUp className="w-4 h-4 text-plum" />
-                    <span>Uploaded Words by this Candidate ({selectedUserUploadedWords.length})</span>
-                  </h4>
-                  {selectedUserUploadedWords.length > 0 && (
-                    <span className="text-[10px] text-muted-label font-medium">Deletable by admin</span>
-                  )}
-                </div>
-
-                <div className="max-h-40 overflow-y-auto rounded-xl border border-plum/15 divide-y divide-plum/10 text-xs bg-plum/5">
-                  {selectedUserUploadedWords.length === 0 ? (
-                    <div className="p-4 text-center text-muted-label">
-                      This candidate has not uploaded any custom vocabulary yet.
-                    </div>
-                  ) : (
-                    selectedUserUploadedWords.map((w) => (
-                      <div key={w.id} className="p-2.5 flex items-center justify-between bg-white hover:bg-plum/5 transition">
-                        <div>
-                          <span className="font-bold text-body-dark mr-1.5">{w.word}</span>
-                          <span className="italic text-muted-label text-[11px] mr-2">({w.pos || "—"})</span>
-                          <span className="text-body-dark">{w.bangla_meaning}</span>
-                          <span className="ml-2 text-[10px] font-mono text-plum bg-plum/10 px-1.5 py-0.5 rounded">
-                            {w.topic}
-                          </span>
-                        </div>
-                        <div className="flex items-center space-x-2 shrink-0 ml-2">
-                          <span className="text-[10px] text-muted-label font-mono">
-                            {w.created_at ? new Date(w.created_at).toLocaleDateString() : ""}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteUploadedWord(w.id, w.word)}
-                            title="Delete this word"
-                            className="p-1 text-muted-label hover:text-rose-600 hover:bg-rose-50 rounded transition cursor-pointer"
-                          >
-                            <HiTrash className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              {/* Modal Footer Controls */}
-              <div className="flex flex-col sm:flex-row items-center justify-between pt-4 border-t border-plum/15 gap-3">
-                <div className="text-xs text-muted-label">
-                  Permissions are updated immediately in the database.
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setSelectedUser(null)}
-                  className="imlaa-btn-secondary py-2 px-5 text-sm font-semibold w-full sm:w-auto"
-                >
-                  Close Inspector
-                </button>
-              </div>
-            </div>
-          </div>,
-          document.body
-        )}
+      <UserInspector
+        user={selectedUser}
+        metrics={selectedUserMetrics}
+        loadingMetrics={loadingMetrics}
+        logs={selectedUserLogs}
+        uploadedWords={selectedUserUploadedWords}
+        loadingLogs={loadingUserLogs}
+        auditLogs={auditLogs}
+        onClose={() => setSelectedUser(null)}
+        onUpdateRole={handleUpdateRole}
+        onDeleteUploadedWord={handleDeleteUploadedWord}
+      />
     </div>
   );
 }
