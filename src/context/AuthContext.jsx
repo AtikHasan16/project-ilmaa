@@ -5,9 +5,40 @@ import { getDeviceInfo } from "../utils/deviceInfo";
 
 export { useAuth } from "./useAuth";
 
+const CACHE_PROFILE_KEY = "imlaa_user_profile";
+
+function getCachedProfile(userId) {
+  try {
+    const raw = localStorage.getItem(CACHE_PROFILE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed && (!userId || parsed.id === userId)) {
+      return parsed;
+    }
+  } catch {
+    // Ignore storage parse error
+  }
+  return null;
+}
+
+function setCachedProfile(profileData) {
+  try {
+    if (profileData) {
+      localStorage.setItem(CACHE_PROFILE_KEY, JSON.stringify(profileData));
+    } else {
+      localStorage.removeItem(CACHE_PROFILE_KEY);
+    }
+  } catch {
+    // Ignore storage write error
+  }
+}
+
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [role, setRole] = useState(null); // 'general' | 'advance' | 'admin'
+  const [user, setUser] = useState(() => getCachedProfile(null));
+  const [role, setRole] = useState(() => {
+    const cached = getCachedProfile(null);
+    return cached?.role || null;
+  }); // Strictly 'general' | 'admin'
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -16,11 +47,17 @@ export function AuthProvider({ children }) {
     if (!authUser) return null;
 
     try {
-      const { data: profile } = await supabase
+      const cached = getCachedProfile(authUser.id);
+
+      const { data: profile, error: profileErr } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", authUser.id)
         .maybeSingle();
+
+      if (profileErr) {
+        console.warn("Could not query public.profiles:", profileErr.message);
+      }
 
       const fallbackName =
         authUser.user_metadata?.full_name ||
@@ -33,53 +70,84 @@ export function AuthProvider({ children }) {
         authUser.user_metadata?.picture ||
         null;
 
+      // Persistence Priority:
+      // 1. Database custom profile name
+      // 2. Locally cached custom name
+      // 3. Auth user metadata / email username
+      const resolvedName =
+        (profile?.name && profile.name.trim()) ||
+        (cached?.name && cached.name.trim()) ||
+        fallbackName;
+
+      const resolvedAvatar =
+        profile?.avatar_url ||
+        cached?.avatarUrl ||
+        fallbackAvatar;
+
       const isAdminEmail = authUser.email?.toLowerCase() === "akhasannaeem@gmail.com";
-      const resolvedRole = profile?.role || (isAdminEmail ? "admin" : "general");
+      const resolvedRole = (profile?.role === "admin" || isAdminEmail) ? "admin" : "general";
 
       const resolvedUser = {
         id: authUser.id,
-        name: profile?.name || fallbackName,
+        name: resolvedName,
         email: authUser.email,
         role: resolvedRole,
-        avatarUrl: profile?.avatar_url || fallbackAvatar,
-        authProvider: authUser.app_metadata?.provider || "email",
+        avatarUrl: resolvedAvatar,
+        authProvider: authUser.app_metadata?.provider || profile?.auth_provider || "email",
         createdAt: profile?.created_at || authUser.created_at || null,
-        lastActiveAt: profile?.last_active_at || authUser.last_sign_in_at || null,
+        lastActiveAt: profile?.last_active_at || authUser.last_sign_in_at || new Date().toISOString(),
       };
+
+      // Persist to local storage immediately
+      setCachedProfile(resolvedUser);
 
       // Heartbeat last_active_at and save device info asynchronously
       const deviceInfo = getDeviceInfo();
-      supabase
-        .from("profiles")
-        .upsert(
-          {
-            id: authUser.id,
-            name: resolvedUser.name,
-            email: resolvedUser.email,
-            role: resolvedRole,
-            avatar_url: resolvedUser.avatarUrl,
-            auth_provider: resolvedUser.authProvider,
+      if (profile?.id) {
+        // Only update activity timestamp & device info — NEVER overwrite name or avatar on login!
+        supabase
+          .from("profiles")
+          .update({
             device_info: deviceInfo,
             last_active_at: new Date().toISOString(),
-          },
-          { onConflict: "id" }
-        )
-        .then();
+          })
+          .eq("id", authUser.id)
+          .then();
+      } else {
+        // Initial insert if record does not yet exist
+        supabase
+          .from("profiles")
+          .insert({
+            id: authUser.id,
+            name: resolvedName,
+            email: resolvedUser.email,
+            role: resolvedRole,
+            avatar_url: resolvedAvatar,
+            auth_provider: resolvedUser.authProvider,
+            device_info: deviceInfo,
+            created_at: resolvedUser.createdAt || new Date().toISOString(),
+            last_active_at: new Date().toISOString(),
+          })
+          .then();
+      }
 
       return resolvedUser;
     } catch (err) {
       console.warn("Profile sync error:", err);
+      const cached = getCachedProfile(authUser.id);
       const isAdminEmail = authUser.email?.toLowerCase() === "akhasannaeem@gmail.com";
-      return {
+      const fallbackUser = {
         id: authUser.id,
-        name: authUser.email?.split("@")[0] || "Candidate",
+        name: cached?.name || authUser.user_metadata?.full_name || authUser.email?.split("@")[0] || "Candidate",
         email: authUser.email,
-        role: isAdminEmail ? "admin" : "general",
-        avatarUrl: null,
-        authProvider: "email",
+        role: (cached?.role === "admin" || isAdminEmail) ? "admin" : "general",
+        avatarUrl: cached?.avatarUrl || null,
+        authProvider: authUser.app_metadata?.provider || "email",
         createdAt: authUser.created_at || new Date().toISOString(),
         lastActiveAt: authUser.last_sign_in_at || null,
       };
+      setCachedProfile(fallbackUser);
+      return fallbackUser;
     }
   }, []);
 
@@ -487,7 +555,7 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // Update Profile Credentials (Name & Avatar URL)
+  // Update Profile Credentials (Name & Avatar URL) with Persistent Storage
   const updateProfile = async ({ name, avatarUrl }) => {
     setError(null);
     if (!user?.id) return { success: false, message: "No active user session" };
@@ -498,6 +566,7 @@ export function AuthProvider({ children }) {
       if (avatarUrl !== undefined) updates.avatar_url = avatarUrl;
       updates.last_active_at = new Date().toISOString();
 
+      // 1. Update public.profiles in Supabase database
       const { data, error: updateErr } = await supabase
         .from("profiles")
         .update(updates)
@@ -507,12 +576,32 @@ export function AuthProvider({ children }) {
 
       if (updateErr) throw updateErr;
 
-      // Update current user state in React
-      setUser((prev) => ({
-        ...prev,
-        name: updates.name || prev.name,
-        avatarUrl: updates.avatar_url !== undefined ? updates.avatar_url : prev.avatarUrl,
-      }));
+      // 2. Also update Supabase Auth user metadata so session token carries the new credentials
+      try {
+        await supabase.auth.updateUser({
+          data: {
+            full_name: updates.name || user.name,
+            name: updates.name || user.name,
+            avatar_url: updates.avatar_url !== undefined ? updates.avatar_url : user.avatarUrl,
+            picture: updates.avatar_url !== undefined ? updates.avatar_url : user.avatarUrl,
+          },
+        });
+      } catch (authMetaErr) {
+        console.warn("Could not sync auth metadata:", authMetaErr);
+      }
+
+      const updatedUser = {
+        ...user,
+        name: updates.name || user.name,
+        avatarUrl: updates.avatar_url !== undefined ? updates.avatar_url : user.avatarUrl,
+        lastActiveAt: updates.last_active_at,
+      };
+
+      // 3. Persist to localStorage for permanent consistency
+      setCachedProfile(updatedUser);
+
+      // 4. Update current user state in React
+      setUser(updatedUser);
 
       return { success: true, profile: data };
     } catch (err) {
@@ -560,6 +649,7 @@ export function AuthProvider({ children }) {
     } catch (err) {
       console.warn("Supabase sign out error:", err);
     } finally {
+      setCachedProfile(null);
       setUser(null);
       setRole(null);
     }
@@ -586,9 +676,9 @@ export function AuthProvider({ children }) {
         logout: signOut,
         isAuthenticated: Boolean(user),
         isAdmin: role === "admin",
-        isAdvance: role === "advance",
-        isAdvanceOrAdmin: role === "advance" || role === "admin",
-        isGeneral: role === "general",
+        isAdvance: false,
+        isAdvanceOrAdmin: role === "admin",
+        isGeneral: role !== "admin",
       }}
     >
       {children}

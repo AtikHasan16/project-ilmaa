@@ -36,15 +36,7 @@ function ProtectedRoute({ children, requiredRole }) {
   }
 
   if (requiredRole === "admin" && role !== "admin") {
-    return <Navigate to="/workspace/vocab" replace />;
-  }
-
-  if (
-    requiredRole === "advance" &&
-    role !== "advance" &&
-    role !== "admin"
-  ) {
-    return <Navigate to="/workspace/vocab" replace />;
+    return <Navigate to="/workspace/flashcard" replace />;
   }
 
   return children;
@@ -85,7 +77,7 @@ export default function App() {
             <Route
               path="upload"
               element={
-                <ProtectedRoute requiredRole="advance">
+                <ProtectedRoute requiredRole="admin">
                   <UploadStudyPage />
                 </ProtectedRoute>
               }

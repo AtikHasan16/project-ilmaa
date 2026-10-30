@@ -225,12 +225,11 @@ export default function AdminDashboardPage() {
   };
 
   // Role counters & filtered candidates
-  const generalCount = auditUsers.filter((u) => (u.role || "general") === "general").length;
-  const advanceCount = auditUsers.filter((u) => u.role === "advance").length;
+  const generalCount = auditUsers.filter((u) => u.role !== "admin").length;
   const adminCount = auditUsers.filter((u) => u.role === "admin").length;
 
   const filteredUsers = auditUsers.filter((u) => {
-    const r = u.role || "general";
+    const r = u.role === "admin" ? "admin" : "general";
     const matchesRole = roleFilter === "all" || r === roleFilter;
     const q = searchQuery.toLowerCase().trim();
     const matchesSearch =
@@ -303,17 +302,17 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        {/* Metric 2: Advance & Admin Members */}
+        {/* Metric 2: Admin Members */}
         <div className="imlaa-card p-6 border border-plum/20 bg-white flex items-center justify-between">
           <div>
             <div className="text-base uppercase tracking-wider text-muted-label font-bold mb-1">
-              Advance & Admin Tiers
+              Platform Admins
             </div>
             <div className="text-4xl font-black text-plum font-mono">
-              {advanceCount + adminCount}
+              {adminCount}
             </div>
             <div className="text-base text-muted-label mt-1">
-              {advanceCount} Advance, {adminCount} Admins
+              {adminCount} Administrator{adminCount === 1 ? "" : "s"} with authority
             </div>
           </div>
           <div className="w-14 h-14 rounded-2xl bg-plum/10 text-plum flex items-center justify-center">
@@ -386,7 +385,7 @@ export default function AdminDashboardPage() {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
               {/* Tier 1: General Free */}
               <div className="p-4 rounded-xl bg-white border border-plum/15 space-y-2">
                 <div className="flex items-center justify-between">
@@ -401,24 +400,7 @@ export default function AdminDashboardPage() {
                 </ul>
               </div>
 
-              {/* Tier 2: Advance Premium */}
-              <div className="p-4 rounded-xl bg-plum/5 border border-plum/25 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-plum uppercase text-xs flex items-center space-x-1">
-                    <HiSparkles className="w-3.5 h-3.5 text-plum" />
-                    <span>Advance Member</span>
-                  </span>
-                  <span className="px-2 py-0.5 rounded-full bg-plum text-white text-[11px] font-bold">Premium</span>
-                </div>
-                <ul className="text-muted-label space-y-1.5 list-disc list-inside">
-                  <li><strong>Custom Vocabulary Uploads</strong> authorized</li>
-                  <li>Native language translations (Bangla, etc.)</li>
-                  <li>High-volume & untimed drills (10, 20, 50 questions)</li>
-                  <li>Priority audio synthesis queue & server bandwidth</li>
-                </ul>
-              </div>
-
-              {/* Tier 3: Admin Superuser */}
+              {/* Tier 2: Admin Superuser */}
               <div className="p-4 rounded-xl bg-plum/10 border border-plum/35 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-plum uppercase text-xs">Platform Admin</span>
@@ -460,18 +442,6 @@ export default function AdminDashboardPage() {
               }`}
             >
               General ({generalCount})
-            </button>
-            <button
-              type="button"
-              onClick={() => setRoleFilter("advance")}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center space-x-1.5 ${
-                roleFilter === "advance"
-                  ? "bg-plum text-white shadow-xs"
-                  : "bg-plum/5 text-muted-label hover:bg-plum/10 hover:text-plum border border-plum/15"
-              }`}
-            >
-              <HiSparkles className="w-3.5 h-3.5" />
-              <span>Advance ({advanceCount})</span>
             </button>
             <button
               type="button"
@@ -561,16 +531,13 @@ export default function AdminDashboardPage() {
 
                     <td className="py-3.5 px-3">
                       <span
-                        className={`inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-bold uppercase ${
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold uppercase ${
                           u.role === "admin"
                             ? "bg-plum text-white"
-                            : u.role === "advance"
-                            ? "bg-plum/15 text-plum border border-plum/30"
                             : "bg-plum/5 text-muted-label border border-plum/15"
                         }`}
                       >
-                        {u.role === "advance" && <HiSparkles className="w-3 h-3 text-plum" />}
-                        <span>{u.role || "general"}</span>
+                        <span>{u.role === "admin" ? "Admin" : "General"}</span>
                       </span>
                     </td>
 
@@ -592,12 +559,11 @@ export default function AdminDashboardPage() {
                     <td className="py-3.5 px-3 text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end">
                         <select
-                          value={u.role || "general"}
+                          value={u.role === "admin" ? "admin" : "general"}
                           onChange={(e) => handleUpdateRole(u.id, u.name, e.target.value)}
                           className="imlaa-input text-xs py-1.5 px-3 bg-white font-semibold border-plum/25 text-body-dark hover:border-plum focus:border-plum cursor-pointer rounded-xl max-w-37.5"
                         >
-                          <option value="general">General (Free)</option>
-                          <option value="advance">Advance (Premium)</option>
+                          <option value="general">General Member</option>
                           <option value="admin">Platform Admin</option>
                         </select>
                       </div>
@@ -729,12 +695,10 @@ export default function AdminDashboardPage() {
                         className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase ${
                           selectedUser.role === "admin"
                             ? "bg-plum text-white"
-                            : selectedUser.role === "advance"
-                            ? "bg-plum/15 text-plum border border-plum/30"
                             : "bg-plum/10 text-plum border border-plum/15"
                         }`}
                       >
-                        {selectedUser.role || "general"}
+                        {selectedUser.role === "admin" ? "Admin" : "General"}
                       </span>
                     </div>
                     <div className="text-sm text-muted-label mt-0.5">
@@ -781,19 +745,13 @@ export default function AdminDashboardPage() {
                 </div>
 
                 <div className="text-xs text-muted-label leading-relaxed">
-                  {(selectedUser.role || "general") === "general" && (
-                    <p>
-                      <strong className="text-body-dark">General Free Tier:</strong> Candidate has access to Core Vocabulary Flashcards, Spelling Drills, and standard Grammar tests.
-                    </p>
-                  )}
-                  {selectedUser.role === "advance" && (
-                    <p className="text-body-dark font-medium">
-                      <strong className="text-plum">Advance Premium Tier:</strong> Candidate is authorized for custom vocabulary uploads, native language translations, untimed/high-volume quizzes, and priority voice synthesis.
-                    </p>
-                  )}
-                  {selectedUser.role === "admin" && (
+                  {selectedUser.role === "admin" ? (
                     <p className="text-body-dark font-medium">
                       <strong className="text-plum">Platform Administrator:</strong> Full platform authority to manage candidate credentials, review audit trails, and alter system parameters.
+                    </p>
+                  ) : (
+                    <p>
+                      <strong className="text-body-dark">General Free Tier:</strong> Candidate has access to Core Vocabulary Flashcards, Spelling Drills, and standard Grammar tests.
                     </p>
                   )}
                 </div>
@@ -805,28 +763,14 @@ export default function AdminDashboardPage() {
                   <button
                     type="button"
                     onClick={() => handleUpdateRole(selectedUser.id, selectedUser.name, "general")}
-                    disabled={(selectedUser.role || "general") === "general"}
+                    disabled={selectedUser.role !== "admin"}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-                      (selectedUser.role || "general") === "general"
+                      selectedUser.role !== "admin"
                         ? "bg-plum/15 text-plum border border-plum/30 cursor-default"
                         : "bg-white hover:bg-plum/10 text-body-dark border border-plum/20 cursor-pointer"
                     }`}
                   >
                     ↩ Set as General
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleUpdateRole(selectedUser.id, selectedUser.name, "advance")}
-                    disabled={selectedUser.role === "advance"}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1 ${
-                      selectedUser.role === "advance"
-                        ? "bg-plum text-white font-bold shadow-xs cursor-default"
-                        : "bg-plum/5 hover:bg-plum/15 text-plum font-bold border border-plum/25 cursor-pointer"
-                    }`}
-                  >
-                    <HiSparkles className="w-3.5 h-3.5" />
-                    <span>Grant Advance</span>
                   </button>
 
                   <button
@@ -839,7 +783,7 @@ export default function AdminDashboardPage() {
                         : "bg-plum/5 hover:bg-plum/15 text-plum font-bold border border-plum/25 cursor-pointer"
                     }`}
                   >
-                    Promote to Admin
+                    🛡️ Promote to Admin
                   </button>
                 </div>
               </div>

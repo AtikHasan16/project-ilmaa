@@ -17,11 +17,11 @@ import { showConfirmModal } from "../utils/sweetalert";
  * - Desktop/Tablet: Left-side floating vertical dock
  * - Mobile: Bottom floating navigation bar
  * - Strict plum palette: Active items use `#6D4E56`, inactive use muted tones
- * - Role-gated items: Upload to Study (Advance/Admin) and Admin Dashboard (Admin only)
+ * - Role-gated items: Upload to Study and Admin Dashboard (Admin only)
  */
 
 export default function NavigationDock() {
-  const { user, logout, isAdmin, isAdvanceOrAdmin } = useAuth();
+  const { user, logout, isAdmin } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -63,7 +63,7 @@ export default function NavigationDock() {
       to: "/workspace/upload",
       label: "Upload Study",
       icon: HiCloudArrowUp,
-      show: isAdvanceOrAdmin,
+      show: isAdmin,
     },
     {
       to: "/workspace/vocab-monitor",

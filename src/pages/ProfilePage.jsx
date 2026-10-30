@@ -365,11 +365,9 @@ export default function ProfilePage() {
             <div className="inline-flex items-center space-x-1.5 px-3.5 py-1 rounded-full bg-plum/10 text-plum text-sm font-bold border border-plum/20">
               <HiShieldCheck className="w-4 h-4 text-plum" />
               <span>
-                {role === "advance"
-                  ? "Advance Tier"
-                  : role === "admin"
+                {role === "admin"
                   ? "Platform Admin"
-                  : "Free General Member"}
+                  : "General Member"}
               </span>
             </div>
           </div>
