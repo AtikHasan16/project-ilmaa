@@ -176,8 +176,8 @@ export default function NavigationDock() {
       {/* ==================================================== */}
       {/* Mobile: Floating Bottom Navigation Dock             */}
       {/* ==================================================== */}
-      <nav className="md:hidden fixed bottom-4 left-4 right-4 z-50">
-        <div className="imlaa-card px-4 py-2 flex items-center justify-around shadow-lg">
+      <nav className="md:hidden fixed bottom-2 left-2 right-2 z-50 pointer-events-auto">
+        <div className="imlaa-card px-2 py-1.5 flex items-center justify-around shadow-xl bg-white/95 backdrop-blur-md border border-plum/20 rounded-2xl overflow-x-auto">
           {navItems
             .filter((item) => item.show)
             .map((item) => {
@@ -187,15 +187,17 @@ export default function NavigationDock() {
                   key={item.to}
                   to={item.to}
                   className={({ isActive }) =>
-                    `flex flex-col items-center justify-center py-1.5 px-3 rounded-lg transition-colors duration-150 ${
+                    `min-w-11 min-h-11 flex flex-col items-center justify-center p-1 rounded-xl transition-all duration-150 shrink-0 ${
                       isActive
-                        ? "text-plum font-semibold"
-                        : "text-muted-label hover:text-body-dark"
+                        ? "text-plum font-bold bg-plum/10"
+                        : "text-muted-label hover:text-body-dark active:scale-95"
                     }`
                   }
                 >
-                  <Icon className="w-6 h-6" />
-                  <span className="text-base mt-1">{item.label}</span>
+                  <Icon className="w-5 h-5" />
+                  <span className="text-[10px] leading-tight mt-0.5 max-w-13.5 truncate text-center">
+                    {item.label}
+                  </span>
                 </NavLink>
               );
             })}
@@ -203,27 +205,27 @@ export default function NavigationDock() {
           <NavLink
             to="/workspace/profile"
             className={({ isActive }) =>
-              `flex flex-col items-center justify-center py-1.5 px-3 rounded-lg transition-colors duration-150 ${
+              `min-w-11 min-h-11 flex flex-col items-center justify-center p-1 rounded-xl transition-all duration-150 shrink-0 ${
                 isActive
-                  ? "text-plum font-semibold"
-                  : "text-muted-label hover:text-body-dark"
+                  ? "text-plum font-bold bg-plum/10"
+                  : "text-muted-label hover:text-body-dark active:scale-95"
               }`
             }
           >
-            <div className="w-6 h-6 rounded-full bg-plum/10 text-plum font-bold flex items-center justify-center text-xs">
+            <div className="w-5 h-5 rounded-full bg-plum/15 text-plum font-bold flex items-center justify-center text-[10px]">
               {(user?.name || "U").charAt(0)}
             </div>
-            <span className="text-base mt-1">Profile</span>
+            <span className="text-[10px] leading-tight mt-0.5">Profile</span>
           </NavLink>
 
           <button
             type="button"
             onClick={handleLogout}
             title="Exit Workspace"
-            className="flex flex-col items-center justify-center py-1.5 px-3 rounded-lg text-muted-label hover:text-plum transition-colors duration-150"
+            className="min-w-11 min-h-11 flex flex-col items-center justify-center p-1 rounded-xl text-muted-label hover:text-plum active:scale-95 transition-all duration-150 shrink-0 cursor-pointer"
           >
-            <HiArrowRightOnRectangle className="w-6 h-6" />
-            <span className="text-base mt-1">Exit</span>
+            <HiArrowRightOnRectangle className="w-5 h-5" />
+            <span className="text-[10px] leading-tight mt-0.5">Exit</span>
           </button>
         </div>
       </nav>

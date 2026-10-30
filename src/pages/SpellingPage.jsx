@@ -469,17 +469,17 @@ export default function SpellingPage() {
   return (
     <div className="w-full flex flex-col space-y-7 animate-slide-up">
       {/* 1. Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-plum/15">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-4 border-b border-plum/15">
         <div>
-          <div className="flex items-center space-x-3">
-            <h1 className="text-3xl font-black text-body-dark tracking-tight">
+          <div className="flex flex-wrap items-center gap-2 sm:space-x-3">
+            <h1 className="text-2xl sm:text-3xl font-black text-body-dark tracking-tight">
               Spelling Dictation
             </h1>
-            <span className="imlaa-badge text-base py-1 px-3">
+            <span className="imlaa-badge text-xs sm:text-base py-0.5 sm:py-1 px-2.5 sm:px-3">
               Acoustic Input
             </span>
           </div>
-          <p className="text-base text-muted-label mt-1">
+          <p className="text-xs sm:text-base text-muted-label mt-1">
             Listen to native pronunciations, transcribe accurately, and eliminate misspellings.
           </p>
         </div>
@@ -487,9 +487,9 @@ export default function SpellingPage() {
         <button
           type="button"
           onClick={() => startRandomQuiz(filteredGroups[0])}
-          className="imlaa-btn-secondary text-sm py-2 px-4 flex items-center space-x-2"
+          className="imlaa-btn-secondary text-xs sm:text-sm py-2 px-3 sm:px-4 flex items-center space-x-2 self-start sm:self-auto min-h-11"
         >
-          <HiSparkles className="w-4 h-4 text-plum" />
+          <HiSparkles className="w-4 h-4 text-plum shrink-0" />
           <span>Random Spelling Quiz</span>
         </button>
       </div>
@@ -721,23 +721,23 @@ export default function SpellingPage() {
                   )}
 
                   {/* Buttons */}
-                  <div className="flex items-center gap-3 pt-2">
+                  <div className="flex flex-col sm:flex-row items-center gap-3 pt-2 w-full">
                     {!hasAnsweredCurrent ? (
                       <>
                         <button
                           type="submit"
                           disabled={evaluating || !spellingInput.trim()}
-                          className="imlaa-btn-primary flex-1 py-3.5 text-base font-bold"
+                          className="imlaa-btn-primary w-full sm:flex-1 py-3 sm:py-3.5 text-sm sm:text-base font-bold min-h-11"
                         >
                           Check Spelling
                         </button>
                         <button
                           type="button"
                           onClick={handleRevealAnswer}
-                          className="imlaa-btn-secondary py-3.5 px-4 text-sm flex items-center space-x-1.5"
+                          className="imlaa-btn-secondary w-full sm:w-auto py-3 sm:py-3.5 px-4 text-xs sm:text-sm flex items-center justify-center space-x-1.5 min-h-11"
                           title="Reveal correct spelling"
                         >
-                          <HiEye className="w-4 h-4" />
+                          <HiEye className="w-4 h-4 shrink-0" />
                           <span>Reveal</span>
                         </button>
                       </>
@@ -745,10 +745,10 @@ export default function SpellingPage() {
                       <button
                         type="button"
                         onClick={handleNextWord}
-                        className="imlaa-btn-primary w-full py-3.5 text-base font-bold flex items-center justify-center space-x-2"
+                        className="imlaa-btn-primary w-full py-3 sm:py-3.5 text-sm sm:text-base font-bold flex items-center justify-center space-x-2 min-h-11"
                       >
                         <span>{currentIndex === activeWords.length - 1 ? "Complete Session" : "Next Word"}</span>
-                        <HiChevronRight className="w-5 h-5" />
+                        <HiChevronRight className="w-5 h-5 shrink-0" />
                       </button>
                     )}
                   </div>
@@ -756,14 +756,14 @@ export default function SpellingPage() {
 
                 {/* Anti-Skip Notice (Item 2 Rule) */}
                 {!hasAnsweredCurrent && (
-                  <p className="text-xs text-muted-label">
+                  <p className="text-xs text-muted-label text-center">
                     Answer or click "Reveal" to advance to the next word.
                   </p>
                 )}
               </div>
 
               {/* Bottom Navigation */}
-              <div className="flex items-center justify-between gap-4 pt-1">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1 w-full">
                 <button
                   type="button"
                   onClick={() => {
@@ -776,9 +776,9 @@ export default function SpellingPage() {
                     }
                   }}
                   disabled={currentIndex === 0}
-                  className="imlaa-btn-secondary py-3 px-5 text-base flex items-center space-x-2"
+                  className="imlaa-btn-secondary py-2.5 sm:py-3 px-4 sm:px-5 text-sm sm:text-base flex items-center justify-center space-x-2 w-full sm:w-auto min-h-11"
                 >
-                  <HiChevronLeft className="w-5 h-5" />
+                  <HiChevronLeft className="w-5 h-5 shrink-0" />
                   <span>Previous</span>
                 </button>
 
@@ -786,7 +786,7 @@ export default function SpellingPage() {
                   type="button"
                   onClick={handleNextWord}
                   disabled={!hasAnsweredCurrent}
-                  className={`py-3 px-6 text-base font-bold rounded-xl flex items-center space-x-2 transition ${
+                  className={`py-2.5 sm:py-3 px-5 sm:px-6 text-sm sm:text-base font-bold rounded-xl flex items-center justify-center space-x-2 transition w-full sm:w-auto min-h-11 ${
                     !hasAnsweredCurrent
                       ? "bg-plum/20 text-white/60 cursor-not-allowed"
                       : "imlaa-btn-primary cursor-pointer"

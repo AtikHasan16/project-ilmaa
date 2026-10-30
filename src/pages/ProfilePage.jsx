@@ -255,25 +255,25 @@ export default function ProfilePage() {
   return (
     <div className="w-full max-w-5xl mx-auto space-y-8 animate-slide-up pb-12">
       {/* Page Title & Status Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-plum/15">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-4 border-b border-plum/15">
         <div>
-          <h1 className="text-3xl font-black text-body-dark tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-black text-body-dark tracking-tight">
             User Profile & Learning Analytics
           </h1>
-          <p className="text-lg text-muted-label mt-1">
+          <p className="text-xs sm:text-base text-muted-label mt-1">
             Personal academic record, session performance, and account credentials.
           </p>
         </div>
 
-        <div className="flex items-center space-x-3">
+        <div className="flex flex-wrap items-center gap-2 sm:space-x-3 self-start sm:self-auto">
           <Link
             to="/support-us"
-            className="imlaa-btn-secondary py-2.5 px-4 text-base space-x-2 text-plum hover:bg-plum/10"
+            className="imlaa-btn-secondary py-2 sm:py-2.5 px-3 sm:px-4 text-xs sm:text-base space-x-1.5 text-plum hover:bg-plum/10 min-h-11"
           >
-            <HiHeart className="w-5 h-5 text-plum" />
+            <HiHeart className="w-4 h-4 sm:w-5 sm:h-5 text-plum shrink-0" />
             <span>Support Us</span>
           </Link>
-          <span className="imlaa-badge text-base py-1 px-4 uppercase font-bold tracking-wider">
+          <span className="imlaa-badge text-xs sm:text-base py-1 px-3 sm:px-4 uppercase font-bold tracking-wider">
             {role || "general"} Member
           </span>
         </div>
@@ -502,26 +502,26 @@ export default function ProfilePage() {
         </div>
 
         {/* Action Controls */}
-        <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3 w-full sm:w-auto">
+        <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
             <button
               type="button"
               onClick={() => navigate("/workspace/flashcard")}
-              className="imlaa-btn-secondary w-full sm:w-auto py-3 px-6 text-base font-semibold"
+              className="imlaa-btn-secondary w-full sm:w-auto py-2.5 sm:py-3 px-4 sm:px-6 text-sm sm:text-base font-semibold min-h-11"
             >
               Flashcards Drill
             </button>
             <button
               type="button"
               onClick={() => navigate("/workspace/spelling")}
-              className="imlaa-btn-secondary w-full sm:w-auto py-3 px-6 text-base font-semibold"
+              className="imlaa-btn-secondary w-full sm:w-auto py-2.5 sm:py-3 px-4 sm:px-6 text-sm sm:text-base font-semibold min-h-11"
             >
               Spelling Practice
             </button>
             <button
               type="button"
               onClick={() => navigate("/workspace/grammar")}
-              className="imlaa-btn-secondary w-full sm:w-auto py-3 px-6 text-base font-semibold"
+              className="imlaa-btn-secondary w-full sm:w-auto py-2.5 sm:py-3 px-4 sm:px-6 text-sm sm:text-base font-semibold min-h-11"
             >
               Grammar Drills
             </button>
@@ -530,9 +530,9 @@ export default function ProfilePage() {
           <button
             type="button"
             onClick={handleLogout}
-            className="imlaa-btn-primary w-full sm:w-auto py-3 px-6 text-base space-x-2 bg-rose-700 hover:bg-rose-800 cursor-pointer"
+            className="imlaa-btn-primary w-full sm:w-auto py-2.5 sm:py-3 px-4 sm:px-6 text-sm sm:text-base space-x-2 bg-rose-700 hover:bg-rose-800 cursor-pointer min-h-11"
           >
-            <HiArrowRightOnRectangle className="w-5 h-5" />
+            <HiArrowRightOnRectangle className="w-5 h-5 shrink-0" />
             <span>Sign Out</span>
           </button>
         </div>

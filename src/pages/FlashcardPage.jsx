@@ -509,29 +509,29 @@ export default function FlashcardPage() {
   return (
     <div className="w-full flex flex-col space-y-7 animate-slide-up">
       {/* 1. Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-plum/15">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-4 border-b border-plum/15">
         <div>
-          <div className="flex items-center space-x-3">
-            <h1 className="text-3xl font-black text-body-dark tracking-tight">
+          <div className="flex flex-wrap items-center gap-2 sm:space-x-3">
+            <h1 className="text-2xl sm:text-3xl font-black text-body-dark tracking-tight">
               Vocabulary Flashcards
             </h1>
-            <span className="imlaa-badge text-base py-1 px-3">
+            <span className="imlaa-badge text-xs sm:text-base py-0.5 sm:py-1 px-2.5 sm:px-3">
               {vocabStats?.totalCount || 300} Lexemes
             </span>
           </div>
-          <p className="text-base text-muted-label mt-1">
+          <p className="text-xs sm:text-base text-muted-label mt-1">
             Active recall, confidence self-assessment & targeted mistake drill.
           </p>
         </div>
 
         {/* Global Action Buttons */}
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-3 self-start sm:self-auto">
           <button
             type="button"
             onClick={() => startRandomQuiz(filteredGroups[0])}
-            className="imlaa-btn-secondary text-sm py-2 px-4 flex items-center space-x-2"
+            className="imlaa-btn-secondary text-xs sm:text-sm py-2 px-3 sm:px-4 flex items-center space-x-2 min-h-11"
           >
-            <HiSparkles className="w-4 h-4 text-plum" />
+            <HiSparkles className="w-4 h-4 text-plum shrink-0" />
             <span>Random Quiz</span>
           </button>
         </div>
@@ -864,7 +864,7 @@ export default function FlashcardPage() {
               </div>
 
               {/* Bottom Nav Controls (Prev / Next) */}
-              <div className="flex items-center justify-between gap-4 pt-2">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 w-full">
                 <button
                   type="button"
                   onClick={() => {
@@ -876,16 +876,16 @@ export default function FlashcardPage() {
                     }
                   }}
                   disabled={currentIndex === 0}
-                  className="imlaa-btn-secondary py-3 px-5 text-base flex items-center space-x-2"
+                  className="imlaa-btn-secondary py-2.5 sm:py-3 px-4 sm:px-5 text-sm sm:text-base flex items-center justify-center space-x-2 w-full sm:w-auto min-h-11"
                 >
-                  <HiChevronLeft className="w-5 h-5" />
+                  <HiChevronLeft className="w-5 h-5 shrink-0" />
                   <span>Previous</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setIsFlipped((prev) => !prev)}
-                  className="imlaa-btn-secondary py-3 px-4 text-sm"
+                  className="imlaa-btn-secondary py-2.5 sm:py-3 px-4 text-xs sm:text-sm w-full sm:w-auto min-h-11"
                 >
                   {isFlipped ? "Flip to Word" : "Flip to Meaning"}
                 </button>
@@ -906,10 +906,10 @@ export default function FlashcardPage() {
                       setViewMode("finished");
                     }
                   }}
-                  className="imlaa-btn-primary py-3 px-5 text-base flex items-center space-x-2"
+                  className="imlaa-btn-primary py-2.5 sm:py-3 px-4 sm:px-5 text-sm sm:text-base flex items-center justify-center space-x-2 w-full sm:w-auto min-h-11"
                 >
                   <span>{currentIndex === activeWords.length - 1 ? "Finish Drill" : "Next Word"}</span>
-                  <HiChevronRight className="w-5 h-5" />
+                  <HiChevronRight className="w-5 h-5 shrink-0" />
                 </button>
               </div>
             </div>

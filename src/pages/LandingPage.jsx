@@ -278,11 +278,11 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-white text-body-dark flex flex-col justify-between px-4 sm:px-8 pt-6">
+    <div className="min-h-screen w-full bg-white text-body-dark flex flex-col justify-between px-3 sm:px-6 md:px-8 pt-4 sm:pt-6 overflow-x-hidden">
       {/* Top Navbar */}
-      <header className="w-full max-w-6xl mx-auto flex items-center justify-between pb-6">
-        <div className="flex items-center space-x-2">
-          <span className="font-black text-2xl tracking-tight text-body-dark">
+      <header className="w-full max-w-6xl mx-auto flex items-center justify-between pb-4 sm:pb-6 gap-3">
+        <div className="flex items-center space-x-2 shrink-0">
+          <span className="font-black text-xl sm:text-2xl tracking-tight text-body-dark">
             Imlaa<span className="text-plum">.</span>
           </span>
           <span className="hidden sm:inline-block px-2.5 py-0.5 rounded-full bg-plum/10 text-plum text-xs font-bold tracking-wide">
@@ -290,83 +290,83 @@ export default function LandingPage() {
           </span>
         </div>
 
-        <div className="flex items-center space-x-5 text-sm font-semibold">
+        <div className="flex items-center space-x-3 sm:space-x-5 text-xs sm:text-sm font-semibold">
           <Link
             to="/about"
-            className="text-muted-label hover:text-plum transition"
+            className="text-muted-label hover:text-plum transition min-h-11 flex items-center px-1"
           >
             About
           </Link>
           <Link
             to="/contact"
-            className="text-muted-label hover:text-plum transition"
+            className="text-muted-label hover:text-plum transition min-h-11 flex items-center px-1"
           >
             Contact
           </Link>
           <Link
             to="/support-us"
-            className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg border border-plum/20 bg-plum/5 hover:bg-plum/10 text-plum font-bold transition"
+            className="inline-flex items-center space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg border border-plum/20 bg-plum/5 hover:bg-plum/10 text-plum font-bold transition min-h-11"
           >
-            <HiHeart className="w-4 h-4 text-plum" />
+            <HiHeart className="w-4 h-4 text-plum shrink-0" />
             <span>Support Us</span>
           </Link>
         </div>
       </header>
 
       {/* Main Grid */}
-      <main className="w-full max-w-6xl mx-auto my-auto grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center py-6">
+      <main className="w-full max-w-6xl mx-auto my-auto grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-14 items-center py-4 sm:py-6">
         {/* Left Column: Hero, Framework & Phoneme Sample */}
-        <div className="lg:col-span-7 flex flex-col space-y-7">
+        <div className="lg:col-span-7 flex order-1 flex-col space-y-5 sm:space-y-7">
           <div>
-            <div className="flex items-center space-x-2 text-base uppercase font-bold tracking-[0.2em] text-plum mb-3">
+            <div className="flex items-center space-x-2 text-xs sm:text-base uppercase font-bold tracking-[0.2em] text-plum mb-2 sm:mb-3">
               <span className="w-2.5 h-2.5 rounded-full bg-plum inline-block"></span>
               <span>Linguistic Mastery Platform</span>
             </div>
 
-            <h1 className="text-6xl sm:text-7xl font-black tracking-tight text-body-dark leading-none mb-3">
+            <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight text-body-dark leading-tight mb-2 sm:mb-3 wrap-break-word">
               Imlaa<span className="text-plum">.</span>
             </h1>
 
-            <div className="text-xl sm:text-2xl font-mono text-muted-label tracking-wide flex items-center space-x-3 mb-6">
+            <div className="text-base sm:text-xl lg:text-2xl font-mono text-muted-label tracking-wide flex flex-wrap items-center gap-2 sm:space-x-3 mb-4 sm:mb-6">
               <span>/ˈɪm.lɑː/</span>
-              <span className="text-plum/40">•</span>
-              <span className="text-body-dark font-sans font-medium text-lg">
+              <span className="text-plum/40 hidden sm:inline">•</span>
+              <span className="text-body-dark font-sans font-medium text-sm sm:text-lg">
                 Noun (Arabic: إملاء) —{" "}
                 <span className="italic">Orthography & Dictation</span>
               </span>
             </div>
 
-            <p className="text-lg sm:text-xl text-body-dark font-medium leading-relaxed max-w-2xl mb-2">
+            <p className="text-base sm:text-lg lg:text-xl text-body-dark font-medium leading-relaxed max-w-2xl mb-2">
               High-frequency academic lexicon, phonetic transcription, and
               acoustic spelling dictation for IELTS candidates.
             </p>
           </div>
 
           {/* Interactive Pronunciation Banner */}
-          <div className="imlaa-card p-5 bg-plum/5 border border-plum/20 flex items-center justify-between shadow-xs">
-            <div className="flex items-center space-x-4">
+          <div className="imlaa-card p-4 sm:p-5 bg-plum/5 border border-plum/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs">
+            <div className="flex items-center space-x-3 sm:space-x-4">
               <button
                 type="button"
                 onClick={playPhonemeSample}
-                className="w-12 h-12 rounded-xl bg-plum hover:bg-plum-hover text-white flex items-center justify-center transition shadow-xs cursor-pointer active:scale-95"
+                className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-plum hover:bg-plum-hover text-white flex items-center justify-center transition shadow-xs cursor-pointer active:scale-95 shrink-0"
                 title="Listen to Christopher Neural pronunciation"
               >
                 <HiVolumeUp
-                  className={`w-6 h-6 ${playingAudio ? "animate-pulse" : ""}`}
+                  className={`w-5 h-5 sm:w-6 sm:h-6 ${playingAudio ? "animate-pulse" : ""}`}
                 />
               </button>
               <div>
-                <div className="text-base font-bold text-body-dark">
+                <div className="text-sm sm:text-base font-bold text-body-dark">
                   Listen to Native Phonetics
                 </div>
-                <div className="text-sm text-muted-label">
+                <div className="text-xs sm:text-sm text-muted-label">
                   Voice Synthesis via Microsoft Christopher Neural
                 </div>
               </div>
             </div>
 
             {/* Audio Wave Graphic Simulation */}
-            <div className="flex items-center space-x-1.5 pr-2">
+            <div className="flex items-center space-x-1.5 self-end sm:self-center pr-2">
               <span
                 className={`w-1.5 rounded-full bg-plum transition-all ${playingAudio ? "h-8 animate-pulse" : "h-4"}`}
               />
@@ -390,11 +390,11 @@ export default function LandingPage() {
         </div>
 
         {/* Right Column: Supabase Authentication Widget */}
-        <div className="lg:col-span-5 flex flex-col justify-center">
-          <div className="imlaa-card p-6 sm:p-8 border border-plum/20 shadow-md">
+        <div className="lg:col-span-5 flex flex-col justify-center w-full">
+          <div className="imlaa-card p-5 sm:p-8 border border-plum/20 shadow-md w-full">
             {/* Header: Sign In vs Create Account OR Forgot Password Header */}
             {authMode === "signin" || authMode === "signup" ? (
-              <div className="flex items-center justify-between mb-6 pb-2 border-b border-plum/15">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-6 pb-2 border-b border-plum/15">
                 <div className="flex items-center space-x-2">
                   <button
                     type="button"
@@ -404,7 +404,7 @@ export default function LandingPage() {
                       setInfoMessage("");
                       setIsGoogleAlert(false);
                     }}
-                    className={`text-lg font-bold transition pb-1 cursor-pointer ${
+                    className={`text-base sm:text-lg font-bold transition pb-1 cursor-pointer min-h-11 flex items-center ${
                       authMode === "signin"
                         ? "text-plum border-b-2 border-plum font-black"
                         : "text-muted-label hover:text-body-dark"
@@ -421,7 +421,7 @@ export default function LandingPage() {
                       setInfoMessage("");
                       setIsGoogleAlert(false);
                     }}
-                    className={`text-lg font-bold transition pb-1 cursor-pointer ${
+                    className={`text-base sm:text-lg font-bold transition pb-1 cursor-pointer min-h-11 flex items-center ${
                       authMode === "signup"
                         ? "text-plum border-b-2 border-plum font-black"
                         : "text-muted-label hover:text-body-dark"
@@ -439,7 +439,7 @@ export default function LandingPage() {
                     setInfoMessage("");
                     setIsGoogleAlert(false);
                   }}
-                  className="text-xs font-bold text-plum hover:underline cursor-pointer bg-plum/5 hover:bg-plum/10 px-2.5 py-1 rounded-lg border border-plum/20"
+                  className="text-xs font-bold text-plum hover:underline cursor-pointer bg-plum/5 hover:bg-plum/10 px-2.5 py-1.5 rounded-lg border border-plum/20 min-h-9 flex items-center"
                 >
                   Forgot Password?
                 </button>
