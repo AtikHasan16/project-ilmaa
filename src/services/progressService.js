@@ -1,13 +1,122 @@
 import { supabase } from "./supabaseClient";
 import { requireSupabaseUserId, toCamel } from "./dataMappers";
 
-async function callProgressRpc(functionName, parameters) {
-  const { data, error } = await supabase.rpc(functionName, parameters);
-  if (error) throw error;
-  if (!data || typeof data !== "object") {
-    throw new Error(`The ${functionName} RPC returned an invalid progress result.`);
+async function fallbackRecordSpelling({ p_topic, p_word, p_is_correct, p_last_index }) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.id) throw new Error("Authentication is required to save progress");
+
+  const { data: existing } = await supabase
+    .from("spelling_progress")
+    .select("*")
+    .eq("user_id", user.id)
+    .eq("topic", p_topic)
+    .maybeSingle();
+
+  const mastered = new Set(existing?.mastered_words || []);
+  const incorrect = new Set(existing?.incorrect_words || []);
+
+  if (p_is_correct) {
+    mastered.add(p_word);
+    incorrect.delete(p_word);
+  } else {
+    incorrect.add(p_word);
+    mastered.delete(p_word);
   }
-  return data;
+
+  const payload = {
+    user_id: user.id,
+    topic: p_topic,
+    mastered_words: [...mastered],
+    incorrect_words: [...incorrect],
+    last_index: Math.max(0, p_last_index || 0),
+    updated_at: new Date().toISOString(),
+  };
+
+  const { data, error } = await supabase
+    .from("spelling_progress")
+    .upsert(payload, { onConflict: "user_id,topic" })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return {
+    masteredWords: data.mastered_words,
+    incorrectWords: data.incorrect_words,
+    lastIndex: data.last_index,
+  };
+}
+
+async function fallbackRecordFlashcard({ p_topic, p_word, p_status, p_last_index }) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.id) throw new Error("Authentication is required to save progress");
+
+  const { data: existing } = await supabase
+    .from("flashcard_progress")
+    .select("*")
+    .eq("user_id", user.id)
+    .eq("topic", p_topic)
+    .maybeSingle();
+
+  const known = new Set(existing?.known_words || []);
+  const unknown = new Set(existing?.unknown_words || []);
+  const forgot = new Set(existing?.forgot_words || []);
+
+  known.delete(p_word);
+  unknown.delete(p_word);
+  forgot.delete(p_word);
+
+  if (p_status === "knew") known.add(p_word);
+  else if (p_status === "forgot") forgot.add(p_word);
+  else unknown.add(p_word);
+
+  const payload = {
+    user_id: user.id,
+    topic: p_topic,
+    known_words: [...known],
+    unknown_words: [...unknown],
+    forgot_words: [...forgot],
+    last_index: Math.max(0, p_last_index || 0),
+    updated_at: new Date().toISOString(),
+  };
+
+  const { data, error } = await supabase
+    .from("flashcard_progress")
+    .upsert(payload, { onConflict: "user_id,topic" })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return {
+    knownWords: data.known_words,
+    unknownWords: data.unknown_words,
+    forgotWords: data.forgot_words,
+    lastIndex: data.last_index,
+  };
+}
+
+async function callProgressRpc(functionName, parameters) {
+  try {
+    const { data, error } = await supabase.rpc(functionName, parameters);
+    if (!error && data && typeof data === "object") {
+      return data;
+    }
+    if (error && error.code !== "PGRST202") {
+      throw error;
+    }
+  } catch (rpcErr) {
+    if (rpcErr.code !== "PGRST202" && !rpcErr.message?.includes("schema cache") && !rpcErr.message?.includes("404")) {
+      throw rpcErr;
+    }
+  }
+
+  // Graceful fallback to table-level upsert if RPC is missing
+  if (functionName === "record_spelling_result") {
+    return fallbackRecordSpelling(parameters);
+  } else if (functionName === "record_flashcard_result") {
+    return fallbackRecordFlashcard(parameters);
+  }
+
+  throw new Error(`The ${functionName} RPC returned an invalid progress result.`);
 }
 
 async function loadVocabularyProgress(userId) {

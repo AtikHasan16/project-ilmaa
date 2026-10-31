@@ -76,7 +76,11 @@ export default function ProfilePage() {
           .maybeSingle(),
         supabase.from("spelling_progress").select("*").eq("user_id", user.id),
         supabase.from("flashcard_progress").select("*").eq("user_id", user.id),
-        supabase.from("grammar_progress").select("*").eq("user_id", user.id).maybeSingle(),
+        supabase
+          .from("grammar_progress")
+          .select("*")
+          .eq("user_id", user.id)
+          .maybeSingle(),
         fetchUserBadges(user.id),
       ]);
 
@@ -92,8 +96,12 @@ export default function ProfilePage() {
       const grammarData = toCamel(rawGrammarData);
 
       const uniqueMastered = new Set();
-      spellingRows.forEach((r) => (r.masteredWords || []).forEach((w) => uniqueMastered.add(w)));
-      flashcardRows.forEach((r) => (r.knownWords || []).forEach((w) => uniqueMastered.add(w)));
+      spellingRows.forEach((r) =>
+        (r.masteredWords || []).forEach((w) => uniqueMastered.add(w)),
+      );
+      flashcardRows.forEach((r) =>
+        (r.knownWords || []).forEach((w) => uniqueMastered.add(w)),
+      );
 
       const totalPractices =
         spellingRows.length +
@@ -192,9 +200,7 @@ export default function ProfilePage() {
 
         const imgbbData = await imgbbRes.json();
         if (!imgbbData.success) {
-          throw new Error(
-            imgbbData.error?.message || "Failed to upload image to ImgBB.",
-          );
+          throw new Error(imgbbData.error?.message || "Failed to upload image to ImgBB.");
         }
 
         finalAvatarUrl = imgbbData.data?.display_url || imgbbData.data?.url;
@@ -217,9 +223,7 @@ export default function ProfilePage() {
       }
     } catch (err) {
       console.error("Profile save error:", err);
-      setEditError(
-        err.message || "An unexpected error occurred while saving profile.",
-      );
+      setEditError(err.message || "An unexpected error occurred while saving profile.");
     } finally {
       setIsUploading(false);
     }
@@ -267,7 +271,7 @@ export default function ProfilePage() {
             type="button"
             onClick={handleExportCertificate}
             title="Export Verified Study Certificate"
-            className="imlaa-btn-primary py-2 sm:py-2.5 px-3 sm:px-4 text-xs sm:text-base space-x-1.5 min-h-11 shadow-sm"
+            className="imlaa-btn-primary py-2 sm:py-2.5 px-3 sm:px-4 text-xs sm:text-base space-x-1 min-h-11 shadow-sm"
           >
             <HiArrowDownTray className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
             <span>Export Certificate</span>
@@ -280,9 +284,6 @@ export default function ProfilePage() {
             <HiHeart className="w-4 h-4 sm:w-5 sm:h-5 text-plum shrink-0" />
             <span>Support Us</span>
           </Link>
-          <span className="imlaa-badge text-xs sm:text-base py-1 px-3 sm:px-4 uppercase font-bold tracking-wider">
-            {role || "general"} Member
-          </span>
         </div>
       </div>
 
@@ -374,9 +375,7 @@ export default function ProfilePage() {
             </span>
             <div className="inline-flex items-center space-x-1.5 px-3.5 py-1 rounded-full bg-plum/10 text-plum text-sm font-bold border border-plum/20">
               <HiShieldCheck className="w-4 h-4 text-plum" />
-              <span>
-                {role === "admin" ? "Platform Admin" : "General Member"}
-              </span>
+              <span>{role === "admin" ? "Platform Admin" : "General Member"}</span>
             </div>
           </div>
         </div>
@@ -394,7 +393,8 @@ export default function ProfilePage() {
               </span>
             </div>
             <p className="text-xs sm:text-sm text-muted-label max-w-xl leading-relaxed">
-              Earn badges for vocabulary mastery thresholds, drill practice milestones, and grammar accuracy.
+              Earn badges for vocabulary mastery thresholds, drill practice milestones,
+              and grammar accuracy.
             </p>
           </div>
 
@@ -418,7 +418,8 @@ export default function ProfilePage() {
               <span>Study Analytics & Learning Performance</span>
             </h3>
             <p className="text-xs sm:text-sm text-muted-label max-w-xl">
-              Track your real-time vocabulary progress, practice drill counts, completed corpus sets, and active spelling mistakes on your learning dashboard.
+              Track your real-time vocabulary progress, practice drill counts, completed
+              corpus sets, and active spelling mistakes on your learning dashboard.
             </p>
           </div>
           <button
@@ -453,9 +454,7 @@ export default function ProfilePage() {
               <div className="text-base font-bold text-body-dark mt-1">
                 {deviceInfo.os}
               </div>
-              <div className="text-xs text-muted-label mt-0.5">
-                {deviceInfo.platform}
-              </div>
+              <div className="text-xs text-muted-label mt-0.5">{deviceInfo.platform}</div>
             </div>
 
             <div className="bg-white p-4 rounded-xl border border-plum/15">
@@ -477,9 +476,7 @@ export default function ProfilePage() {
               <div className="text-base font-bold text-body-dark mt-1 font-mono">
                 {deviceInfo.screenResolution}
               </div>
-              <div className="text-xs text-muted-label mt-0.5">
-                High-DPI Calibrated
-              </div>
+              <div className="text-xs text-muted-label mt-0.5">High-DPI Calibrated</div>
             </div>
           </div>
         </div>
@@ -593,9 +590,7 @@ export default function ProfilePage() {
                     <div className="space-y-2">
                       <label className="imlaa-btn-secondary py-2 px-3.5 text-xs font-bold space-x-1.5 cursor-pointer inline-flex items-center min-h-10">
                         <HiCamera className="w-4 h-4 text-plum" />
-                        <span>
-                          {avatarPreview ? "Change Photo" : "Upload Photo"}
-                        </span>
+                        <span>{avatarPreview ? "Change Photo" : "Upload Photo"}</span>
                         <input
                           type="file"
                           accept="image/png, image/jpeg, image/jpg, image/webp"
@@ -655,7 +650,8 @@ export default function ProfilePage() {
                     <HiEnvelope className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-label" />
                   </div>
                   <p className="text-[11px] text-muted-label mt-1">
-                    Email is bound to your Supabase security session and cannot be changed here.
+                    Email is bound to your Supabase security session and cannot be changed
+                    here.
                   </p>
                 </div>
 

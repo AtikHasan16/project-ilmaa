@@ -5,10 +5,7 @@ import apiClient from "../services/apiClient";
 import { supabase } from "../services/supabaseClient";
 import { toCamel } from "../services/dataMappers";
 import { exportStudyCertificatePDF } from "../utils/exportCertificatePdf";
-import {
-  fetchUserBadges,
-  evaluateAndUnlockBadges,
-} from "../services/badgeService";
+import { fetchUserBadges, evaluateAndUnlockBadges } from "../services/badgeService";
 import BadgesModal from "../components/BadgesModal";
 import OnboardingModal from "../components/OnboardingModal";
 import { SkeletonStat, SkeletonCorpusGrid } from "../components/Skeletons";
@@ -118,7 +115,11 @@ export default function DashboardPage() {
       ] = await Promise.all([
         supabase.from("spelling_progress").select("*").eq("user_id", user.id),
         supabase.from("flashcard_progress").select("*").eq("user_id", user.id),
-        supabase.from("grammar_progress").select("*").eq("user_id", user.id).maybeSingle(),
+        supabase
+          .from("grammar_progress")
+          .select("*")
+          .eq("user_id", user.id)
+          .maybeSingle(),
         fetchUserBadges(user.id),
       ]);
 
@@ -148,7 +149,10 @@ export default function DashboardPage() {
 
       // Combine unique mastered & mistakes
       const allMastered = new Set([...uniqueSpellingMastered, ...uniqueFlashcardKnown]);
-      const allMistakes = new Set([...uniqueSpellingIncorrect, ...uniqueFlashcardMistakes]);
+      const allMistakes = new Set([
+        ...uniqueSpellingIncorrect,
+        ...uniqueFlashcardMistakes,
+      ]);
 
       // Combine corpus sets (All Active + Listening + User's Uploaded)
       const combinedCorpus = [];
@@ -173,7 +177,8 @@ export default function DashboardPage() {
           ...(fcProg?.forgotWords || []),
         ]).size;
 
-        const percent = total > 0 ? Math.min(100, Math.round((masteredInSet / total) * 100)) : 0;
+        const percent =
+          total > 0 ? Math.min(100, Math.round((masteredInSet / total) * 100)) : 0;
         if (percent === 100) completedCorpus += 1;
         else if (percent > 0) inProgressCorpus += 1;
 
@@ -184,7 +189,8 @@ export default function DashboardPage() {
           masteredCount: masteredInSet,
           mistakesCount: mistakesInSet,
           percent,
-          status: percent === 100 ? "completed" : percent > 0 ? "in-progress" : "not-started",
+          status:
+            percent === 100 ? "completed" : percent > 0 ? "in-progress" : "not-started",
         });
       });
 
@@ -205,7 +211,8 @@ export default function DashboardPage() {
           ...(fcProg?.forgotWords || []),
         ]).size;
 
-        const percent = total > 0 ? Math.min(100, Math.round((masteredInSet / total) * 100)) : 0;
+        const percent =
+          total > 0 ? Math.min(100, Math.round((masteredInSet / total) * 100)) : 0;
         if (percent === 100) completedCorpus += 1;
         else if (percent > 0) inProgressCorpus += 1;
 
@@ -216,7 +223,8 @@ export default function DashboardPage() {
           masteredCount: masteredInSet,
           mistakesCount: mistakesInSet,
           percent,
-          status: percent === 100 ? "completed" : percent > 0 ? "in-progress" : "not-started",
+          status:
+            percent === 100 ? "completed" : percent > 0 ? "in-progress" : "not-started",
         });
       });
 
@@ -237,19 +245,21 @@ export default function DashboardPage() {
           ...(fcProg?.forgotWords || []),
         ]).size;
 
-        const percent = total > 0 ? Math.min(100, Math.round((masteredInSet / total) * 100)) : 0;
+        const percent =
+          total > 0 ? Math.min(100, Math.round((masteredInSet / total) * 100)) : 0;
         if (percent === 100) completedCorpus += 1;
         else if (percent > 0) inProgressCorpus += 1;
 
         combinedCorpus.push({
           title: up.title,
           category: "Uploaded",
-          uploaderName: up.uploaderName || (isAdmin ? "Admin" : (user.name || "You")),
+          uploaderName: up.uploaderName || (isAdmin ? "Admin" : user.name || "You"),
           wordsCount: total,
           masteredCount: masteredInSet,
           mistakesCount: mistakesInSet,
           percent,
-          status: percent === 100 ? "completed" : percent > 0 ? "in-progress" : "not-started",
+          status:
+            percent === 100 ? "completed" : percent > 0 ? "in-progress" : "not-started",
         });
       });
 
@@ -259,7 +269,10 @@ export default function DashboardPage() {
         (grammarData?.testsTaken || (grammarData?.highestScore ? 1 : 0));
 
       const totalStudySeconds = allMastered.size * 35 + allMistakes.size * 25;
-      const overallMastery = totalVocab > 0 ? Math.min(100, Math.round((allMastered.size / totalVocab) * 100)) : 0;
+      const overallMastery =
+        totalVocab > 0
+          ? Math.min(100, Math.round((allMastered.size / totalVocab) * 100))
+          : 0;
 
       if (!isMountedRef.current) return;
 
@@ -356,18 +369,13 @@ export default function DashboardPage() {
       {/* ==================================================== */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-plum/15">
         <div>
-          <div className="flex items-center space-x-2 text-xs font-semibold text-plum uppercase tracking-wider mb-1">
+          <div className="flex items-center space-x-2 text-sm font-semibold text-plum uppercase tracking-wider mb-1">
             <HiSparkles className="w-4 h-4 text-plum" />
-            <span>Candidate Learning Workspace</span>
-            <span className="text-plum/40">•</span>
             <span>{todayFormatted}</span>
           </div>
           <h1 className="text-2xl sm:text-4xl font-black text-body-dark tracking-tight">
-            Welcome back, {user?.name || "Candidate"}
+            Welcome back, <span className="text-plum">{user?.name || "Candidate"}</span>
           </h1>
-          <p className="text-xs sm:text-base text-muted-label mt-1">
-            Real-time vocabulary mastery, corpus completion, practice drill analytics, and active mistakes.
-          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 self-start lg:self-auto">
@@ -404,7 +412,9 @@ export default function DashboardPage() {
             aria-label="Refresh Learning Metrics"
             className="imlaa-btn-secondary py-2 px-2.5 text-xs sm:text-sm min-h-11 min-w-11 flex items-center justify-center"
           >
-            <HiArrowPath className={`w-4 h-4 ${refreshing || loading ? "animate-spin text-plum" : ""}`} />
+            <HiArrowPath
+              className={`w-4 h-4 ${refreshing || loading ? "animate-spin text-plum" : ""}`}
+            />
           </button>
 
           {/* Tour / Guide button */}
@@ -417,13 +427,18 @@ export default function DashboardPage() {
           >
             <HiQuestionMarkCircle className="w-4 h-4" />
           </button>
-
+          <Link
+            to="/about"
+            className="imlaa-btn-secondary py-2 px-3 text-xs sm:text-sm space-x-1.5 text-plum hover:bg-plum/10 min-h-11 hidden sm:inline-flex"
+          >
+            <span>About Us</span>
+          </Link>
           <Link
             to="/support-us"
             className="imlaa-btn-secondary py-2 px-3 text-xs sm:text-sm space-x-1.5 text-plum hover:bg-plum/10 min-h-11 hidden sm:inline-flex"
           >
             <HiHeart className="w-4 h-4 text-plum shrink-0" />
-            <span>Support</span>
+            <span>Support Us</span>
           </Link>
         </div>
       </div>
@@ -470,7 +485,9 @@ export default function DashboardPage() {
 
             <div className="text-xs text-muted-label flex items-center justify-between pt-2 border-t border-plum/10">
               <span>Overall Curriculum Mastery</span>
-              <strong className="text-plum font-bold">{metrics.overallMasteryPct}%</strong>
+              <strong className="text-plum font-bold">
+                {metrics.overallMasteryPct}%
+              </strong>
             </div>
           </div>
 
@@ -502,7 +519,12 @@ export default function DashboardPage() {
             <div className="text-xs text-muted-label flex items-center justify-between pt-2 border-t border-plum/10">
               <span>Coverage</span>
               <strong className="text-emerald-700 font-bold">
-                {metrics.totalCorpusSets > 0 ? Math.round((metrics.completedCorpusCount / metrics.totalCorpusSets) * 100) : 0}% Mastered
+                {metrics.totalCorpusSets > 0
+                  ? Math.round(
+                      (metrics.completedCorpusCount / metrics.totalCorpusSets) * 100,
+                    )
+                  : 0}
+                % Mastered
               </strong>
             </div>
           </div>
@@ -528,13 +550,18 @@ export default function DashboardPage() {
                 </span>
               </div>
               <div className="text-xs text-muted-label mt-2">
-                Total practice time: <strong className="text-body-dark">{formatStudyTime(metrics.totalStudySeconds)}</strong>
+                Total practice time:{" "}
+                <strong className="text-body-dark">
+                  {formatStudyTime(metrics.totalStudySeconds)}
+                </strong>
               </div>
             </div>
 
             <div className="text-xs text-muted-label flex items-center justify-between pt-2 border-t border-plum/10">
               <span>Active Study Time</span>
-              <strong className="text-plum font-bold font-mono">{formatStudyTime(metrics.totalStudySeconds)}</strong>
+              <strong className="text-plum font-bold font-mono">
+                {formatStudyTime(metrics.totalStudySeconds)}
+              </strong>
             </div>
           </div>
 
@@ -559,7 +586,8 @@ export default function DashboardPage() {
                 </span>
               </div>
               <div className="text-xs text-rose-700/80 mt-2">
-                {metrics.spellingMistakesCount} spelling errors, {metrics.flashcardMistakesCount} flashcards
+                {metrics.spellingMistakesCount} spelling errors,{" "}
+                {metrics.flashcardMistakesCount} flashcards
               </div>
             </div>
 
@@ -589,10 +617,14 @@ export default function DashboardPage() {
           <div className="space-y-1">
             <div className="flex items-center space-x-2 text-rose-800 font-bold text-base sm:text-lg">
               <HiExclamationCircle className="w-5 h-5 shrink-0" />
-              <span>You have {metrics.totalMistakesCount} vocabulary terms that need review</span>
+              <span>
+                You have {metrics.totalMistakesCount} vocabulary terms that need review
+              </span>
             </div>
             <p className="text-xs sm:text-sm text-rose-700 max-w-2xl leading-relaxed">
-              Drilling words you previously got wrong reinforces long-term retention and is the most effective way to improve your IELTS Academic spelling and lexicon accuracy.
+              Drilling words you previously got wrong reinforces long-term retention and
+              is the most effective way to improve your IELTS Academic spelling and
+              lexicon accuracy.
             </p>
           </div>
 
@@ -645,7 +677,8 @@ export default function DashboardPage() {
               </div>
               <h3 className="text-lg font-bold text-body-dark">Flashcards Drill</h3>
               <p className="text-xs sm:text-sm text-muted-label leading-relaxed">
-                Flip card exercises with Bengali meanings, example usage, audio pronunciation, and confidence tracking (Knew, Forgot, Didn&apos;t Know).
+                Flip card exercises with Bengali meanings, example usage, audio
+                pronunciation, and confidence tracking (Knew, Forgot, Didn&apos;t Know).
               </p>
             </div>
 
@@ -675,7 +708,8 @@ export default function DashboardPage() {
               </div>
               <h3 className="text-lg font-bold text-body-dark">Phonetic Spelling</h3>
               <p className="text-xs sm:text-sm text-muted-label leading-relaxed">
-                Blind audio listening and keyboard input. Eliminates visual crutches so you master orthographic spelling under exam pressure.
+                Blind audio listening and keyboard input. Eliminates visual crutches so
+                you master orthographic spelling under exam pressure.
               </p>
             </div>
 
@@ -707,7 +741,8 @@ export default function DashboardPage() {
               </div>
               <h3 className="text-lg font-bold text-body-dark">Grammar Drills</h3>
               <p className="text-xs sm:text-sm text-muted-label leading-relaxed">
-                Tackle modifiers, comma splices, sentence structure, and complex punctuation with instant answer explanations.
+                Tackle modifiers, comma splices, sentence structure, and complex
+                punctuation with instant answer explanations.
               </p>
             </div>
 
@@ -836,7 +871,9 @@ export default function DashboardPage() {
 
                 <div className="space-y-2 pt-2 border-t border-plum/10">
                   <div className="flex items-center justify-between text-xs text-muted-label">
-                    <span>Progress ({item.masteredCount} / {item.wordsCount} words)</span>
+                    <span>
+                      Progress ({item.masteredCount} / {item.wordsCount} words)
+                    </span>
                     <span className="font-bold text-body-dark">{item.percent}%</span>
                   </div>
                   <div className="w-full bg-plum/15 rounded-full h-2 overflow-hidden">
@@ -882,7 +919,8 @@ export default function DashboardPage() {
             Need to update account credentials or photo?
           </h3>
           <p className="text-xs sm:text-sm text-muted-label">
-            Manage your candidate profile, registered device, and account security credentials.
+            Manage your candidate profile, registered device, and account security
+            credentials.
           </p>
         </div>
 
