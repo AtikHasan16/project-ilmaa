@@ -7,6 +7,7 @@ import { useAuth } from "../context/AuthContext";
 import { speakWithMicrosoftTTS, stopAudioPlayback } from "../utils/speechTts";
 import { showErrorAlert } from "../utils/sweetalert";
 import { secureShuffle } from "../utils/cryptoRandom";
+import AudioEqualizer from "../components/AudioEqualizer";
 import {
   HiSpeakerWave,
   HiChevronLeft,
@@ -746,18 +747,21 @@ export default function FlashcardPage() {
                         {currentWord.pos || "Lexeme"}
                       </span>
 
-                      {/* Audio Button */}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          speakCurrentWord();
-                        }}
-                        className="mt-3 w-12 h-12 rounded-xl bg-plum/10 hover:bg-plum hover:text-white text-plum flex items-center justify-center transition cursor-pointer"
-                        title="Listen to pronunciation"
-                      >
-                        <HiSpeakerWave className={`w-6 h-6 ${isSpeaking ? "animate-pulse" : ""}`} />
-                      </button>
+                      {/* Audio Button & Equalizer */}
+                      <div className="mt-3 flex items-center space-x-2">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            speakCurrentWord();
+                          }}
+                          className="w-12 h-12 rounded-xl bg-plum/10 hover:bg-plum hover:text-white text-plum flex items-center justify-center transition cursor-pointer min-h-11 min-w-11 active:scale-95"
+                          title="Listen to pronunciation"
+                        >
+                          <HiSpeakerWave className={`w-6 h-6 ${isSpeaking ? "animate-pulse" : ""}`} />
+                        </button>
+                        <AudioEqualizer isPlaying={isSpeaking} />
+                      </div>
                     </div>
 
                     <div className="pt-4 border-t border-plum/10">
@@ -780,13 +784,16 @@ export default function FlashcardPage() {
                             {currentWord.pos}
                           </span>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => speakCurrentWord()}
-                          className="w-10 h-10 rounded-xl bg-plum/10 hover:bg-plum hover:text-white text-plum flex items-center justify-center transition cursor-pointer"
-                        >
-                          <HiSpeakerWave className="w-5 h-5" />
-                        </button>
+                        <div className="flex items-center space-x-2">
+                          <AudioEqualizer isPlaying={isSpeaking} />
+                          <button
+                            type="button"
+                            onClick={() => speakCurrentWord()}
+                            className="w-10 h-10 rounded-xl bg-plum/10 hover:bg-plum hover:text-white text-plum flex items-center justify-center transition cursor-pointer min-h-11 min-w-11 active:scale-95"
+                          >
+                            <HiSpeakerWave className={`w-5 h-5 ${isSpeaking ? "animate-pulse" : ""}`} />
+                          </button>
+                        </div>
                       </div>
 
                       {/* Meaning */}

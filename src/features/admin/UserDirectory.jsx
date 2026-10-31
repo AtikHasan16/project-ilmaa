@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { getAvatarColor, getInitials } from "../../utils/avatarColors";
 import {
   HiInformationCircle,
   HiMagnifyingGlass,
@@ -219,8 +220,11 @@ export default function UserDirectory({
                           loading="lazy"
                         />
                       ) : (
-                        <div className="w-9 h-9 rounded-full bg-plum/10 text-plum font-bold flex items-center justify-center text-sm border border-plum/20">
-                          {user.name?.[0]?.toUpperCase() || "U"}
+                        <div
+                          className="w-9 h-9 rounded-full text-white font-bold flex items-center justify-center text-xs border border-white/20 shrink-0"
+                          style={{ backgroundColor: getAvatarColor(user.name).bg }}
+                        >
+                          {getInitials(user.name)}
                         </div>
                       )}
                       <div>

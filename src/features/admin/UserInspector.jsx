@@ -1,4 +1,5 @@
 import { createPortal } from "react-dom";
+import { getAvatarColor, getInitials } from "../../utils/avatarColors";
 import {
   HiCloudArrowUp,
   HiShieldCheck,
@@ -63,8 +64,11 @@ export default function UserInspector({
                 className="w-16 h-16 rounded-2xl border-2 border-plum object-cover shadow-sm"
               />
             ) : (
-              <div className="w-16 h-16 rounded-2xl bg-plum/15 text-plum font-bold flex items-center justify-center text-2xl border-2 border-plum/30">
-                {(user.name || user.email || "U").charAt(0).toUpperCase()}
+              <div
+                className="w-16 h-16 rounded-2xl text-white font-bold flex items-center justify-center text-xl shadow-sm border border-white/20 shrink-0"
+                style={{ backgroundColor: getAvatarColor(user.name).bg }}
+              >
+                {getInitials(user.name)}
               </div>
             )}
             <div>
@@ -83,7 +87,7 @@ export default function UserInspector({
                 </span>
               </div>
               <div className="text-sm text-muted-label mt-0.5">
-                {user.email || "No email linked"} • Auth via{" "}
+                {user.email || "No email linked"} â€¢ Auth via{" "}
                 {user.authProvider || "email"}
               </div>
               <div className="flex items-center space-x-3 mt-1 text-xs">
@@ -154,7 +158,7 @@ export default function UserInspector({
                   : "bg-white hover:bg-plum/10 text-body-dark border border-plum/20 cursor-pointer"
               }`}
             >
-              ↩ Set as General
+              â†© Set as General
             </button>
             <button
               type="button"
@@ -166,7 +170,7 @@ export default function UserInspector({
                   : "bg-plum/5 hover:bg-plum/15 text-plum font-bold border border-plum/25 cursor-pointer"
               }`}
             >
-              🛡️ Promote to Admin
+              ðŸ›¡ï¸ Promote to Admin
             </button>
           </div>
         </div>
@@ -180,7 +184,7 @@ export default function UserInspector({
               ["Browser", user.deviceInfo?.browser || "Web Browser"],
               ["Operating System", user.deviceInfo?.os || "Desktop OS"],
               ["Platform Form", user.deviceInfo?.platform || "Desktop Workstation"],
-              ["Display Specs", user.deviceInfo?.screenResolution || "1920 × 1080"],
+              ["Display Specs", user.deviceInfo?.screenResolution || "1920 Ã— 1080"],
             ].map(([label, value]) => (
               <div
                 key={label}
@@ -301,7 +305,7 @@ export default function UserInspector({
                             hour: "2-digit",
                             minute: "2-digit",
                           })
-                        : "—"}
+                        : "â€”"}
                     </span>
                   </div>
                 );
@@ -340,7 +344,7 @@ export default function UserInspector({
                       {word.word}
                     </span>
                     <span className="italic text-muted-label text-[11px] mr-2">
-                      ({word.pos || "—"})
+                      ({word.pos || "â€”"})
                     </span>
                     <span className="text-body-dark">
                       {word.banglaMeaning}
