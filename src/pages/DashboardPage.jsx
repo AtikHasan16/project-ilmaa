@@ -6,6 +6,7 @@ import { supabase } from "../services/supabaseClient";
 import { toCamel } from "../services/dataMappers";
 import { exportStudyCertificatePDF } from "../utils/exportCertificatePdf";
 import { fetchUserBadges, evaluateAndUnlockBadges } from "../services/badgeService";
+import { getDailyGrammarRule } from "../data/grammarLessonsData";
 import BadgesModal from "../components/BadgesModal";
 import OnboardingModal from "../components/OnboardingModal";
 import { SkeletonStat, SkeletonCorpusGrid } from "../components/Skeletons";
@@ -28,6 +29,7 @@ import {
   HiMagnifyingGlass,
   HiArrowDownTray,
   HiQuestionMarkCircle,
+  HiLightBulb,
 } from "react-icons/hi2";
 
 /**
@@ -72,6 +74,9 @@ export default function DashboardPage() {
   const [userBadges, setUserBadges] = useState([]);
   const [isBadgesOpen, setIsBadgesOpen] = useState(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
+
+  // Daily Grammar Micro-Lesson
+  const dailyGrammar = useMemo(() => getDailyGrammarRule(), []);
 
   const isMountedRef = useRef(true);
 
@@ -652,6 +657,56 @@ export default function DashboardPage() {
                 <span>Fix Spelling Errors ({metrics.spellingMistakesCount})</span>
               </button>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================== */}
+      {/* Grammar Rule of the Day Spotlight                    */}
+      {/* ==================================================== */}
+      {dailyGrammar?.lesson && (
+        <div className="imlaa-card p-5 sm:p-6 bg-linear-to-r from-plum/5 via-white to-plum/10 border border-plum/25 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xs rounded-2xl">
+          <div className="space-y-2 max-w-2xl">
+            <div className="flex items-center space-x-2">
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-plum text-white flex items-center space-x-1 shadow-xs">
+                <HiLightBulb className="w-3.5 h-3.5 text-amber-300" />
+                <span>Rule of the Day</span>
+              </span>
+              <span className="text-xs font-semibold text-muted-label uppercase tracking-wider">
+                {dailyGrammar.lesson.category}
+              </span>
+            </div>
+
+            <h3 className="text-lg font-bold text-body-dark leading-snug">
+              {dailyGrammar.lesson.title}
+            </h3>
+
+            <div className="p-2.5 rounded-xl bg-white border border-plum/15 text-xs font-mono text-slate-800 tracking-wide overflow-x-auto whitespace-pre-wrap">
+              {dailyGrammar.formula}
+            </div>
+
+            <p className="text-xs sm:text-sm text-muted-label leading-relaxed">
+              {dailyGrammar.lesson.corePrinciple}
+            </p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center gap-2.5 shrink-0 w-full md:w-auto">
+            <button
+              type="button"
+              onClick={() => navigate(`/workspace/grammar/lesson/${dailyGrammar.lesson.id}`)}
+              className="imlaa-btn-secondary py-2.5 px-4 text-xs font-bold space-x-1.5 w-full sm:w-auto cursor-pointer"
+            >
+              <span>Study Lesson</span>
+              <HiArrowRight className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate(`/workspace/grammar?topic=${dailyGrammar.lesson.id}&start=true`)}
+              className="imlaa-btn-primary py-2.5 px-4 text-xs font-bold space-x-1.5 w-full sm:w-auto shadow-xs active:scale-95 cursor-pointer"
+            >
+              <span>Practice Drill</span>
+              <HiArrowRight className="w-4 h-4" />
+            </button>
           </div>
         </div>
       )}
