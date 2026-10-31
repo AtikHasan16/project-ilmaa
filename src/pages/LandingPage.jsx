@@ -55,8 +55,7 @@ export default function LandingPage() {
 
   // Live Password Strength Meter
   const getPasswordStrength = (pass) => {
-    if (!pass)
-      return { score: 0, label: "", color: "bg-plum/20 text-muted-label" };
+    if (!pass) return { score: 0, label: "", color: "bg-plum/20 text-muted-label" };
     let score = 0;
     if (pass.length >= 6) score += 25;
     if (pass.length >= 8) score += 25;
@@ -158,9 +157,7 @@ export default function LandingPage() {
     // 2. Sign Up Mode
     if (authMode === "signup") {
       if (!fullName.trim()) {
-        setErrorMessage(
-          "Please provide your full name for your candidate record.",
-        );
+        setErrorMessage("Please provide your full name for your candidate record.");
         return;
       }
       if (password.length < 6) {
@@ -249,11 +246,7 @@ export default function LandingPage() {
       }
       setSubmitting(true);
       try {
-        const res = await resetPasswordWithOtp(
-          cleanEmail,
-          cleanCode,
-          newPassword,
-        );
+        const res = await resetPasswordWithOtp(cleanEmail, cleanCode, newPassword);
         if (res.success) {
           setInfoMessage(res.message);
           setTimeout(() => {
@@ -337,8 +330,8 @@ export default function LandingPage() {
             </div>
 
             <p className="text-base sm:text-lg lg:text-xl text-body-dark font-medium leading-relaxed max-w-2xl mb-2">
-              High-frequency academic lexicon, phonetic transcription, and
-              acoustic spelling dictation for IELTS candidates.
+              High-frequency academic lexicon, phonetic transcription, and acoustic
+              spelling dictation for IELTS candidates.
             </p>
           </div>
 
@@ -430,19 +423,6 @@ export default function LandingPage() {
                     Create Account
                   </button>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAuthMode("forgot");
-                    setErrorMessage("");
-                    setInfoMessage("");
-                    setIsGoogleAlert(false);
-                  }}
-                  className="text-xs font-bold text-plum hover:underline cursor-pointer bg-plum/5 hover:bg-plum/10 px-2.5 py-1.5 rounded-lg border border-plum/20 min-h-9 flex items-center"
-                >
-                  Forgot Password?
-                </button>
               </div>
             ) : (
               <div className="flex items-center justify-between mb-6 pb-2 border-b border-plum/15">
@@ -502,9 +482,7 @@ export default function LandingPage() {
                     />
                   </svg>
                   <span>
-                    {googleLoading
-                      ? "Connecting to Google..."
-                      : "Continue with Google"}
+                    {googleLoading ? "Connecting to Google..." : "Continue with Google"}
                   </span>
                 </button>
 
@@ -625,9 +603,7 @@ export default function LandingPage() {
                         />
                       </div>
                       <div className="flex justify-between text-xs">
-                        <span className="text-muted-label">
-                          Password strength:
-                        </span>
+                        <span className="text-muted-label">Password strength:</span>
                         <span className="font-semibold">{strength.label}</span>
                       </div>
                     </div>
@@ -642,9 +618,7 @@ export default function LandingPage() {
                     <p className="text-xs text-muted-label font-bold uppercase tracking-wider">
                       Verification code dispatched to:
                     </p>
-                    <p className="font-mono text-plum font-black text-base">
-                      {email}
-                    </p>
+                    <p className="font-mono text-plum font-black text-base">{email}</p>
                   </div>
 
                   <div>
@@ -666,8 +640,8 @@ export default function LandingPage() {
                   </div>
 
                   <div className="p-2.5 rounded-lg bg-plum/5 border border-plum/10 text-xs text-muted-label text-center">
-                    Tip: You can also click the confirmation link in the email
-                    to activate automatically.
+                    Tip: You can also click the confirmation link in the email to activate
+                    automatically.
                   </div>
 
                   <div className="flex items-center justify-between text-xs pt-1">
@@ -700,9 +674,7 @@ export default function LandingPage() {
                     <p className="text-xs text-muted-label font-bold uppercase tracking-wider">
                       Recovery code sent to:
                     </p>
-                    <p className="font-mono text-plum font-black text-base">
-                      {email}
-                    </p>
+                    <p className="font-mono text-plum font-black text-base">{email}</p>
                   </div>
 
                   <div>
@@ -715,9 +687,7 @@ export default function LandingPage() {
                       placeholder="• • • • • • • •"
                       value={recoveryCode}
                       onChange={(e) =>
-                        setRecoveryCode(
-                          e.target.value.replace(/[^0-9a-zA-Z]/g, ""),
-                        )
+                        setRecoveryCode(e.target.value.replace(/[^0-9a-zA-Z]/g, ""))
                       }
                       className="imlaa-input py-3 px-4 text-xl font-mono tracking-widest text-center"
                       required
@@ -750,12 +720,8 @@ export default function LandingPage() {
                           />
                         </div>
                         <div className="flex justify-between text-xs">
-                          <span className="text-muted-label">
-                            Password strength:
-                          </span>
-                          <span className="font-semibold">
-                            {resetStrength.label}
-                          </span>
+                          <span className="text-muted-label">Password strength:</span>
+                          <span className="font-semibold">{resetStrength.label}</span>
                         </div>
                       </div>
                     )}
@@ -833,13 +799,11 @@ export default function LandingPage() {
       <footer className="border-t border-plum/15 bg-white py-6 mt-12 text-muted-label text-sm">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex flex-col sm:flex-row items-center sm:space-x-3 text-center sm:text-left">
-            <span className="font-black text-plum tracking-tight text-base">
-              Imlaa
-            </span>
+            <span className="font-black text-plum tracking-tight text-base">Imlaa</span>
             <span className="hidden sm:inline text-plum/30">•</span>
             <span>
-              © {new Date().getFullYear()} Imlaa IELTS Workspace • Built with
-              dedication for candidates worldwide.
+              © {new Date().getFullYear()} Imlaa IELTS Workspace • Built with dedication
+              for candidates worldwide.
             </span>
           </div>
 

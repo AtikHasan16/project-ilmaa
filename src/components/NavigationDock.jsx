@@ -91,7 +91,7 @@ export default function NavigationDock() {
       to: "/workspace/contribute",
       label: "Contribute",
       icon: HiBeaker,
-      show: true,
+      show: isAdmin,
     },
   ];
 
@@ -116,7 +116,7 @@ export default function NavigationDock() {
         <div
           role="status"
           aria-live="polite"
-          className="mb-2 px-3 py-1 rounded-lg bg-plum text-white text-[11px] font-bold tracking-wider uppercase shadow-xs text-center border border-plum/30 max-w-[110px] truncate"
+          className="mb-2 px-3 py-1 rounded-lg bg-plum text-white text-[11px] font-bold tracking-wider uppercase shadow-xs text-center border border-plum/30 max-w-27.5 truncate"
         >
           {activeItem.label}
         </div>
