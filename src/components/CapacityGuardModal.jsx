@@ -47,7 +47,7 @@ export default function CapacityGuardModal() {
             Server at Peak Capacity
           </h2>
           <p className="text-base text-muted-label leading-relaxed">
-            Imlaa is currently experiencing peak traffic ({activeCount} / {MAX_CONCURRENT_USERS} maximum concurrent users).
+            Spell2Master is currently experiencing peak traffic ({activeCount} / {MAX_CONCURRENT_USERS} maximum concurrent users).
             To ensure optimal performance and smooth voice synthesis, access is momentarily throttled.
           </p>
         </div>

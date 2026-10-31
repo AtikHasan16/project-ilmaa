@@ -27,7 +27,7 @@ export default function AuditLogTable({ logs = [], onClear, onDelete }) {
   const handleExportJson = () => {
     const exportData = {
       exportTimestamp: new Date().toISOString(),
-      platform: "Imlaa Linguistic Mastery Platform",
+      platform: "Spell2Master Linguistic Mastery Platform",
       systemVersion: "1.0.0",
       totalLogs: logs.length,
       integrity: "AUDIT_VERIFIED_EXPORT",
@@ -39,7 +39,7 @@ export default function AuditLogTable({ logs = [], onClear, onDelete }) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `imlaa_security_audit_trail_${Date.now()}.json`;
+    a.download = `spell2master_security_audit_trail_${Date.now()}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };

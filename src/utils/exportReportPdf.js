@@ -72,7 +72,7 @@ export function exportAuditReportPDF({ users, logs, stats }) {
     <!DOCTYPE html>
     <html>
       <head>
-        <title>Imlaa Access & Activity Audit Report</title>
+        <title>Spell2Master Access & Activity Audit Report</title>
         <style>
           @page { size: A4 portrait; margin: 18mm 15mm; }
           body {
@@ -138,7 +138,7 @@ export function exportAuditReportPDF({ users, logs, stats }) {
       <body>
         <div class="header">
           <div>
-            <h1 class="title">Imlaa.</h1>
+            <h1 class="title">Spell2Master.</h1>
             <div class="subtitle">Access Directory & Hardware Device Audit Report</div>
           </div>
           <div style="text-align: right; font-size: 12px; color: #6b7280;">
@@ -204,7 +204,7 @@ export function exportAuditReportPDF({ users, logs, stats }) {
         </table>
 
         <div class="footer">
-          <span>Imlaa Linguistic Mastery Platform — Device-Locked Orthography Workspace</span>
+          <span>Spell2Master Linguistic Mastery Platform — Device-Locked Orthography Workspace</span>
           <span>Page 1 of 1 • System Report</span>
         </div>
 

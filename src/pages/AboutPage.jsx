@@ -43,7 +43,7 @@ export default function AboutPage() {
             <span>Back to Home</span>
           </Link>
           <div className="text-xl font-black text-plum tracking-tight">
-            Imlaa
+            Spell2Master
           </div>
         </div>
       </header>
@@ -53,7 +53,7 @@ export default function AboutPage() {
         {/* Title */}
         <div className="text-center space-y-3">
           <h1 className="text-3xl sm:text-4xl font-black text-body-dark tracking-tight">
-            About Imlaa
+            About Spell2Master
           </h1>
           <p className="text-lg text-muted-label max-w-2xl mx-auto">
             A focused orthographic and grammar training workspace engineered for
@@ -70,7 +70,7 @@ export default function AboutPage() {
             <h2 className="text-2xl font-bold text-body-dark">Our Goal</h2>
           </div>
           <p className="text-base text-body-dark leading-relaxed">
-            Imlaa eliminates visual crutches in vocabulary learning. By
+            Spell2Master eliminates visual crutches in vocabulary learning. By
             isolating pure phonemic listening and requiring active spelling
             recall, candidates form deep auditory-orthographic neural
             connections that prevent avoidable spelling errors in IELTS Academic
@@ -130,7 +130,7 @@ export default function AboutPage() {
                 About the Team
               </h2>
               <p className="text-sm text-muted-label">
-                The minds designing and curating the Imlaa workspace
+                The minds designing and curating the Spell2Master workspace
               </p>
             </div>
           </div>
@@ -198,7 +198,7 @@ export default function AboutPage() {
       <footer className="border-t border-plum/15 py-8 text-center text-sm text-muted-label">
         <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div>
-            © {new Date().getFullYear()} Imlaa IELTS Workspace. All rights
+            © {new Date().getFullYear()} Spell2Master IELTS Workspace. All rights
             reserved.
           </div>
           <div className="flex items-center space-x-6">

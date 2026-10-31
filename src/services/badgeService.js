@@ -2,7 +2,7 @@ import { supabase } from "./supabaseClient.js";
 import { fireConfetti } from "../utils/confetti.js";
 
 /**
- * Canonical catalog of achievements and milestones in Imlaa.
+ * Canonical catalog of achievements and milestones in Spell2Master.
  */
 export const BADGE_CATALOG = [
   {
@@ -261,7 +261,9 @@ export async function evaluateAndUnlockBadges({ user, metrics, corpusList }) {
 
 function getLocalFallbackBadges(userId) {
   try {
-    const raw = localStorage.getItem(`imlaa_badges_${userId}`);
+    const raw =
+      localStorage.getItem(`spell2master_badges_${userId}`) ||
+      localStorage.getItem(`imlaa_badges_${userId}`);
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
@@ -278,7 +280,7 @@ function saveLocalFallbackBadges(userId, newKeys) {
         existing.push({ badgeKey: k, unlockedAt: now });
       }
     });
-    localStorage.setItem(`imlaa_badges_${userId}`, JSON.stringify(existing));
+    localStorage.setItem(`spell2master_badges_${userId}`, JSON.stringify(existing));
   } catch {
     // ignore
   }

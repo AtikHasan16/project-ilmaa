@@ -1,9 +1,9 @@
-// Service Worker for Imlaa Linguistic Mastery Platform
+// Service Worker for Spell2Master Linguistic Mastery Platform
 // Scoped caching: Cache-first for audio TTS and immutable hashed assets.
 // Never caches Supabase/API requests containing sensitive user/auth data.
 
-const CACHE_NAME = "imlaa-offline-cache-v2";
-const AUDIO_CACHE_NAME = "imlaa-audio-cache-v2";
+const CACHE_NAME = "spell2master-offline-cache-v1";
+const AUDIO_CACHE_NAME = "spell2master-audio-cache-v1";
 const MAX_AUDIO_CACHE_ENTRIES = 150;
 
 const STATIC_SHELL_ASSETS = ["/favicon.svg"];

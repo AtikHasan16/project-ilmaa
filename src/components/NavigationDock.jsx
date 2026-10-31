@@ -98,7 +98,7 @@ export default function NavigationDock() {
   // Active module lookup for the badge header
   const activeItem =
     navItems.find((item) => location.pathname.startsWith(item.to)) ||
-    (location.pathname.includes("profile") ? { label: "Profile" } : { label: "Imlaa" });
+    (location.pathname.includes("profile") ? { label: "Profile" } : { label: "Spell2Master" });
 
   const avatarColor = getAvatarColor(user?.name);
   const initials = getInitials(user?.name);
@@ -123,8 +123,8 @@ export default function NavigationDock() {
 
         <div className="imlaa-card p-3 flex flex-col items-center space-y-3 shadow-lg border border-plum/20 bg-white rounded-2xl">
           {/* Brand Mark (Mini) */}
-          <div className="w-12 h-12 rounded-xl bg-plum/10 border border-plum/20 flex items-center justify-center text-plum font-bold text-sm select-none">
-            Imlaa<span className="text-plum">.</span>
+          <div className="w-12 h-12 rounded-xl bg-plum/10 border border-plum/20 flex items-center justify-center text-plum font-black text-xs select-none tracking-tight">
+            S2M<span className="text-plum">.</span>
           </div>
 
           <div className="w-8 h-px bg-plum/15 my-1" />

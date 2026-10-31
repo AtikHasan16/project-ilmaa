@@ -12,9 +12,9 @@ export default function NotFoundPage() {
             className="flex items-center space-x-2 text-plum hover:text-plum-hover font-semibold transition text-base"
           >
             <HiArrowLeft className="w-5 h-5" />
-            <span>Return to Imlaa</span>
+            <span>Return to Spell2Master</span>
           </Link>
-          <div className="text-xl font-black text-plum tracking-tight">Imlaa</div>
+          <div className="text-xl font-black text-plum tracking-tight">Spell2Master</div>
         </div>
       </header>
 
@@ -58,7 +58,7 @@ export default function NotFoundPage() {
       {/* Footer */}
       <footer className="border-t border-plum/15 py-8 text-center text-sm text-muted-label">
         <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div>© {new Date().getFullYear()} Imlaa IELTS Workspace. All rights reserved.</div>
+          <div>© {new Date().getFullYear()} Spell2Master IELTS Workspace. All rights reserved.</div>
           <div className="flex items-center space-x-6">
             <Link to="/" className="hover:text-plum transition">Home</Link>
             <Link to="/about" className="hover:text-plum transition">About</Link>

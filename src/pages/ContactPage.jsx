@@ -36,7 +36,9 @@ export default function ContactPage() {
     }
 
     // 2. Anti-Raid Rate Limiter: Minimum 60s cooldown between submissions
-    const lastSubmitTime = localStorage.getItem("imlaa_contact_last_ts");
+    const lastSubmitTime =
+      localStorage.getItem("spell2master_contact_last_ts") ||
+      localStorage.getItem("imlaa_contact_last_ts");
     if (lastSubmitTime && Date.now() - Number(lastSubmitTime) < 60000) {
       const waitSeconds = Math.ceil((60000 - (Date.now() - Number(lastSubmitTime))) / 1000);
       showErrorAlert(
@@ -80,12 +82,12 @@ export default function ContactPage() {
       if (publicKey) {
         // Direct EmailJS send via API
         await emailjs.send(serviceId, templateId, templateParams, publicKey);
-        localStorage.setItem("imlaa_contact_last_ts", Date.now().toString());
+        localStorage.setItem("spell2master_contact_last_ts", Date.now().toString());
         showSuccessToast("Message Delivered", `Your inquiry was delivered directly to ${TARGET_GMAIL}.`);
         setSubmitted(true);
       } else {
         // Fallback: If EmailJS API keys aren't set yet, open structured pre-formatted mail client
-        const subject = encodeURIComponent(`[Imlaa Support: ${categoryLabels[category]}] from ${name.trim()}`);
+        const subject = encodeURIComponent(`[Spell2Master Support: ${categoryLabels[category]}] from ${name.trim()}`);
         const formattedBody = encodeURIComponent(
           `Recipient: ${TARGET_GMAIL}\n` +
           `----------------------------------------\n` +
@@ -97,7 +99,7 @@ export default function ContactPage() {
           `----------------------------------------\n\n` +
           `Message Details:\n${message.trim()}\n`
         );
-        localStorage.setItem("imlaa_contact_last_ts", Date.now().toString());
+        localStorage.setItem("spell2master_contact_last_ts", Date.now().toString());
         window.location.href = `mailto:${TARGET_GMAIL}?subject=${subject}&body=${formattedBody}`;
         showSuccessToast("Email Formatted", "Your email client was opened with your structured message.");
         setSubmitted(true);
@@ -105,7 +107,7 @@ export default function ContactPage() {
     } catch (err) {
       console.error("EmailJS dispatch failed:", err);
       // Seamless failover to direct mailto so message is never lost
-      const subject = encodeURIComponent(`[Imlaa Support: ${categoryLabels[category]}] from ${name.trim()}`);
+      const subject = encodeURIComponent(`[Spell2Master Support: ${categoryLabels[category]}] from ${name.trim()}`);
       const fallbackBody = encodeURIComponent(
         `Candidate Name : ${name.trim()}\n` +
         `Candidate Email: ${email.trim() || "Not provided"}\n` +
@@ -133,7 +135,7 @@ export default function ContactPage() {
             <HiArrowLeft className="w-5 h-5" />
             <span>Back to Home</span>
           </Link>
-          <div className="text-xl font-black text-plum tracking-tight">Imlaa</div>
+          <div className="text-xl font-black text-plum tracking-tight">Spell2Master</div>
         </div>
       </header>
 
@@ -279,7 +281,7 @@ export default function ContactPage() {
       {/* Simple Footer */}
       <footer className="border-t border-plum/15 py-8 text-center text-sm text-muted-label">
         <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div>© {new Date().getFullYear()} Imlaa IELTS Workspace. All rights reserved.</div>
+          <div>© {new Date().getFullYear()} Spell2Master IELTS Workspace. All rights reserved.</div>
           <div className="flex items-center space-x-6">
             <Link to="/" className="hover:text-plum transition">Home</Link>
             <Link to="/about" className="hover:text-plum transition">About</Link>

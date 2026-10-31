@@ -262,7 +262,7 @@ export default function LandingPage() {
   };
 
   const playPhonemeSample = () => {
-    speakWithMicrosoftTTS("Imlaa", {
+    speakWithMicrosoftTTS("Spell to Master", {
       voice: "en-US-ChristopherNeural",
       onStart: () => setPlayingAudio(true),
       onEnd: () => setPlayingAudio(false),
@@ -276,7 +276,7 @@ export default function LandingPage() {
       <header className="w-full max-w-6xl mx-auto flex items-center justify-between pb-4 sm:pb-6 gap-3">
         <div className="flex items-center space-x-2 shrink-0">
           <span className="font-black text-xl sm:text-2xl tracking-tight text-body-dark">
-            Imlaa<span className="text-plum">.</span>
+            Spell2Master<span className="text-plum">.</span>
           </span>
           <span className="hidden sm:inline-block px-2.5 py-0.5 rounded-full bg-plum/10 text-plum text-xs font-bold tracking-wide">
             IELTS Orthography
@@ -317,7 +317,7 @@ export default function LandingPage() {
             </div>
 
             <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight text-body-dark leading-tight mb-2 sm:mb-3 wrap-break-word">
-              Imlaa<span className="text-plum">.</span>
+              Spell2Master<span className="text-plum">.</span>
             </h1>
 
             <div className="text-base sm:text-xl lg:text-2xl font-mono text-muted-label tracking-wide flex flex-wrap items-center gap-2 sm:space-x-3 mb-4 sm:mb-6">
@@ -799,10 +799,10 @@ export default function LandingPage() {
       <footer className="border-t border-plum/15 bg-white py-6 mt-12 text-muted-label text-sm">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex flex-col sm:flex-row items-center sm:space-x-3 text-center sm:text-left">
-            <span className="font-black text-plum tracking-tight text-base">Imlaa</span>
+            <span className="font-black text-plum tracking-tight text-base">Spell2Master</span>
             <span className="hidden sm:inline text-plum/30">•</span>
             <span>
-              © {new Date().getFullYear()} Imlaa IELTS Workspace • Built with dedication
+              © {new Date().getFullYear()} Spell2Master IELTS Workspace • Built with dedication
               for candidates worldwide.
             </span>
           </div>
