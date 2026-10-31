@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -14,12 +14,20 @@ import {
   HiXMark,
   HiEnvelope,
   HiTrash,
+  HiTrophy,
+  HiArrowDownTray,
+  HiSparkles,
 } from "react-icons/hi2";
 import { useNavigate, Link } from "react-router";
 import { getDeviceInfo } from "../utils/deviceInfo";
 import { showConfirmModal, showSuccessToast } from "../utils/sweetalert";
 import { supabase } from "../services/supabaseClient";
 import { useModalEffects } from "../hooks/useModalEffects";
+import { getAvatarColor, getInitials } from "../utils/avatarColors";
+import { fetchUserBadges } from "../services/badgeService";
+import { exportStudyCertificatePDF } from "../utils/exportCertificatePdf";
+import BadgesModal from "../components/BadgesModal";
+import { toCamel } from "../services/dataMappers";
 
 export default function ProfilePage() {
   const { user, role, logout, updateProfile } = useAuth();
@@ -29,6 +37,15 @@ export default function ProfilePage() {
   const [profileMeta, setProfileMeta] = useState({
     createdAt: null,
     lastActiveAt: null,
+  });
+
+  const [userBadges, setUserBadges] = useState([]);
+  const [isBadgesOpen, setIsBadgesOpen] = useState(false);
+  const [studyMetrics, setStudyMetrics] = useState({
+    masteredWordsCount: 0,
+    totalPracticeSessions: 0,
+    totalStudySeconds: 0,
+    grammarScore: null,
   });
 
   // Profile Edit Modal State
@@ -41,35 +58,72 @@ export default function ProfilePage() {
 
   useModalEffects(isEditOpen, setIsEditOpen, false, !isUploading);
 
-  // Fetch candidate profile timestamps
-  useEffect(() => {
-    let isMounted = true;
-    const fetchTimestamps = async () => {
-      if (!user?.id) return;
-      try {
-        const { data: profileRecord } = await supabase
+  const fetchProfileAndStats = useCallback(async () => {
+    if (!user?.id) return;
+
+    try {
+      const [
+        { data: profileRecord },
+        { data: rawSpellingRows },
+        { data: rawFlashcardRows },
+        { data: rawGrammarData },
+        badges,
+      ] = await Promise.all([
+        supabase
           .from("profiles")
           .select("created_at, last_active_at")
           .eq("id", user.id)
-          .maybeSingle();
+          .maybeSingle(),
+        supabase.from("spelling_progress").select("*").eq("user_id", user.id),
+        supabase.from("flashcard_progress").select("*").eq("user_id", user.id),
+        supabase
+          .from("grammar_progress")
+          .select("*")
+          .eq("user_id", user.id)
+          .maybeSingle(),
+        fetchUserBadges(user.id),
+      ]);
 
-        if (isMounted) {
-          setProfileMeta({
-            createdAt: profileRecord?.created_at || user?.createdAt || null,
-            lastActiveAt:
-              profileRecord?.last_active_at || user?.lastActiveAt || null,
-          });
-        }
-      } catch (err) {
-        console.warn("Could not fetch user profile metadata:", err);
-      }
-    };
+      setProfileMeta({
+        createdAt: profileRecord?.created_at || user?.createdAt || null,
+        lastActiveAt: profileRecord?.last_active_at || user?.lastActiveAt || null,
+      });
 
-    fetchTimestamps();
-    return () => {
-      isMounted = false;
-    };
+      setUserBadges(badges || []);
+
+      const spellingRows = toCamel(rawSpellingRows || []);
+      const flashcardRows = toCamel(rawFlashcardRows || []);
+      const grammarData = toCamel(rawGrammarData);
+
+      const uniqueMastered = new Set();
+      spellingRows.forEach((r) =>
+        (r.masteredWords || []).forEach((w) => uniqueMastered.add(w)),
+      );
+      flashcardRows.forEach((r) =>
+        (r.knownWords || []).forEach((w) => uniqueMastered.add(w)),
+      );
+
+      const totalPractices =
+        spellingRows.length +
+        flashcardRows.length +
+        (grammarData?.testsTaken || (grammarData?.highestScore ? 1 : 0));
+
+      setStudyMetrics({
+        masteredWordsCount: uniqueMastered.size,
+        totalPracticeSessions: totalPractices,
+        totalStudySeconds: uniqueMastered.size * 35 + totalPractices * 60,
+        grammarScore: grammarData?.highestScore
+          ? { score: grammarData.highestScore, total: grammarData.totalQuestions || 0 }
+          : null,
+      });
+    } catch (err) {
+      console.warn("Could not load user profile details:", err);
+    }
   }, [user]);
+
+  useEffect(() => {
+    fetchProfileAndStats();
+  }, [fetchProfileAndStats]);
 
   const formatFormattedDate = (isoStr) => {
     if (!isoStr) return "Recent Member";
@@ -104,9 +158,7 @@ export default function ProfilePage() {
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      setEditError(
-        "Selected photo is larger than 5MB. Please choose a smaller photo.",
-      );
+      setEditError("Selected photo is larger than 5MB. Please choose a smaller photo.");
       return;
     }
 
@@ -148,9 +200,7 @@ export default function ProfilePage() {
 
         const imgbbData = await imgbbRes.json();
         if (!imgbbData.success) {
-          throw new Error(
-            imgbbData.error?.message || "Failed to upload image to ImgBB.",
-          );
+          throw new Error(imgbbData.error?.message || "Failed to upload image to ImgBB.");
         }
 
         finalAvatarUrl = imgbbData.data?.display_url || imgbbData.data?.url;
@@ -173,12 +223,14 @@ export default function ProfilePage() {
       }
     } catch (err) {
       console.error("Profile save error:", err);
-      setEditError(
-        err.message || "An unexpected error occurred while saving profile.",
-      );
+      setEditError(err.message || "An unexpected error occurred while saving profile.");
     } finally {
       setIsUploading(false);
     }
+  };
+
+  const handleExportCertificate = () => {
+    exportStudyCertificatePDF({ user, metrics: studyMetrics, role });
   };
 
   const handleLogout = async () => {
@@ -197,6 +249,9 @@ export default function ProfilePage() {
     }
   };
 
+  const avatarColor = getAvatarColor(user?.name);
+  const initials = getInitials(user?.name);
+
   return (
     <div className="w-full max-w-5xl mx-auto space-y-8 animate-slide-up pb-12">
       {/* Page Title & Status Header */}
@@ -206,12 +261,22 @@ export default function ProfilePage() {
             User Profile & Learning Analytics
           </h1>
           <p className="text-xs sm:text-base text-muted-label mt-1">
-            Personal academic record, session performance, and account
-            credentials.
+            Personal academic record, session performance, and account credentials.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 sm:space-x-3 self-start sm:self-auto">
+          {/* Export Certificate Button */}
+          <button
+            type="button"
+            onClick={handleExportCertificate}
+            title="Export Verified Study Certificate"
+            className="imlaa-btn-primary py-2 sm:py-2.5 px-3 sm:px-4 text-xs sm:text-base space-x-1 min-h-11 shadow-sm"
+          >
+            <HiArrowDownTray className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+            <span>Export Certificate</span>
+          </button>
+
           <Link
             to="/support-us"
             className="imlaa-btn-secondary py-2 sm:py-2.5 px-3 sm:px-4 text-xs sm:text-base space-x-1.5 text-plum hover:bg-plum/10 min-h-11"
@@ -219,9 +284,6 @@ export default function ProfilePage() {
             <HiHeart className="w-4 h-4 sm:w-5 sm:h-5 text-plum shrink-0" />
             <span>Support Us</span>
           </Link>
-          <span className="imlaa-badge text-xs sm:text-base py-1 px-3 sm:px-4 uppercase font-bold tracking-wider">
-            {role || "general"} Member
-          </span>
         </div>
       </div>
 
@@ -240,15 +302,18 @@ export default function ProfilePage() {
                   className="w-22 h-22 rounded-2xl border-2 border-plum object-cover shadow-sm"
                 />
               ) : (
-                <div className="w-22 h-22 rounded-2xl bg-plum text-white flex items-center justify-center font-black text-3xl shadow-sm">
-                  {(user?.name || user?.email || "C").charAt(0).toUpperCase()}
+                <div
+                  className="w-22 h-22 rounded-2xl text-white flex items-center justify-center font-black text-3xl shadow-sm"
+                  style={{ backgroundColor: avatarColor.bg }}
+                >
+                  {initials}
                 </div>
               )}
               <button
                 type="button"
                 onClick={handleOpenEdit}
                 title="Change Photo"
-                className="absolute -bottom-1 -right-1 p-1.5 rounded-xl bg-plum text-white hover:bg-plum-hover shadow-md transition cursor-pointer"
+                className="absolute -bottom-1 -right-1 p-1.5 rounded-xl bg-plum text-white hover:bg-plum-hover shadow-md transition cursor-pointer min-h-8 min-w-8 flex items-center justify-center"
               >
                 <HiCamera className="w-4 h-4" />
               </button>
@@ -266,7 +331,7 @@ export default function ProfilePage() {
                 <button
                   type="button"
                   onClick={handleOpenEdit}
-                  className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-lg border border-plum/25 bg-white hover:bg-plum/10 text-plum text-xs font-bold transition shadow-2xs cursor-pointer ml-1"
+                  className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-lg border border-plum/25 bg-white hover:bg-plum/10 text-plum text-xs font-bold transition shadow-2xs cursor-pointer ml-1 min-h-9"
                 >
                   <HiPencilSquare className="w-3.5 h-3.5" />
                   <span>Edit Profile</span>
@@ -285,9 +350,7 @@ export default function ProfilePage() {
                   <span>
                     Member Since:{" "}
                     <strong className="text-body-dark">
-                      {formatFormattedDate(
-                        profileMeta.createdAt || user?.createdAt,
-                      )}
+                      {formatFormattedDate(profileMeta.createdAt || user?.createdAt)}
                     </strong>
                   </span>
                 </div>
@@ -312,10 +375,38 @@ export default function ProfilePage() {
             </span>
             <div className="inline-flex items-center space-x-1.5 px-3.5 py-1 rounded-full bg-plum/10 text-plum text-sm font-bold border border-plum/20">
               <HiShieldCheck className="w-4 h-4 text-plum" />
-              <span>
-                {role === "admin" ? "Platform Admin" : "General Member"}
+              <span>{role === "admin" ? "Platform Admin" : "General Member"}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Badges & Milestones Showcase Banner */}
+        <div className="p-6 rounded-2xl border border-plum/20 bg-white flex flex-col sm:flex-row items-center justify-between gap-4 shadow-2xs">
+          <div className="space-y-1.5 text-center sm:text-left">
+            <div className="flex items-center justify-center sm:justify-start space-x-2 text-plum font-bold">
+              <HiTrophy className="w-5 h-5 text-amber-600" />
+              <h3 className="text-lg font-bold text-body-dark">
+                Milestones & Achievement Badges
+              </h3>
+              <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                {userBadges.length} Unlocked
               </span>
             </div>
+            <p className="text-xs sm:text-sm text-muted-label max-w-xl leading-relaxed">
+              Earn badges for vocabulary mastery thresholds, drill practice milestones,
+              and grammar accuracy.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => setIsBadgesOpen(true)}
+              className="imlaa-btn-secondary py-2.5 px-5 text-xs sm:text-sm font-bold text-plum space-x-1.5 min-h-11"
+            >
+              <HiSparkles className="w-4 h-4 text-amber-600" />
+              <span>View Badges Catalog</span>
+            </button>
           </div>
         </div>
 
@@ -327,9 +418,8 @@ export default function ProfilePage() {
               <span>Study Analytics & Learning Performance</span>
             </h3>
             <p className="text-xs sm:text-sm text-muted-label max-w-xl">
-              Track your real-time vocabulary progress, practice drill counts,
-              completed corpus sets, and active spelling mistakes on your
-              learning dashboard.
+              Track your real-time vocabulary progress, practice drill counts, completed
+              corpus sets, and active spelling mistakes on your learning dashboard.
             </p>
           </div>
           <button
@@ -364,9 +454,7 @@ export default function ProfilePage() {
               <div className="text-base font-bold text-body-dark mt-1">
                 {deviceInfo.os}
               </div>
-              <div className="text-xs text-muted-label mt-0.5">
-                {deviceInfo.platform}
-              </div>
+              <div className="text-xs text-muted-label mt-0.5">{deviceInfo.platform}</div>
             </div>
 
             <div className="bg-white p-4 rounded-xl border border-plum/15">
@@ -388,9 +476,7 @@ export default function ProfilePage() {
               <div className="text-base font-bold text-body-dark mt-1 font-mono">
                 {deviceInfo.screenResolution}
               </div>
-              <div className="text-xs text-muted-label mt-0.5">
-                High-DPI Calibrated
-              </div>
+              <div className="text-xs text-muted-label mt-0.5">High-DPI Calibrated</div>
             </div>
           </div>
         </div>
@@ -439,9 +525,7 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* ==================================================== */}
-      {/* Edit Profile Modal (Portaled Directly to Body)       */}
-      {/* ==================================================== */}
+      {/* Edit Profile Modal */}
       {isEditOpen &&
         typeof document !== "undefined" &&
         createPortal(
@@ -468,7 +552,7 @@ export default function ProfilePage() {
                 <button
                   type="button"
                   onClick={() => !isUploading && setIsEditOpen(false)}
-                  className="text-muted-label hover:text-body-dark text-xl font-bold p-1 cursor-pointer"
+                  className="text-muted-label hover:text-body-dark text-xl font-bold p-1 cursor-pointer min-h-8 min-w-8"
                 >
                   <HiXMark className="w-5 h-5" />
                 </button>
@@ -495,19 +579,18 @@ export default function ProfilePage() {
                         className="w-20 h-20 rounded-2xl border-2 border-plum object-cover shadow-sm shrink-0"
                       />
                     ) : (
-                      <div className="w-20 h-20 rounded-2xl bg-plum/15 text-plum font-black text-2xl flex items-center justify-center border-2 border-plum/30 shrink-0">
-                        {(editName || user?.name || "U")
-                          .charAt(0)
-                          .toUpperCase()}
+                      <div
+                        className="w-20 h-20 rounded-2xl text-white font-black text-2xl flex items-center justify-center shadow-sm shrink-0"
+                        style={{ backgroundColor: avatarColor.bg }}
+                      >
+                        {initials}
                       </div>
                     )}
 
                     <div className="space-y-2">
-                      <label className="imlaa-btn-secondary py-2 px-3.5 text-xs font-bold space-x-1.5 cursor-pointer inline-flex items-center">
+                      <label className="imlaa-btn-secondary py-2 px-3.5 text-xs font-bold space-x-1.5 cursor-pointer inline-flex items-center min-h-10">
                         <HiCamera className="w-4 h-4 text-plum" />
-                        <span>
-                          {avatarPreview ? "Change Photo" : "Upload Photo"}
-                        </span>
+                        <span>{avatarPreview ? "Change Photo" : "Upload Photo"}</span>
                         <input
                           type="file"
                           accept="image/png, image/jpeg, image/jpg, image/webp"
@@ -522,7 +605,7 @@ export default function ProfilePage() {
                           type="button"
                           onClick={handleRemovePhoto}
                           disabled={isUploading}
-                          className="imlaa-btn-secondary py-2 px-3 text-xs text-rose-700 border-rose-300 hover:bg-rose-50 flex items-center space-x-1 cursor-pointer"
+                          className="imlaa-btn-secondary py-2 px-3 text-xs text-rose-700 border-rose-300 hover:bg-rose-50 flex items-center space-x-1 cursor-pointer min-h-10"
                         >
                           <HiTrash className="w-3.5 h-3.5" />
                           <span>Remove</span>
@@ -530,8 +613,7 @@ export default function ProfilePage() {
                       )}
 
                       <p className="text-[11px] text-muted-label">
-                        Supports JPG, PNG, WebP up to 5MB. Hosted securely on
-                        ImgBB.
+                        Supports JPG, PNG, WebP up to 5MB. Hosted securely on ImgBB.
                       </p>
                     </div>
                   </div>
@@ -568,8 +650,8 @@ export default function ProfilePage() {
                     <HiEnvelope className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-label" />
                   </div>
                   <p className="text-[11px] text-muted-label mt-1">
-                    Email is bound to your Supabase security session and cannot
-                    be changed here.
+                    Email is bound to your Supabase security session and cannot be changed
+                    here.
                   </p>
                 </div>
 
@@ -579,7 +661,7 @@ export default function ProfilePage() {
                     type="button"
                     disabled={isUploading}
                     onClick={() => setIsEditOpen(false)}
-                    className="imlaa-btn-secondary py-2.5 px-5 text-sm font-semibold cursor-pointer"
+                    className="imlaa-btn-secondary py-2.5 px-5 text-sm font-semibold cursor-pointer min-h-11"
                   >
                     Cancel
                   </button>
@@ -587,7 +669,7 @@ export default function ProfilePage() {
                   <button
                     type="submit"
                     disabled={isUploading}
-                    className="imlaa-btn-primary py-2.5 px-6 text-sm font-bold space-x-2 cursor-pointer flex items-center"
+                    className="imlaa-btn-primary py-2.5 px-6 text-sm font-bold space-x-2 cursor-pointer flex items-center min-h-11"
                   >
                     {isUploading ? (
                       <>
@@ -604,6 +686,13 @@ export default function ProfilePage() {
           </div>,
           document.body,
         )}
+
+      {/* Badges Modal */}
+      <BadgesModal
+        isOpen={isBadgesOpen}
+        onClose={() => setIsBadgesOpen(false)}
+        userBadges={userBadges}
+      />
     </div>
   );
 }

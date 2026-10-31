@@ -7,6 +7,7 @@ import { useAuth } from "../context/AuthContext";
 import { speakWithMicrosoftTTS, stopAudioPlayback } from "../utils/speechTts";
 import { showErrorAlert } from "../utils/sweetalert";
 import { secureShuffle } from "../utils/cryptoRandom";
+import AudioEqualizer from "../components/AudioEqualizer";
 import {
   HiSpeakerWave,
   HiChevronLeft,
@@ -693,17 +694,23 @@ export default function SpellingPage() {
               >
                 {/* Large Audio Speaker Button */}
                 <div className="flex flex-col items-center space-y-3">
-                  <button
-                    type="button"
-                    onClick={() => speakTargetWord()}
-                    title="Click to Listen"
-                    className="w-20 h-20 rounded-2xl bg-plum hover:bg-plum-hover text-white flex items-center justify-center transition shadow-md cursor-pointer active:scale-95"
-                  >
-                    <HiSpeakerWave className={`w-10 h-10 ${isSpeaking ? "animate-pulse" : ""}`} />
-                  </button>
-                  <span className="text-sm text-muted-label font-medium">
-                    Click to hear the pronunciation
-                  </span>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => speakTargetWord()}
+                      title="Click to Listen"
+                      aria-label="Play audio pronunciation"
+                      className="w-20 h-20 rounded-2xl bg-plum hover:bg-plum-hover text-white flex items-center justify-center transition shadow-md cursor-pointer active:scale-95 min-h-11 min-w-11 focus-visible:ring-2 focus-visible:ring-plum"
+                    >
+                      <HiSpeakerWave className={`w-10 h-10 ${isSpeaking ? "animate-pulse" : ""}`} />
+                    </button>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <AudioEqualizer isPlaying={isSpeaking} />
+                    <span className="text-sm text-muted-label font-medium">
+                      {isSpeaking ? "Playing audio..." : "Click to hear the pronunciation"}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Form Input */}

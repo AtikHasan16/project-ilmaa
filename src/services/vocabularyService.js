@@ -59,11 +59,40 @@ export async function getVocabularyStats(params = {}) {
         }
       }
     } else {
-      // Fallback: Query columns and aggregate
-      const { data: allWords, error } = await supabase
+      // Fallback: Query columns and aggregate with adaptive column detection
+      let allWords = null;
+
+      // 1. Try normalized columns
+      const res1 = await supabase
         .from("vocabularies")
         .select("topic, target_tab, uploaded_by_id, uploaded_by_name");
-      if (error) throw error;
+
+      if (!res1.error && res1.data) {
+        allWords = res1.data;
+      } else {
+        // 2. Fallback to legacy schema (uploaded_by)
+        const res2 = await supabase
+          .from("vocabularies")
+          .select("topic, target_tab, uploaded_by");
+
+        if (!res2.error && res2.data) {
+          allWords = res2.data.map((w) => ({
+            topic: w.topic,
+            target_tab: w.target_tab || "active",
+            uploaded_by_name: w.uploaded_by || "Admin",
+          }));
+        } else {
+          // 3. Fallback to minimal topic column
+          const res3 = await supabase.from("vocabularies").select("topic");
+          if (!res3.error && res3.data) {
+            allWords = res3.data.map((w) => ({
+              topic: w.topic,
+              target_tab: "active",
+              uploaded_by_name: "Admin",
+            }));
+          }
+        }
+      }
 
       for (const word of allWords || []) {
         const { topic, target_tab: targetTab } = word;
@@ -74,8 +103,6 @@ export async function getVocabularyStats(params = {}) {
             topic,
             (listeningTopicsMap.get(topic) || 0) + 1
           );
-        } else if (targetTab === "active") {
-          activeTopicsMap.set(topic, (activeTopicsMap.get(topic) || 0) + 1);
         } else if (targetTab === "uploaded") {
           totalUploaded += 1;
           const current = uploadedTopicsMap.get(topic);
@@ -89,6 +116,9 @@ export async function getVocabularyStats(params = {}) {
                 (isAdmin ? "Admin" : params.userName || "You"),
             });
           }
+        } else {
+          // default to active
+          activeTopicsMap.set(topic, (activeTopicsMap.get(topic) || 0) + 1);
         }
       }
     }
