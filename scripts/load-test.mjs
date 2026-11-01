@@ -23,6 +23,10 @@ const BASE_URLS = {
     frontend: "https://imlaa-staging.vercel.app",
     server: "https://ilmaa-server-staging.onrender.com",
   },
+  production: {
+    frontend: "https://www.spellycraft.com",
+    server: "https://www.api.spellycraft.com",
+  },
 };
 
 const config = BASE_URLS[target] || BASE_URLS.local;

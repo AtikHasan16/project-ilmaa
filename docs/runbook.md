@@ -28,7 +28,7 @@
 ```ini
 VITE_SUPABASE_URL="https://[YOUR_PROJECT].supabase.co"
 VITE_SUPABASE_ANON_KEY="[YOUR_ANON_KEY]"
-VITE_BACKEND_URL="https://ilmaa-server.onrender.com"
+VITE_BACKEND_URL="https://www.api.spellycraft.com"
 VITE_FRONTEND_URL="https://imlaa.vercel.app"
 VITE_EMAILJS_SERVICE_ID="service_ilmaa"
 VITE_EMAILJS_TEMPLATE_ID="template_ilmaa"
@@ -105,4 +105,4 @@ To ensure stable database operation across high concurrency:
    - Take on-demand Supabase backup snapshot (**Database -> Backups -> Backup Now**).
    - Apply versioned migration from `database/migrations/`.
    - Merge PR to `main` with required CI checks passing.
-   - Verify health probes: `GET https://ilmaa-server.onrender.com/ready` returns `status: "ready", database: "connected"`.
+   - Verify health probes: `GET https://www.api.spellycraft.com/ready` returns `status: "ready", database: "connected"`.

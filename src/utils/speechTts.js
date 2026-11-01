@@ -144,7 +144,7 @@ export async function speakWithMicrosoftTTS(text, {
 
     const backendBase =
       (typeof import.meta !== "undefined" && import.meta.env?.VITE_BACKEND_URL) ||
-      "https://ilmaa-server.onrender.com";
+      "https://www.api.spellycraft.com";
     const synthEndpoint = `${backendBase}/api/audio/synthesize`;
 
     const controller = new AbortController();
