@@ -225,4 +225,79 @@ $$;
 REVOKE ALL ON FUNCTION public.record_study_session(INTEGER, INTEGER, INTEGER) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.record_study_session(INTEGER, INTEGER, INTEGER) TO authenticated;
 
+-- 4. ADMIN UPDATE PROFILE ROLE RPC
+CREATE OR REPLACE FUNCTION public.admin_update_profile_role(
+  p_target_user_id UUID,
+  p_role TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_actor_id UUID := auth.uid();
+  v_actor_name TEXT;
+  v_updated_profile public.profiles%ROWTYPE;
+BEGIN
+  IF v_actor_id IS NULL OR NOT public.is_admin() THEN
+    RAISE EXCEPTION 'Only administrators may change user roles'
+      USING ERRCODE = '42501';
+  END IF;
+
+  IF p_target_user_id IS NULL
+    OR p_role IS NULL
+    OR p_role NOT IN ('general', 'admin') THEN
+    RAISE EXCEPTION 'A target user ID and a valid role (general or admin) are required'
+      USING ERRCODE = '22023';
+  END IF;
+
+  SELECT COALESCE(name, email, 'Administrator')
+  INTO v_actor_name
+  FROM public.profiles
+  WHERE id = v_actor_id;
+
+  UPDATE public.profiles
+  SET role = p_role
+  WHERE id = p_target_user_id
+  RETURNING * INTO v_updated_profile;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'The target candidate profile does not exist'
+      USING ERRCODE = 'P0002';
+  END IF;
+
+  BEGIN
+    INSERT INTO public.audit_logs (
+      user_id,
+      target_user_id,
+      user_name,
+      action,
+      details
+    )
+    VALUES (
+      v_actor_id,
+      p_target_user_id,
+      COALESCE(v_actor_name, 'Administrator'),
+      'ROLE_CHANGE',
+      FORMAT('Role updated to [%s] by administrator', UPPER(p_role))
+    );
+  EXCEPTION WHEN OTHERS THEN
+    RAISE WARNING 'Failed to record audit log: %', SQLERRM;
+  END;
+
+  RETURN JSONB_BUILD_OBJECT(
+    'id', v_updated_profile.id,
+    'name', v_updated_profile.name,
+    'email', v_updated_profile.email,
+    'role', v_updated_profile.role
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.admin_update_profile_role(UUID, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_update_profile_role(UUID, TEXT) TO authenticated;
+
+NOTIFY pgrst, 'reload schema';
+
 COMMIT;
