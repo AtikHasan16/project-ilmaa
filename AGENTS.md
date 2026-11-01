@@ -1,12 +1,12 @@
 # Agent Instructions & Development Governance (AGENTS.md)
 
-This document establishes the mandatory governance model, security rules, environment setup, and verification checklists for all automated agents and human contributors working on Imlaa.
+This document establishes the mandatory governance model, security rules, environment setup, and verification checklists for all automated agents and human contributors working on SpellyCraft.
 
 ---
 
 ## 1. Project Map & Architecture
 
-Imlaa operates under a single authoritative data pipeline:
+SpellyCraft operates under a single authoritative data pipeline:
 $$\text{Browser (React 19)} \longrightarrow \text{Supabase PostgREST + RPC (anon key + RLS)}$$
 $$\text{Browser (React 19)} \longrightarrow \text{Dedicated Express TTS (\texttt{POST /api/tts} + Supabase JWT)}$$
 

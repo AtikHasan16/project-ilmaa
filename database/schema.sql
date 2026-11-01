@@ -1,5 +1,5 @@
 -- =========================================================================
--- IMLAA PLATFORM: DATABASE SCHEMA AND SEED DATA (SUPABASE)
+-- SPELLYCRAFT PLATFORM: DATABASE SCHEMA AND SEED DATA (SUPABASE)
 -- =========================================================================
 
 -- Enable pgcrypto for UUID generation if not already enabled

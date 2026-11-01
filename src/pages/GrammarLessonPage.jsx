@@ -50,7 +50,7 @@ export default function GrammarLessonPage() {
   // Accessibility: font zoom state (persisted)
   const [zoomLevel, setZoomLevel] = useState(() => {
     try {
-      const saved = localStorage.getItem("spell2master_grammar_zoom");
+      const saved = localStorage.getItem("spellycraft_grammar_zoom");
       const parsed = parseInt(saved, 10);
       return [100, 115, 130].includes(parsed) ? parsed : 100;
     } catch {
@@ -61,7 +61,7 @@ export default function GrammarLessonPage() {
   const handleZoomChange = useCallback((newLevel) => {
     setZoomLevel(newLevel);
     try {
-      localStorage.setItem("spell2master_grammar_zoom", String(newLevel));
+      localStorage.setItem("spellycraft_grammar_zoom", String(newLevel));
     } catch {
       // storage disabled
     }

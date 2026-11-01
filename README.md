@@ -1,4 +1,4 @@
-# Imlaa. (إملاء) — Linguistic Mastery Platform
+# SpellyCraft — Linguistic Mastery Platform
 
 > **Hear it. Spell it. Own it.**  
 > A focused orthography and auditory spelling mastery tool designed to test acoustic recall without visual bias, and achieve instinctive vocabulary retention.
@@ -6,7 +6,7 @@
 ---
 
 ## 🎯 Pedagogical Philosophy
-Traditional vocabulary flashcards display the word first, inducing cognitive visual bias. **Imlaa** flips this dynamic entirely:
+Traditional vocabulary flashcards display the word first, inducing cognitive visual bias. **SpellyCraft** flips this dynamic entirely:
 1. **Zero Distraction**: Absence of visual cues forces purely auditory-orthographic neuro-mapping.
 2. **Acoustic Accuracy**: Calibrated speech synthesis enunciations covering high-friction phonemic transitions.
 3. **Systematic Retention**: Spaced repetition, instant pedagogical rule explanations, and target-incorrect practice.
@@ -14,7 +14,7 @@ Traditional vocabulary flashcards display the word first, inducing cognitive vis
 ---
 
 ## 🎨 Strict Aesthetic & Design System
-Imlaa follows an intentional, minimalist design system tailored for academic focus:
+SpellyCraft follows an intentional, minimalist design system tailored for academic focus:
 - **Canvas / Background**: Pure White (`#FFFFFF`)
 - **Primary / Active Accent**: Deep Muted Plum (`#6D4E56`)
 - **Hover State**: `#5A3E45`
@@ -53,7 +53,7 @@ Imlaa follows an intentional, minimalist design system tailored for academic foc
 
 ## 🛠️ Tech Stack
 
-### Frontend (`project-ilmaa`)
+### Frontend (`spellycraft-web`)
 - **React 19** + **Vite 8**
 - **Tailwind CSS v4** (`@tailwindcss/vite`) + **DaisyUI v5**
 - **React Router**

@@ -51,6 +51,7 @@
 /* Common universal components & design classes */
 @layer components {
   /* Universal card outline conforming to PRD (rounded-xl, plum border 20% opacity) */
+  .spellycraft-card,
   .imlaa-card {
     background-color: #ffffff;
     border-radius: 0.75rem; /* rounded-xl */
@@ -59,6 +60,7 @@
   }
 
   /* Universal primary button (Deep Muted Plum) */
+  .spellycraft-btn-primary,
   .imlaa-btn-primary {
     background-color: #6d4e56;
     color: #ffffff;
@@ -74,18 +76,22 @@
     border: none;
     outline: none;
   }
+  .spellycraft-btn-primary:hover:not(:disabled),
   .imlaa-btn-primary:hover:not(:disabled) {
     background-color: #5a3e45;
   }
+  .spellycraft-btn-primary:active:not(:disabled),
   .imlaa-btn-primary:active:not(:disabled) {
     transform: scale(0.99);
   }
+  .spellycraft-btn-primary:disabled,
   .imlaa-btn-primary:disabled {
     opacity: 0.5;
     cursor: not-allowed;
   }
 
   /* Universal secondary / ghost button */
+  .spellycraft-btn-secondary,
   .imlaa-btn-secondary {
     background-color: transparent;
     color: #6d4e56;
@@ -100,12 +106,14 @@
     justify-content: center;
     cursor: pointer;
   }
+  .spellycraft-btn-secondary:hover:not(:disabled),
   .imlaa-btn-secondary:hover:not(:disabled) {
     background-color: rgba(109, 78, 86, 0.06);
     border-color: #6d4e56;
   }
 
   /* Universal text inputs */
+  .spellycraft-input,
   .imlaa-input {
     width: 100%;
     padding: 0.75rem 1rem;
@@ -119,15 +127,18 @@
       box-shadow 150ms ease;
     outline: none;
   }
+  .spellycraft-input:focus,
   .imlaa-input:focus {
     border-color: #6d4e56;
     box-shadow: 0 0 0 1px #6d4e56;
   }
+  .spellycraft-input::placeholder,
   .imlaa-input::placeholder {
     color: #9ca3af;
   }
 
   /* Universal badge / pill */
+  .spellycraft-badge,
   .imlaa-badge {
     display: inline-flex;
     align-items: center;
@@ -141,6 +152,7 @@
   }
 
   /* Universal horizontal navigation / tab item */
+  .spellycraft-tab-btn,
   .imlaa-tab-btn {
     padding: 0.625rem 1.25rem;
     font-size: 1rem;
@@ -251,6 +263,7 @@
   }
 
   /* SweetAlert2 Custom Clean Design */
+  .spellycraft-swal-popup,
   .imlaa-swal-popup {
     border-radius: 1rem !important;
     border: 1px solid rgba(109, 78, 86, 0.25) !important;
@@ -266,6 +279,7 @@
       sans-serif !important;
   }
 
+  .spellycraft-swal-title,
   .imlaa-swal-title {
     font-size: 1.5rem !important;
     font-weight: 800 !important;
@@ -273,12 +287,14 @@
     margin-bottom: 0.5rem !important;
   }
 
+  .spellycraft-swal-html,
   .imlaa-swal-html {
     font-size: 1.05rem !important;
     color: #4b5563 !important;
     line-height: 1.6 !important;
   }
 
+  .spellycraft-swal-confirm,
   .imlaa-swal-confirm {
     background-color: #6d4e56 !important;
     color: #ffffff !important;
@@ -291,10 +307,12 @@
     cursor: pointer !important;
     transition: all 150ms ease !important;
   }
+  .spellycraft-swal-confirm:hover,
   .imlaa-swal-confirm:hover {
     background-color: #5a3e45 !important;
   }
 
+  .spellycraft-swal-danger,
   .imlaa-swal-danger {
     background-color: #b91c1c !important;
     color: #ffffff !important;
@@ -307,10 +325,12 @@
     cursor: pointer !important;
     transition: all 150ms ease !important;
   }
+  .spellycraft-swal-danger:hover,
   .imlaa-swal-danger:hover {
     background-color: #991b1b !important;
   }
 
+  .spellycraft-swal-cancel,
   .imlaa-swal-cancel {
     background-color: transparent !important;
     color: #4b5563 !important;
@@ -322,6 +342,7 @@
     cursor: pointer !important;
     transition: all 150ms ease !important;
   }
+  .spellycraft-swal-cancel:hover,
   .imlaa-swal-cancel:hover {
     background-color: #f3f4f6 !important;
     color: #1f2937 !important;

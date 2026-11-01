@@ -19,7 +19,7 @@ export function useOtp({ setError, setUser, setRole, syncProfile }) {
       }
       return {
         success: true,
-        message: "A fresh 8-digit verification code has been dispatched to your email.",
+        message: "A fresh verification code has been dispatched to your email.",
       };
     } catch (err) {
       telemetry.trackOtpFailure("resend_failed", { error: err.message, email: cleanEmail });

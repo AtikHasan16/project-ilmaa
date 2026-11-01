@@ -1,5 +1,5 @@
 /**
- * Imlaa Platform Automated Load-Testing Suite (Phase 3.3)
+ * SpellyCraft Platform Automated Load-Testing Suite
  *
  * Simulates:
  * 1. 500 concurrent active user read queries (vocabulary stats & RPC)
@@ -157,7 +157,7 @@ async function testBulkUploadQuota(itemCount) {
 
 // Main execution
 async function main() {
-  console.log(`Starting Imlaa Reliability & Scale Verification on [${target.toUpperCase()}]`);
+  console.log(`Starting SpellyCraft Reliability & Scale Verification on [${target.toUpperCase()}]`);
   console.log(`Configured Concurrency Floor: ${maxConcurrency}`);
 
   await testConcurrentActiveUsers(500, Math.min(100, maxConcurrency));

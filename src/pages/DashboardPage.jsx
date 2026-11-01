@@ -84,10 +84,7 @@ export default function DashboardPage() {
     isMountedRef.current = true;
 
     // Check if first-time visitor needs onboarding tour
-    const hasSeenOnboarding =
-      localStorage.getItem("spellycraft_onboarding_completed") ||
-      localStorage.getItem("spell2master_onboarding_completed") ||
-      localStorage.getItem("imlaa_onboarding_completed");
+    const hasSeenOnboarding = localStorage.getItem("spellycraft_onboarding_completed");
     if (!hasSeenOnboarding) {
       setIsOnboardingOpen(true);
     }

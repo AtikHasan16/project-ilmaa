@@ -1,0 +1,119 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Confirm Your SpellyCraft Account</title>
+  <style type="text/css">
+    body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+    table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+    img { -ms-interpolation-mode: bicubic; border: 0; outline: none; text-decoration: none; }
+    body { margin: 0; padding: 0; width: 100% !important; background-color: #F7F5F6; font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; }
+    @media only screen and (max-width: 620px) {
+      .email-container { width: 100% !important; }
+      .content-padding { padding: 28px 20px !important; }
+      .token-box { font-size: 32px !important; letter-spacing: 6px !important; }
+    }
+  </style>
+</head>
+<body style="margin: 0; padding: 0; background-color: #F7F5F6; font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; color: #2D2527;">
+  <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #F7F5F6; padding: 40px 10px;">
+    <tr>
+      <td align="center">
+        <!-- Main Card Container -->
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" class="email-container" style="max-width: 580px; background-color: #FFFFFF; border-radius: 20px; border: 1px solid #EADFE2; box-shadow: 0 4px 24px rgba(109, 78, 86, 0.06); overflow: hidden;">
+          
+          <!-- Top Accent Bar -->
+          <tr>
+            <td height="6" style="background-color: #6D4E56; font-size: 0; line-height: 0;">&nbsp;</td>
+          </tr>
+
+          <!-- Header Logo Bar -->
+          <tr>
+            <td style="padding: 36px 40px 20px 40px; text-align: left;" class="content-padding">
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+                <tr>
+                  <td>
+                    <span style="font-size: 28px; font-weight: 900; color: #2D2527; letter-spacing: -0.5px;">SpellyCraft<span style="color: #6D4E56;">.</span></span>
+                    <span style="display: inline-block; margin-left: 10px; padding: 3px 10px; background-color: #F3ECEE; color: #6D4E56; font-size: 11px; font-weight: 700; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.5px;">IELTS Orthography</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Main Body -->
+          <tr>
+            <td style="padding: 0 40px 36px 40px;" class="content-padding">
+              <h1 style="margin: 0 0 12px 0; font-size: 24px; font-weight: 800; color: #2D2527; line-height: 1.3;">
+                Confirm Your Candidate Account
+              </h1>
+              <p style="margin: 0 0 24px 0; font-size: 15px; line-height: 1.6; color: #6B6265;">
+                Welcome to <strong>SpellyCraft</strong>. Enter the verification code below on the signup screen to verify your email address and activate your study workspace:
+              </p>
+
+              <!-- OTP Token Box -->
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 0 0 28px 0;">
+                <tr>
+                  <td align="center" style="background-color: #FAF7F8; border: 2px dashed #DCCDD1; border-radius: 16px; padding: 24px 16px;">
+                    <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #8F8185; margin-bottom: 8px;">
+                      Verification Code
+                    </div>
+                    <div class="token-box" style="font-family: 'Roboto Mono', 'SF Mono', Consolas, Monaco, monospace; font-size: 38px; font-weight: 900; color: #6D4E56; letter-spacing: 8px; padding: 4px 0;">
+                      {{ .Token }}
+                    </div>
+                    <div style="font-size: 12px; color: #9A8E92; margin-top: 8px;">
+                      Valid for 60 minutes • Do not share with anyone
+                    </div>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Alternative: One-Click Instant Activation Button -->
+              <p style="margin: 0 0 16px 0; font-size: 14px; color: #6B6265; text-align: center;">
+                Or activate your workspace directly with a single click:
+              </p>
+
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 0 0 32px 0;">
+                <tr>
+                  <td align="center">
+                    <a href="{{ .ConfirmationURL }}" target="_blank" style="display: inline-block; background-color: #6D4E56; color: #FFFFFF; font-size: 15px; font-weight: 700; text-decoration: none; padding: 14px 36px; border-radius: 12px; box-shadow: 0 2px 8px rgba(109, 78, 86, 0.25);">
+                      Activate Account &rarr;
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Security Notice -->
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+                <tr>
+                  <td style="background-color: #FAF7F8; border-radius: 12px; padding: 14px 18px; border: 1px solid #EFE8EA;">
+                    <p style="margin: 0; font-size: 12px; line-height: 1.5; color: #877B7F;">
+                      <strong style="color: #6D4E56;">Security Notice:</strong> If you did not initiate this registration on SpellyCraft, you can safely ignore this email.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+            </td>
+          </tr>
+
+          <!-- Footer Bar -->
+          <tr>
+            <td style="background-color: #FAF7F8; padding: 24px 40px; border-top: 1px solid #EADFE2; text-align: center;" class="content-padding">
+              <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 600; color: #6D4E56;">
+                SpellyCraft — Linguistic Mastery Platform
+              </p>
+              <p style="margin: 0; font-size: 11px; color: #A09598; line-height: 1.4;">
+                Dedicated vocabulary drills, acoustic dictation & syntactic precision for IELTS candidates worldwide.<br/>
+                &copy; 2026 SpellyCraft (<a href="https://www.spellycraft.com" style="color: #6D4E56; text-decoration: none;">spellycraft.com</a>). All rights reserved.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

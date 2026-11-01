@@ -1,5 +1,5 @@
 // src/data/grammarLessonsData.js
-// Spell2Master: IELTS Academic Grammar Curriculum (Band 7.5 - 9.0)
+// SpellyCraft: IELTS Academic Grammar Curriculum (Band 7.5 - 9.0)
 // Designed for clear comprehension: Plain English explanations, zero confusing notation,
 // modular chunked sections, and realistic IELTS Academic examples.
 

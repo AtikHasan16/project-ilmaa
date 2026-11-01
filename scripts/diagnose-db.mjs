@@ -42,7 +42,7 @@ if (!supabaseAnonKey) {
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 console.log("==================================================");
-console.log("   IMLAA FULL STACK & DATABASE DIAGNOSIS");
+console.log("   SPELLYCRAFT FULL STACK & DATABASE DIAGNOSIS");
 console.log("==================================================");
 console.log(`Target URL: ${supabaseUrl}`);
 

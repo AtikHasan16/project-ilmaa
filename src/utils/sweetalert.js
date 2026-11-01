@@ -1,14 +1,14 @@
 import Swal from "sweetalert2";
 
 /**
- * Universal SweetAlert2 styled helper conforming to Imlaa Design System:
+ * Universal SweetAlert2 styled helper conforming to SpellyCraft Design System:
  * - Primary Plum: #6D4E56
  * - Hover Plum: #5A3E45
  * - Charcoal Body: #1F2937
  * - Border: rgba(109, 78, 86, 0.2)
  * - Font: Roboto
  */
-const ImlaaSwal = Swal.mixin({
+const SpellyCraftSwal = Swal.mixin({
   customClass: {
     popup: "imlaa-swal-popup",
     title: "imlaa-swal-title",
@@ -29,7 +29,7 @@ export const showConfirmModal = async ({
   isDanger = false,
   icon = "warning",
 }) => {
-  return ImlaaSwal.fire({
+  return SpellyCraftSwal.fire({
     title,
     text,
     icon,
@@ -47,7 +47,7 @@ export const showConfirmModal = async ({
 };
 
 export const showSuccessToast = (title, text = "") => {
-  return ImlaaSwal.fire({
+  return SpellyCraftSwal.fire({
     icon: "success",
     title,
     text,
@@ -58,7 +58,7 @@ export const showSuccessToast = (title, text = "") => {
 };
 
 export const showErrorAlert = (title, text = "") => {
-  return ImlaaSwal.fire({
+  return SpellyCraftSwal.fire({
     icon: "error",
     title,
     text,
@@ -67,7 +67,7 @@ export const showErrorAlert = (title, text = "") => {
 };
 
 export const showWarningAlert = (title, text = "") => {
-  return ImlaaSwal.fire({
+  return SpellyCraftSwal.fire({
     icon: "warning",
     title,
     text,
@@ -75,4 +75,5 @@ export const showWarningAlert = (title, text = "") => {
   });
 };
 
-export default ImlaaSwal;
+export const ImlaaSwal = SpellyCraftSwal;
+export default SpellyCraftSwal;

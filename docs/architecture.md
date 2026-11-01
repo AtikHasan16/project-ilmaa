@@ -1,12 +1,12 @@
-# Imlaa Architecture & Data Contract Guide
+# SpellyCraft Architecture & Data Contract Guide
 
-> Technical reference detailing the target architecture, security model, data flows, and performance guarantees of the Imlaa platform.
+> Technical reference detailing the target architecture, security model, data flows, and performance guarantees of the SpellyCraft platform.
 
 ---
 
 ## 1. System Topology & Target Architecture
 
-Imlaa operates under a **unified single-data-pipeline architecture**. Direct Supabase PostgREST calls with Row-Level Security (RLS) govern all application data and authentication, while a minimal, hardened Express service handles server-side Microsoft Neural Text-to-Speech (TTS) synthesis.
+SpellyCraft operates under a **unified single-data-pipeline architecture**. Direct Supabase PostgREST calls with Row-Level Security (RLS) govern all application data and authentication, while a minimal, hardened Express service handles server-side Microsoft Neural Text-to-Speech (TTS) synthesis.
 
 ```mermaid
 flowchart TD
