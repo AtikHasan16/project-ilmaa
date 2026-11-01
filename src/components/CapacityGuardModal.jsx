@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { HiExclamationTriangle, HiArrowPath } from "react-icons/hi2";
 import apiClient from "../services/apiClient";
 
-const MAX_CONCURRENT_USERS = 500;
+const MAX_CONCURRENT_USERS = 50;
 
 export default function CapacityGuardModal() {
   const [isOverCapacity, setIsOverCapacity] = useState(false);
@@ -47,7 +47,7 @@ export default function CapacityGuardModal() {
             Server at Peak Capacity
           </h2>
           <p className="text-base text-muted-label leading-relaxed">
-            Spell2Master is currently experiencing peak traffic ({activeCount} / {MAX_CONCURRENT_USERS} maximum concurrent users).
+            SpellyCraft is currently experiencing peak traffic ({activeCount} / {MAX_CONCURRENT_USERS} maximum concurrent users).
             To ensure optimal performance and smooth voice synthesis, access is momentarily throttled.
           </p>
         </div>

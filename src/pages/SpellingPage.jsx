@@ -270,6 +270,8 @@ export default function SpellingPage() {
     if (!text) return;
     speakWithMicrosoftTTS(text, {
       voice: "en-US-ChristopherNeural",
+      vocabId: currentWord?.id,
+      audioUrl: currentWord?.audioUrl || currentWord?.audio_url,
       onStart: () => setIsSpeaking(true),
       onEnd: () => setIsSpeaking(false),
       onError: () => setIsSpeaking(false),
@@ -447,7 +449,14 @@ export default function SpellingPage() {
 
       // Auto speak first question
       if (selected[0]) {
-        setTimeout(() => speakWithMicrosoftTTS(selected[0].word), 300);
+        setTimeout(
+          () =>
+            speakWithMicrosoftTTS(selected[0].word, {
+              vocabId: selected[0].id,
+              audioUrl: selected[0].audioUrl || selected[0].audio_url,
+            }),
+          300,
+        );
       }
 
       startQuizTimer(quizTimerMinutes);
@@ -468,7 +477,14 @@ export default function SpellingPage() {
     if (quizIndex < quizQuestions.length - 1) {
       const nextQ = quizQuestions[quizIndex + 1];
       setQuizIndex((prev) => prev + 1);
-      setTimeout(() => speakWithMicrosoftTTS(nextQ.word), 300);
+      setTimeout(
+        () =>
+          speakWithMicrosoftTTS(nextQ.word, {
+            vocabId: nextQ.id,
+            audioUrl: nextQ.audioUrl || nextQ.audio_url,
+          }),
+        300,
+      );
     } else {
       stopQuizTimer();
       setQuizFinished(true);
@@ -976,7 +992,15 @@ export default function SpellingPage() {
               <div className="py-4 space-y-3">
                 <button
                   type="button"
-                  onClick={() => speakWithMicrosoftTTS(quizQuestions[quizIndex].word)}
+                  onClick={() => {
+                    const activeQ = quizQuestions[quizIndex];
+                    if (activeQ) {
+                      speakWithMicrosoftTTS(activeQ.word, {
+                        vocabId: activeQ.id,
+                        audioUrl: activeQ.audioUrl || activeQ.audio_url,
+                      });
+                    }
+                  }}
                   className="w-20 h-20 rounded-2xl bg-plum hover:bg-plum-hover text-white mx-auto flex items-center justify-center transition shadow-md cursor-pointer"
                 >
                   <HiSpeakerWave className="w-10 h-10" />

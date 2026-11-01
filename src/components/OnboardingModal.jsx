@@ -69,7 +69,7 @@ export default function OnboardingModal({ isOpen, onClose }) {
 
   const handleNext = () => {
     if (isLast) {
-      localStorage.setItem("spell2master_onboarding_completed", "true");
+      localStorage.setItem("spellycraft_onboarding_completed", "true");
       fireConfetti({ particleCount: 70, spread: 60, origin: { x: 0.5, y: 0.5 } });
       onClose();
     } else {
@@ -82,7 +82,7 @@ export default function OnboardingModal({ isOpen, onClose }) {
   };
 
   const handleSkip = () => {
-    localStorage.setItem("spell2master_onboarding_completed", "true");
+    localStorage.setItem("spellycraft_onboarding_completed", "true");
     onClose();
   };
 
@@ -97,7 +97,7 @@ export default function OnboardingModal({ isOpen, onClose }) {
         {/* Top bar */}
         <div className="p-4 border-b border-plum/10 flex items-center justify-between bg-plum/5">
           <span className="text-xs font-bold uppercase tracking-wider text-plum">
-            Welcome to Spell2Master &bull; Step {currentSlide + 1} of {SLIDES.length}
+            Welcome to SpellyCraft &bull; Step {currentSlide + 1} of {SLIDES.length}
           </span>
           <button
             type="button"

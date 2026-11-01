@@ -17,7 +17,7 @@ const maxConcurrency = Number(process.argv.find((a) => a.startsWith("--concurren
 const BASE_URLS = {
   local: {
     frontend: "http://localhost:5173",
-    server: "http://localhost:5000",
+    server: "http://localhost:5001",
   },
   staging: {
     frontend: "https://imlaa-staging.vercel.app",

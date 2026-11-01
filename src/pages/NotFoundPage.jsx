@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import { HiArrowLeft, HiAcademicCap, HiHome } from "react-icons/hi2";
+import MinimalFooter from "../components/MinimalFooter";
 
 export default function NotFoundPage() {
   return (
@@ -12,9 +13,9 @@ export default function NotFoundPage() {
             className="flex items-center space-x-2 text-plum hover:text-plum-hover font-semibold transition text-base"
           >
             <HiArrowLeft className="w-5 h-5" />
-            <span>Return to Spell2Master</span>
+            <span>Return to SpellyCraft</span>
           </Link>
-          <div className="text-xl font-black text-plum tracking-tight">Spell2Master</div>
+          <div className="text-xl font-black text-plum tracking-tight">SpellyCraft</div>
         </div>
       </header>
 
@@ -56,16 +57,7 @@ export default function NotFoundPage() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-plum/15 py-8 text-center text-sm text-muted-label">
-        <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div>© {new Date().getFullYear()} Spell2Master IELTS Workspace. All rights reserved.</div>
-          <div className="flex items-center space-x-6">
-            <Link to="/" className="hover:text-plum transition">Home</Link>
-            <Link to="/about" className="hover:text-plum transition">About</Link>
-            <Link to="/contact" className="hover:text-plum transition">Contact</Link>
-          </div>
-        </div>
-      </footer>
+      <MinimalFooter />
     </div>
   );
 }

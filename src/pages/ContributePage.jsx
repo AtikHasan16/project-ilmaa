@@ -24,6 +24,7 @@ import {
   FaLinkedin,
   FaGithub,
 } from "react-icons/fa6";
+import MinimalFooter from "../components/MinimalFooter";
 import { showSuccessToast } from "../utils/sweetalert";
 
 // ============================================================================
@@ -90,7 +91,7 @@ const SUPPORTERS_AND_PATRONS = [
   },
   {
     id: "community-patrons",
-    name: "Spell2Master Community Scholars & Patrons",
+    name: "SpellyCraft Community Scholars & Patrons",
     category: "Crowdfunded Patrons",
     tier: "Individual Backers",
     description:
@@ -256,13 +257,13 @@ const TOPIC_FILTERS = [
   { id: "speech", label: "Speech & Neural TTS" },
 ];
 
-const BIBTEX_CITATION = `@software{spell2master_framework_2026,
-  author       = {Hasan, MD Atik and The Spell2Master Linguistic Advisory Group},
-  title        = {Spell2Master: An Open Applied Orthographic and Phonemic Training Framework for Academic IELTS},
+const BIBTEX_CITATION = `@software{spellycraft_framework_2026,
+  author       = {Hasan, MD Atik and The SpellyCraft Linguistic Advisory Group},
+  title        = {SpellyCraft: An Open Applied Orthographic and Phonemic Training Framework for Academic IELTS},
   year         = {2026},
   publisher    = {Zenodo / GitHub},
   version      = {v2.5.0},
-  url          = {https://github.com/AtikHasan16/spell2master-web},
+  url          = {https://spellycraft.com},
   keywords     = {applied linguistics, orthography, IELTS, L1 transfer, phonemic perception, spaced retrieval}
 }`;
 
@@ -355,7 +356,7 @@ export default function ContributePage() {
           Pioneering Open Science in Second-Language Orthography
         </h1>
         <p className="text-base sm:text-lg text-muted-label leading-relaxed">
-          Spell2Master bridges empirical phonetics, L1 acoustic transfer, and active
+          SpellyCraft bridges empirical phonetics, L1 acoustic transfer, and active
           orthographic retrieval. We collaborate with university faculty,
           independent linguists, and graduate researchers to advance open
           pedagogical science for IELTS candidates worldwide.
@@ -766,10 +767,10 @@ export default function ContributePage() {
             </div>
             <div>
               <h2 className="text-xl font-bold text-body-dark">
-                Cite Spell2Master in Your Academic Research
+                Cite SpellyCraft in Your Academic Research
               </h2>
               <p className="text-xs sm:text-sm text-muted-label">
-                If you use Spell2Master datasets, vocabulary item banks, or phonological
+                If you use SpellyCraft datasets, vocabulary item banks, or phonological
                 taxonomies in your research or thesis, please cite our open
                 framework:
               </p>
@@ -806,7 +807,7 @@ export default function ContributePage() {
             <HiMiniShieldCheck className="w-4 h-4 text-emerald-700" />
             <span>Open Access Attribution • CC-BY 4.0 International</span>
           </span>
-          <span className="font-mono">Zenodo Archive DOI: 10.5281/zenodo.spell2master</span>
+          <span className="font-mono">Zenodo Archive DOI: 10.5281/zenodo.spellycraft</span>
         </div>
       </section>
 
@@ -875,7 +876,7 @@ export default function ContributePage() {
             {activeModalTrack.title}
           </h2>
           <p className="text-xs text-muted-label">
-            Connect directly with the Spell2Master Academic Advisory Board. We review
+            Connect directly with the SpellyCraft Academic Advisory Board. We review
             all submissions for scholarly rigor, IRB compliance, and curriculum
             relevance.
           </p>
@@ -998,7 +999,7 @@ export default function ContributePage() {
             <span>Go Back</span>
           </button>
           <div className="flex items-center space-x-2 text-plum font-black tracking-tight text-xl">
-            <span>Spell2Master Research</span>
+            <span>SpellyCraft Research</span>
             <span className="w-2 h-2 rounded-full bg-plum inline-block"></span>
           </div>
         </div>
@@ -1010,28 +1011,7 @@ export default function ContributePage() {
       </main>
 
       {/* Public Footer */}
-      <footer className="border-t border-plum/15 py-6 text-center text-xs text-muted-label bg-white">
-        <div className="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <span>
-            © {new Date().getFullYear()} Spell2Master Linguistic Mastery Platform • Open
-            Science & Applied Linguistics Consortium
-          </span>
-          <div className="flex items-center space-x-4">
-            <Link to="/" className="hover:text-plum transition">
-              Home
-            </Link>
-            <Link to="/about" className="hover:text-plum transition">
-              About
-            </Link>
-            <Link to="/support-us" className="hover:text-plum transition">
-              Support Us
-            </Link>
-            <Link to="/contact" className="hover:text-plum transition">
-              Contact
-            </Link>
-          </div>
-        </div>
-      </footer>
+      <MinimalFooter />
 
       {proposalModal}
     </div>

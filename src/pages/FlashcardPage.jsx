@@ -291,6 +291,8 @@ export default function FlashcardPage() {
     if (!text) return;
     speakWithMicrosoftTTS(text, {
       voice: "en-US-ChristopherNeural",
+      vocabId: currentWord?.id,
+      audioUrl: currentWord?.audioUrl || currentWord?.audio_url,
       onStart: () => setIsSpeaking(true),
       onEnd: () => setIsSpeaking(false),
       onError: () => setIsSpeaking(false),

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 import {
   HiHeart,
   HiClipboardDocument,
@@ -9,6 +9,7 @@ import {
 } from "react-icons/hi2";
 import { SiBuymeacoffee, SiPaypal } from "react-icons/si";
 import { showSuccessToast } from "../utils/sweetalert";
+import MinimalFooter from "../components/MinimalFooter";
 
 export default function SupportUsPage() {
   const navigate = useNavigate();
@@ -20,7 +21,7 @@ export default function SupportUsPage() {
       name: "bKash",
       number: "01789123456",
       type: "Personal (Send Money)",
-      note: "Use 'Spell2Master' in reference",
+      note: "Use 'SpellyCraft' in reference",
       tagColor: "bg-pink-50 text-pink-700 border-pink-200",
     },
     {
@@ -28,7 +29,7 @@ export default function SupportUsPage() {
       name: "Nagad",
       number: "01889123456",
       type: "Personal (Send Money)",
-      note: "Use 'Spell2Master' in reference",
+      note: "Use 'SpellyCraft' in reference",
       tagColor: "bg-amber-50 text-amber-700 border-amber-200",
     },
     {
@@ -75,7 +76,7 @@ export default function SupportUsPage() {
             <span>Go Back</span>
           </button>
           <div className="flex items-center space-x-2 text-plum font-black tracking-tight text-xl">
-            <span>Spell2Master</span>
+            <span>SpellyCraft</span>
             <span className="w-2 h-2 rounded-full bg-plum inline-block"></span>
           </div>
         </div>
@@ -90,7 +91,7 @@ export default function SupportUsPage() {
             <span>Support The Platform</span>
           </div>
           <h1 className="text-2xl sm:text-4xl font-black text-body-dark tracking-tight wrap-break-word">
-            Help Keep Spell2Master Free
+            Help Keep SpellyCraft Free
           </h1>
           <p className="text-sm sm:text-base text-muted-label">
             Your contributions directly support cloud servers and Neural TTS voice synthesis for IELTS candidates.
@@ -205,14 +206,7 @@ export default function SupportUsPage() {
       </main>
 
       {/* Simple Footer */}
-      <footer className="border-t border-plum/15 py-4 sm:py-5 text-center text-xs text-muted-label px-4">
-        <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>© {new Date().getFullYear()} Spell2Master IELTS Workspace</span>
-          <Link to="/contact" className="hover:text-plum transition min-h-9 flex items-center">
-            Contact Support
-          </Link>
-        </div>
-      </footer>
+      <MinimalFooter />
     </div>
   );
 }
