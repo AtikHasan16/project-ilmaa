@@ -140,7 +140,7 @@ export function useSignIn({ setError, setUser, setRole, syncProfile }) {
         user: data.user,
         requiresOtp,
         message: requiresOtp
-          ? "An 8-digit verification code was sent to your email. Please check your inbox and spam folder."
+          ? "A verification code was sent to your email. Please check your inbox and spam folder."
           : "Registration successful!",
       };
     } catch (err) {

@@ -7,7 +7,7 @@ import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
-console.log("=== Imlaa Pre-Commit Verification Starting ===");
+console.log("=== SpellyCraft Pre-Commit Verification Starting ===");
 
 // 1. Run Secret Scanner
 console.log("\n[1/4] Running secret detection scanner...");

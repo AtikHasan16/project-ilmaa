@@ -1,5 +1,5 @@
 -- =========================================================================
--- IMLAA PLATFORM: FULL CLEAN DATABASE REBUILD SCRIPT
+-- SPELLYCRAFT PLATFORM: FULL CLEAN DATABASE REBUILD SCRIPT
 -- =========================================================================
 -- Instructions:
 -- 1. Open your Supabase Dashboard: https://supabase.com/dashboard/project/evjvqrxrevycnjxsnjdt

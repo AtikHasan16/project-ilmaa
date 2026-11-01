@@ -1,6 +1,6 @@
-# Imlaa Platform Deployment & Operations Runbook
+# SpellyCraft Platform Deployment & Operations Runbook
 
-> Operational manual for deploying, monitoring, promoting environments, and managing infrastructure for the Imlaa Linguistic Mastery Platform.
+> Operational manual for deploying, monitoring, promoting environments, and managing infrastructure for the SpellyCraft Linguistic Mastery Platform.
 
 ---
 
@@ -8,8 +8,8 @@
 
 | Subproject | Runtime | Host Provider | Port / Protocol | Health Endpoint |
 |---|---|---|---|---|
-| **Frontend** (`project-ilmaa`) | Vite + React 19 SPA | **Vercel** (Global Edge CDN) | HTTPS / 443 | `GET /` |
-| **TTS Service** (`server`) | Node.js Express 4 | **Render** (Web Service) | HTTPS / 443 (Internal 5000) | `GET /health`, `GET /ready` |
+| **Frontend** (`spellycraft-web`) | Vite + React 19 SPA | **Vercel** (Global Edge CDN) | HTTPS / 443 | `GET /` |
+| **TTS Service** (`spellycraft-server`) | Node.js Express 4 | **Render** (Web Service) | HTTPS / 443 (Internal 5000) | `GET /health`, `GET /ready` |
 | **Database & Auth** | PostgreSQL 15 + GoTrue | **Supabase Cloud** | HTTPS / 443 (REST/Auth), Pooler 6543 | Cloud Dashboard |
 
 ---

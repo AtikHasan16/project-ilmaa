@@ -37,10 +37,7 @@ export default function ContactPage() {
     }
 
     // 2. Anti-Raid Rate Limiter: Minimum 60s cooldown between submissions
-    const lastSubmitTime =
-      localStorage.getItem("spellycraft_contact_last_ts") ||
-      localStorage.getItem("spell2master_contact_last_ts") ||
-      localStorage.getItem("imlaa_contact_last_ts");
+    const lastSubmitTime = localStorage.getItem("spellycraft_contact_last_ts");
     if (lastSubmitTime && Date.now() - Number(lastSubmitTime) < 60000) {
       const waitSeconds = Math.ceil((60000 - (Date.now() - Number(lastSubmitTime))) / 1000);
       showErrorAlert(
@@ -62,8 +59,8 @@ export default function ContactPage() {
 
     setSending(true);
 
-    const serviceId = import.meta.env?.VITE_EMAILJS_SERVICE_ID || "service_ilmaa";
-    const templateId = import.meta.env?.VITE_EMAILJS_TEMPLATE_ID || "template_ilmaa";
+    const serviceId = import.meta.env?.VITE_EMAILJS_SERVICE_ID || "service_spellycraft";
+    const templateId = import.meta.env?.VITE_EMAILJS_TEMPLATE_ID || "template_spellycraft";
     const publicKey = import.meta.env?.VITE_EMAILJS_PUBLIC_KEY;
 
     // Structured template parameters sent to EmailJS

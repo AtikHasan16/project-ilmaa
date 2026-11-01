@@ -262,7 +262,7 @@ export default function LandingPage() {
   };
 
   const playPhonemeSample = () => {
-    speakWithMicrosoftTTS("Spell to Master", {
+    speakWithMicrosoftTTS("SpellyCraft", {
       voice: "en-US-ChristopherNeural",
       onStart: () => setPlayingAudio(true),
       onEnd: () => setPlayingAudio(false),
@@ -321,11 +321,11 @@ export default function LandingPage() {
             </h1>
 
             <div className="text-base sm:text-xl lg:text-2xl font-mono text-muted-label tracking-wide flex flex-wrap items-center gap-2 sm:space-x-3 mb-4 sm:mb-6">
-              <span>/ˈɪm.lɑː/</span>
+              <span>/ˈspɛl.i.kræft/</span>
               <span className="text-plum/40 hidden sm:inline">•</span>
               <span className="text-body-dark font-sans font-medium text-sm sm:text-lg">
-                Noun (Arabic: إملاء) —{" "}
-                <span className="italic">Orthography & Dictation</span>
+                Noun —{" "}
+                <span className="italic">Focused Orthography & Lexical Mastery</span>
               </span>
             </div>
 
@@ -442,10 +442,10 @@ export default function LandingPage() {
 
                 <span className="text-xs font-bold text-muted-label uppercase tracking-wider">
                   {authMode === "otp"
-                    ? "Email Verification (8-Digit)"
+                    ? "Email Verification"
                     : authMode === "forgot"
                       ? "Password Recovery"
-                      : "Reset Password (8-Digit)"}
+                      : "Reset Password"}
                 </span>
               </div>
             )}
@@ -623,7 +623,7 @@ export default function LandingPage() {
 
                   <div>
                     <label className="block text-sm font-semibold text-body-dark mb-1.5 text-center">
-                      Enter 8-Digit Verification Code
+                      Enter Verification Code
                     </label>
                     <input
                       type="text"
@@ -679,7 +679,7 @@ export default function LandingPage() {
 
                   <div>
                     <label className="block text-sm font-semibold text-body-dark mb-1.5">
-                      8-Digit Recovery Code
+                      Recovery / Verification Code
                     </label>
                     <input
                       type="text"

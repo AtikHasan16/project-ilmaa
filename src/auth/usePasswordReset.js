@@ -32,7 +32,7 @@ export function usePasswordReset({ setError, setUser, setRole, syncProfile }) {
       return {
         success: true,
         message:
-          "Password recovery instructions and an 8-digit code have been dispatched to your email.",
+          "Password recovery instructions and a verification code have been dispatched to your email.",
       };
     } catch (err) {
       const msg = err.message || "Failed to dispatch password recovery email.";

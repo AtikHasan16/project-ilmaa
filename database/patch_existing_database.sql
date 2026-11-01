@@ -1,5 +1,5 @@
 -- =========================================================================
--- IMLAA PLATFORM: NON-DESTRUCTIVE PATCH SCRIPT (PRESERVES EXISTING DATA)
+-- SPELLYCRAFT PLATFORM: NON-DESTRUCTIVE PATCH SCRIPT (PRESERVES EXISTING DATA)
 -- =========================================================================
 -- Instructions:
 -- Run this in your Supabase SQL Editor if you want to keep existing vocabulary,

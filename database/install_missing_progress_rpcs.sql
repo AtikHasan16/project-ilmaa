@@ -1,5 +1,5 @@
 -- =========================================================================
--- IMLAA PLATFORM: INSTALL MISSING PROGRESS & STUDY RPCS
+-- SPELLYCRAFT PLATFORM: INSTALL MISSING PROGRESS & STUDY RPCS
 -- =========================================================================
 -- Run this in your Supabase SQL Editor to install the atomic RPC functions
 -- for recording spelling, flashcards, and study sessions.

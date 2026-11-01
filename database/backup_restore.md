@@ -1,6 +1,6 @@
 # Supabase Database Backup & Restore Standard Operating Procedure (SOP)
 
-This guide documents the procedures for capturing, verifying, and restoring backups of the Imlaa production and staging databases.
+This guide documents the procedures for capturing, verifying, and restoring backups of the SpellyCraft production and staging databases.
 
 ---
 
@@ -32,7 +32,7 @@ pg_dump "$DATABASE_URL" \
   --no-owner \
   --no-privileges \
   --exclude-schema='graphql,graphql_public,realtime,vault,pgsodium' \
-  --file="imlaa_backup_$(date +%Y%m%d_%H%M%S).dump"
+  --file="spellycraft_backup_$(date +%Y%m%d_%H%M%S).dump"
 ```
 
 ### 2.2 Schema-Only Snapshot
@@ -80,7 +80,7 @@ pg_dump "$DATABASE_URL" \
      --no-owner \
      --no-privileges \
      --dbname="postgresql://postgres:postgres@127.0.0.1:54322/postgres" \
-     "imlaa_backup_YYYYMMDD_HHMMSS.dump"
+     "spellycraft_backup_YYYYMMDD_HHMMSS.dump"
    ```
 
 ### Step 2: Post-Restore Verification Queries

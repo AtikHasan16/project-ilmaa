@@ -194,13 +194,13 @@ export function exportStudyCertificatePDF({ user, metrics, role }) {
             box-shadow: 0 2px 4px rgba(0,0,0,0.02);
           }
           .metric-val {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace;
+            font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', monospace;
             font-size: 20px;
             font-weight: 800;
             color: #6D4E56;
           }
           .metric-lbl {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             font-size: 10px;
             text-transform: uppercase;
             letter-spacing: 1px;
@@ -235,7 +235,7 @@ export function exportStudyCertificatePDF({ user, metrics, role }) {
             color: #6D4E56;
           }
           .sign-title {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             font-size: 10px;
             text-transform: uppercase;
             letter-spacing: 1px;
@@ -243,7 +243,7 @@ export function exportStudyCertificatePDF({ user, metrics, role }) {
             color: #4b5563;
           }
           .sign-dept {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             font-size: 9px;
             color: #9ca3af;
           }
@@ -271,7 +271,7 @@ export function exportStudyCertificatePDF({ user, metrics, role }) {
             line-height: 1;
           }
           .seal-text {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             font-size: 8px;
             font-weight: 900;
             color: #6D4E56;
@@ -281,7 +281,7 @@ export function exportStudyCertificatePDF({ user, metrics, role }) {
           }
 
           .meta-info {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             font-size: 9px;
             color: #9ca3af;
             text-align: center;
