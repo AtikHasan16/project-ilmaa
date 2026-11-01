@@ -23,7 +23,7 @@ export function usePasswordReset({ setError, setUser, setRole, syncProfile }) {
       const origin =
         typeof window !== "undefined" && window.location?.origin
           ? window.location.origin
-          : "http://localhost:5173";
+          : (import.meta.env?.VITE_FRONTEND_URL || "https://www.spellycraft.com");
       const { error: resetErr } = await supabase.auth.resetPasswordForEmail(
         cleanEmail,
         { redirectTo: `${origin}/reset-password` },

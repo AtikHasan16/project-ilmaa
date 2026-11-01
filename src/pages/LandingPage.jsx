@@ -11,8 +11,8 @@ import {
   HiArrowLeft,
   HiArrowPath,
 } from "react-icons/hi2";
-import { FaLinkedin, FaGithub } from "react-icons/fa6";
 import { speakWithMicrosoftTTS } from "../utils/speechTts";
+import MinimalFooter from "../components/MinimalFooter";
 
 export default function LandingPage() {
   // Modes: 'signin' | 'signup' | 'otp' | 'forgot' | 'reset_password'
@@ -262,7 +262,7 @@ export default function LandingPage() {
   };
 
   const playPhonemeSample = () => {
-    speakWithMicrosoftTTS("Imlaa", {
+    speakWithMicrosoftTTS("Spell to Master", {
       voice: "en-US-ChristopherNeural",
       onStart: () => setPlayingAudio(true),
       onEnd: () => setPlayingAudio(false),
@@ -276,7 +276,7 @@ export default function LandingPage() {
       <header className="w-full max-w-6xl mx-auto flex items-center justify-between pb-4 sm:pb-6 gap-3">
         <div className="flex items-center space-x-2 shrink-0">
           <span className="font-black text-xl sm:text-2xl tracking-tight text-body-dark">
-            Imlaa<span className="text-plum">.</span>
+            SpellyCraft<span className="text-plum">.</span>
           </span>
           <span className="hidden sm:inline-block px-2.5 py-0.5 rounded-full bg-plum/10 text-plum text-xs font-bold tracking-wide">
             IELTS Orthography
@@ -317,7 +317,7 @@ export default function LandingPage() {
             </div>
 
             <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight text-body-dark leading-tight mb-2 sm:mb-3 wrap-break-word">
-              Imlaa<span className="text-plum">.</span>
+              SpellyCraft<span className="text-plum">.</span>
             </h1>
 
             <div className="text-base sm:text-xl lg:text-2xl font-mono text-muted-label tracking-wide flex flex-wrap items-center gap-2 sm:space-x-3 mb-4 sm:mb-6">
@@ -796,52 +796,9 @@ export default function LandingPage() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-plum/15 bg-white py-6 mt-12 text-muted-label text-sm">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex flex-col sm:flex-row items-center sm:space-x-3 text-center sm:text-left">
-            <span className="font-black text-plum tracking-tight text-base">Imlaa</span>
-            <span className="hidden sm:inline text-plum/30">•</span>
-            <span>
-              © {new Date().getFullYear()} Imlaa IELTS Workspace • Built with dedication
-              for candidates worldwide.
-            </span>
-          </div>
-
-          <div className="flex items-center space-x-6 text-body-dark font-medium">
-            <Link to="/about" className="hover:text-plum transition">
-              About
-            </Link>
-            <Link to="/contact" className="hover:text-plum transition">
-              Contact
-            </Link>
-            <Link
-              to="/support-us"
-              className="text-plum font-bold hover:underline transition"
-            >
-              Support Us
-            </Link>
-          </div>
-
-          <div className="flex items-center space-x-3 text-plum">
-            <a
-              href="https://linkedin.com/in/hasan-md-atik/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-8 h-8 rounded-lg bg-plum/5 hover:bg-plum hover:text-white flex items-center justify-center transition"
-            >
-              <FaLinkedin className="w-4 h-4" />
-            </a>
-            <a
-              href="https://github.com/akhasannaeem"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-8 h-8 rounded-lg bg-plum/5 hover:bg-plum hover:text-white flex items-center justify-center transition"
-            >
-              <FaGithub className="w-4 h-4" />
-            </a>
-          </div>
-        </div>
-      </footer>
+      <div className="w-full mt-12">
+        <MinimalFooter />
+      </div>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router";
 import { useAuth } from "../context/AuthContext";
 import { HiKey, HiArrowRight, HiCheckCircle } from "react-icons/hi2";
+import MinimalFooter from "../components/MinimalFooter";
 
 export default function ResetPasswordPage() {
   const [newPassword, setNewPassword] = useState("");
@@ -67,7 +68,7 @@ export default function ResetPasswordPage() {
       {/* Top Brand Header */}
       <header className="w-full max-w-xl mx-auto flex items-center justify-between pb-6">
         <Link to="/" className="font-black text-2xl tracking-tight text-body-dark">
-          Imlaa<span className="text-plum">.</span>
+          SpellyCraft<span className="text-plum">.</span>
         </Link>
         <Link to="/" className="text-sm font-semibold text-muted-label hover:text-plum transition">
           Back to Home
@@ -162,9 +163,9 @@ export default function ResetPasswordPage() {
         </div>
       </main>
 
-      <footer className="w-full text-center text-xs text-muted-label pt-6">
-        Protected by Supabase Cryptographic Session Security
-      </footer>
+      <div className="w-full pt-6">
+        <MinimalFooter />
+      </div>
     </div>
   );
 }

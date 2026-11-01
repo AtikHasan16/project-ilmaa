@@ -10,6 +10,7 @@ const DashboardPage = lazy(() => import("./pages/DashboardPage"));
 const FlashcardPage = lazy(() => import("./pages/FlashcardPage"));
 const SpellingPage = lazy(() => import("./pages/SpellingPage"));
 const GrammarPage = lazy(() => import("./pages/GrammarPage"));
+const GrammarLessonPage = lazy(() => import("./pages/GrammarLessonPage"));
 const UploadStudyPage = lazy(() => import("./pages/UploadStudyPage"));
 const AdminDashboardPage = lazy(() => import("./pages/AdminDashboardPage"));
 const VocabMonitorPage = lazy(() => import("./pages/VocabMonitorPage"));
@@ -97,6 +98,7 @@ export default function App() {
             <Route path="spelling" element={<PageRoute component={SpellingPage} />} />
             <Route path="vocab" element={<Navigate to="/workspace/flashcard" replace />} />
             <Route path="grammar" element={<PageRoute component={GrammarPage} />} />
+            <Route path="grammar/lesson/:topicId?" element={<PageRoute component={GrammarLessonPage} />} />
             <Route path="contribute" element={<PageRoute component={ContributePage} />} />
             <Route path="support-us" element={<PageRoute component={SupportUsPage} />} />
             <Route

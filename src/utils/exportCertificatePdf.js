@@ -44,7 +44,7 @@ export function exportStudyCertificatePDF({ user, metrics, role }) {
     <html lang="en">
       <head>
         <meta charset="utf-8" />
-        <title>Imlaa Certificate of Linguistic Mastery - ${escapeHtml(candidateName)}</title>
+        <title>SpellyCraft Certificate of Linguistic Mastery - ${escapeHtml(candidateName)}</title>
         <style>
           @page {
             size: A4 landscape;
@@ -308,11 +308,11 @@ export function exportStudyCertificatePDF({ user, metrics, role }) {
           <div class="corner corner-tr"></div>
           <div class="corner corner-bl"></div>
           <div class="corner corner-br"></div>
-          <div class="watermark">IMLAA VERIFIED</div>
+          <div class="watermark">SPELLYCRAFT VERIFIED</div>
 
           <!-- Header -->
           <div class="header">
-            <div class="org-badge">Imlaa Linguistic Mastery Platform</div>
+            <div class="org-badge">SpellyCraft Linguistic Mastery Platform</div>
             <h1 class="title">Certificate of Linguistic Achievement</h1>
             <div class="subtitle">Academic Lexicography, Orthographic Mastery & Phonetic Precision</div>
           </div>
@@ -323,7 +323,7 @@ export function exportStudyCertificatePDF({ user, metrics, role }) {
             <div class="candidate-name">${escapeHtml(candidateName)}</div>
             <p class="statement">
               in recognition of comprehensive dedication, orthographic accuracy, and persistent mastery in the 
-              Imlaa academic lexicon corpus curriculum. Demonstrating exceptional linguistic competence 
+              SpellyCraft academic lexicon corpus curriculum. Demonstrating exceptional linguistic competence 
               across spelling synthesis, contextual vocabulary recall, and syntactic precision.
             </p>
 
@@ -354,7 +354,7 @@ export function exportStudyCertificatePDF({ user, metrics, role }) {
               <div class="sign-col">
                 <div class="sign-line">Dr. K. Vance, D.Phil</div>
                 <div class="sign-title">Academic Lexicographer</div>
-                <div class="sign-dept">Imlaa Academic Board</div>
+                <div class="sign-dept">SpellyCraft Academic Board</div>
               </div>
 
               <div class="seal-wrap">
@@ -373,7 +373,7 @@ export function exportStudyCertificatePDF({ user, metrics, role }) {
             </div>
 
             <div class="meta-info">
-              Certificate ID: <strong>${escapeHtml(certId)}</strong> &bull; Authenticity verified via Supabase Cryptographic Signatures &bull; Imlaa Linguistic Systems
+              Certificate ID: <strong>${escapeHtml(certId)}</strong> &bull; Authenticity verified via Supabase Cryptographic Signatures &bull; SpellyCraft Linguistic Systems
             </div>
           </div>
         </div>

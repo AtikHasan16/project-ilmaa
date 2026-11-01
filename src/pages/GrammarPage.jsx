@@ -1,10 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate, useSearchParams } from "react-router";
 import RandomQuizSetupModal from "../components/RandomQuizSetupModal";
+import GrammarLessonModal from "../components/GrammarLessonModal";
 import { useCountdownTimer } from "../hooks/useCountdownTimer";
 import { useModalEffects } from "../hooks/useModalEffects";
 import apiClient from "../services/apiClient";
 import { useAuth } from "../context/AuthContext";
 import { secureShuffle } from "../utils/cryptoRandom";
+import { getLessonByTopicId } from "../data/grammarLessonsData";
 import {
   HiCheckCircle,
   HiXCircle,
@@ -14,6 +17,9 @@ import {
   HiShieldCheck,
   HiClock,
   HiSparkles,
+  HiBookOpen,
+  HiLightBulb,
+  HiArrowRight,
 } from "react-icons/hi2";
 
 const GRAMMAR_CATEGORIES = [
@@ -58,10 +64,20 @@ const GRAMMAR_TOPICS = [
 
 export default function GrammarPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [activeCategory, setActiveCategory] = useState("all");
   const [selectedTopic, setSelectedTopic] = useState(null);
-  const [viewMode, setViewMode] = useState("overview"); // 'overview' | 'quiz' | 'finished'
+  const [viewMode, setViewMode] = useState("overview"); // 'overview' | 'quiz' | 'finished' | 'identification'
   const [drillStartTime, setDrillStartTime] = useState(null);
+
+  // Guided Lesson & Identification State
+  const [selectedLesson, setSelectedLesson] = useState(null);
+  const [isLessonModalOpen, setIsLessonModalOpen] = useState(false);
+  const [showRuleHint, setShowRuleHint] = useState(false);
+  const [identificationExercise, setIdentificationExercise] = useState(null);
+  const [identificationExerciseIndex, setIdentificationExerciseIndex] = useState(0);
+  const [identificationSelectedIdx, setIdentificationSelectedIdx] = useState(null);
 
   const [questions, setQuestions] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -157,6 +173,46 @@ export default function GrammarPage() {
     [loadQuestions],
   );
 
+  const handlePreviewLesson = useCallback(
+    (topicId) => {
+      navigate(`/workspace/grammar/lesson/${topicId}`);
+    },
+    [navigate],
+  );
+
+  // Auto-launch topic drill if navigated with ?topic=<id>&start=true
+  useEffect(() => {
+    const autoTopicId = searchParams.get("topic");
+    const autoStart = searchParams.get("start") === "true";
+
+    if (autoTopicId && autoStart) {
+      const target = GRAMMAR_TOPICS.find((t) => t.id === autoTopicId);
+      if (target) {
+        setSearchParams({}, { replace: true });
+        handleStartTopic({
+          ...target,
+          realCount: 50,
+        });
+      }
+    }
+  }, [searchParams, setSearchParams, handleStartTopic]);
+
+  const handleStartIdentification = useCallback((lesson) => {
+    if (!lesson || !lesson.identificationExercises || lesson.identificationExercises.length === 0) {
+      return;
+    }
+    setSelectedLesson(lesson);
+    setSelectedTopic({
+      id: lesson.id,
+      title: lesson.title,
+      description: lesson.corePrinciple,
+    });
+    setIdentificationExerciseIndex(0);
+    setIdentificationExercise(lesson.identificationExercises[0]);
+    setIdentificationSelectedIdx(null);
+    setViewMode("identification");
+  }, []);
+
   const handleReturnToTopics = () => {
     stopQuizTimer();
     if (user?.id && drillStartTime) {
@@ -210,6 +266,7 @@ export default function GrammarPage() {
   };
 
   const currentQ = questions[currentIndex] || null;
+  const activeTopicLesson = selectedTopic?.id ? getLessonByTopicId(selectedTopic.id) : null;
 
   const handleSelectOption = (option) => {
     if (isAnswered) return;
@@ -342,22 +399,35 @@ export default function GrammarPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between pt-2 border-t border-plum/10">
-                    <span className="text-sm text-muted-label font-medium">
+                  <div className="flex items-center justify-between pt-3 border-t border-plum/10 gap-2">
+                    <span className="text-xs text-muted-label font-medium hidden sm:inline">
                       {topic.realCount === 0 ? "Corpus Loading" : "Target 50"}
                     </span>
-                    <button
-                      type="button"
-                      disabled={!topic.realCount || topic.realCount === 0}
-                      onClick={() => handleStartTopic(topic)}
-                      className={`py-2 px-5 text-base rounded-lg font-semibold transition-all ${
-                        !topic.realCount || topic.realCount === 0
-                          ? "bg-plum/20 text-white/70 cursor-not-allowed opacity-50"
-                          : "imlaa-btn-primary cursor-pointer"
-                      }`}
-                    >
-                      {topic.realCount === 0 ? "Coming Soon" : "Start Drill"}
-                    </button>
+                    <div className="flex items-center space-x-2 w-full sm:w-auto justify-end">
+                      <button
+                        type="button"
+                        onClick={() => handlePreviewLesson(topic.id)}
+                        className="imlaa-btn-secondary py-2 px-3 text-xs sm:text-sm font-semibold flex items-center space-x-1 hover:bg-plum/5 cursor-pointer"
+                        title="Open Guided Lesson & Formulas"
+                      >
+                        <HiBookOpen className="w-4 h-4 text-plum" />
+                        <span>Learn</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={!topic.realCount || topic.realCount === 0}
+                        onClick={() => handleStartTopic(topic)}
+                        className={`py-2 px-3.5 sm:px-4 text-xs sm:text-sm rounded-xl font-bold transition-all flex items-center space-x-1 ${
+                          !topic.realCount || topic.realCount === 0
+                            ? "bg-plum/20 text-white/70 cursor-not-allowed opacity-50"
+                            : "imlaa-btn-primary cursor-pointer shadow-xs"
+                        }`}
+                      >
+                        <span>{topic.realCount === 0 ? "Coming Soon" : "Drill"}</span>
+                        <HiArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -421,10 +491,38 @@ export default function GrammarPage() {
 
               <div className="imlaa-card p-6 sm:p-8 bg-white border border-plum/20 shadow-md space-y-6">
                 <div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-muted-label">
-                    Sentence Correction & Synthesis
-                  </span>
-                  <h3 className="text-xl sm:text-2xl font-bold text-body-dark mt-2 leading-relaxed">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wider text-muted-label">
+                      Sentence Correction & Synthesis
+                    </span>
+                    {activeTopicLesson && (
+                      <button
+                        type="button"
+                        onClick={() => setShowRuleHint((prev) => !prev)}
+                        className="text-xs font-bold text-plum hover:text-plum-hover flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-plum/10 hover:bg-plum/15 transition cursor-pointer"
+                      >
+                        <HiLightBulb className="w-3.5 h-3.5 text-amber-600" />
+                        <span>{showRuleHint ? "Hide Formula" : "💡 Rule Formula"}</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {showRuleHint && activeTopicLesson && (
+                    <div className="mt-3 p-3.5 rounded-xl bg-amber-50/80 border border-amber-200 text-amber-950 text-xs sm:text-sm space-y-1.5 animate-slide-up">
+                      <div className="font-bold flex items-center space-x-1.5 text-amber-900">
+                        <HiSparkles className="w-4 h-4 text-amber-600" />
+                        <span>{activeTopicLesson.title}</span>
+                      </div>
+                      <div className="font-mono bg-white/90 p-2 rounded-lg border border-amber-200 text-slate-800 text-xs whitespace-pre-wrap">
+                        {activeTopicLesson.formula}
+                      </div>
+                      <div className="text-muted-label text-xs">
+                        {activeTopicLesson.corePrinciple}
+                      </div>
+                    </div>
+                  )}
+
+                  <h3 className="text-xl sm:text-2xl font-bold text-body-dark mt-3 leading-relaxed">
                     {currentQ.question}
                   </h3>
                 </div>
@@ -556,6 +654,160 @@ export default function GrammarPage() {
           </div>
         </div>
       )}
+
+      {/* 5. Identification Training Mode ("Spot the Error") */}
+      {viewMode === "identification" && identificationExercise && (
+        <div className="w-full max-w-2xl mx-auto flex flex-col space-y-6 animate-slide-up">
+          <div className="flex items-center justify-between text-base px-1">
+            <button
+              type="button"
+              onClick={handleReturnToTopics}
+              className="inline-flex items-center space-x-2 text-plum hover:text-plum-hover font-semibold cursor-pointer"
+            >
+              <HiArrowLeft className="w-5 h-5" />
+              <span>Back to Overview</span>
+            </button>
+            <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-plum/10 text-plum border border-plum/20">
+              Pattern Recognition Training ({identificationExerciseIndex + 1}/{selectedLesson?.identificationExercises?.length || 1})
+            </span>
+          </div>
+
+          <div className="imlaa-card p-6 sm:p-8 bg-white border border-plum/20 shadow-md space-y-6">
+            <div className="space-y-1">
+              <span className="text-xs font-bold uppercase tracking-wider text-plum">
+                {selectedTopic?.title || "Grammar Analysis"}
+              </span>
+              <h3 className="text-xl sm:text-2xl font-bold text-body-dark leading-snug">
+                {identificationExercise.prompt}
+              </h3>
+              <p className="text-xs sm:text-sm text-muted-label">
+                Tap the sentence that breaks grammatical constraints.
+              </p>
+            </div>
+
+            <div className="space-y-3 pt-2">
+              {identificationExercise.sentences.map((sent, idx) => {
+                const isSelected = identificationSelectedIdx === idx;
+                const isAnswered = identificationSelectedIdx !== null;
+                const isCorrectError = sent.isError;
+
+                let btnStyle = "border-plum/20 hover:border-plum hover:bg-plum/5 text-body-dark";
+                if (isAnswered) {
+                  if (isCorrectError) {
+                    btnStyle = "border-rose-600 bg-rose-50 text-rose-950 font-semibold ring-1 ring-rose-500";
+                  } else if (isSelected && !isCorrectError) {
+                    btnStyle = "border-amber-500 bg-amber-50 text-amber-900";
+                  } else {
+                    btnStyle = "border-gray-200 opacity-60 text-muted-label";
+                  }
+                }
+
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    disabled={isAnswered}
+                    onClick={() => setIdentificationSelectedIdx(idx)}
+                    className={`w-full p-4 rounded-xl border text-left text-sm sm:text-base leading-relaxed transition-all cursor-pointer flex items-start justify-between gap-3 ${btnStyle}`}
+                  >
+                    <span>{sent.text}</span>
+                    {isAnswered && isCorrectError && (
+                      <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-rose-200 text-rose-900 shrink-0">
+                        Error Spotted!
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {identificationSelectedIdx !== null && (
+              <div className="space-y-4 pt-2 animate-slide-up">
+                {identificationExercise.sentences[identificationSelectedIdx].isError ? (
+                  <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-950 text-xs sm:text-sm space-y-1">
+                    <div className="font-bold flex items-center space-x-1.5 text-emerald-900">
+                      <HiCheckCircle className="w-5 h-5 text-emerald-600" />
+                      <span>Excellent Diagnosis!</span>
+                    </div>
+                    <div>
+                      {identificationExercise.sentences[identificationSelectedIdx].explanation}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 text-xs sm:text-sm space-y-1">
+                    <div className="font-bold flex items-center space-x-1.5 text-amber-900">
+                      <HiInformationCircle className="w-5 h-5 text-amber-600" />
+                      <span>This sentence is actually grammatically correct.</span>
+                    </div>
+                    <div>
+                      {identificationExercise.sentences.find((s) => s.isError)?.explanation}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex flex-col sm:flex-row items-center justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIdentificationSelectedIdx(null)}
+                    className="imlaa-btn-secondary py-2.5 px-4 text-xs sm:text-sm font-semibold w-full sm:w-auto"
+                  >
+                    Try Exercise Again
+                  </button>
+                  {selectedLesson?.identificationExercises &&
+                    identificationExerciseIndex < selectedLesson.identificationExercises.length - 1 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextIdx = identificationExerciseIndex + 1;
+                          setIdentificationExerciseIndex(nextIdx);
+                          setIdentificationExercise(selectedLesson.identificationExercises[nextIdx]);
+                          setIdentificationSelectedIdx(null);
+                        }}
+                        className="imlaa-btn-primary py-2.5 px-5 text-xs sm:text-sm font-bold flex items-center justify-center space-x-1.5 w-full sm:w-auto"
+                      >
+                        <span>Next Pattern ({identificationExerciseIndex + 2}/{selectedLesson.identificationExercises.length})</span>
+                        <HiArrowRight className="w-4 h-4" />
+                      </button>
+                    )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectedLesson) {
+                        handleStartTopic({
+                          id: selectedLesson.id,
+                          title: selectedLesson.title,
+                          realCount: 1,
+                        });
+                      }
+                    }}
+                    className="imlaa-btn-primary py-2.5 px-5 text-xs sm:text-sm font-bold flex items-center justify-center space-x-1.5 w-full sm:w-auto"
+                  >
+                    <span>Ready for Full Drill</span>
+                    <HiArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 6. Guided Lesson Modal */}
+      <GrammarLessonModal
+        isOpen={isLessonModalOpen}
+        onClose={() => setIsLessonModalOpen(false)}
+        lesson={selectedLesson}
+        onStartDrill={(lesson) => {
+          handleStartTopic({
+            id: lesson.id,
+            title: lesson.title,
+            realCount: 1,
+          });
+        }}
+        onStartIdentification={(lesson) => {
+          handleStartIdentification(lesson);
+        }}
+      />
 
       {quizModalOpen && (
         <RandomQuizSetupModal

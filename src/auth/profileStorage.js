@@ -1,8 +1,8 @@
-const CACHE_PROFILE_KEY = "imlaa_user_profile";
+const CACHE_PROFILE_KEY = "spell2master_user_profile";
 
 export function getCachedProfile(userId) {
   try {
-    const raw = localStorage.getItem(CACHE_PROFILE_KEY);
+    const raw = localStorage.getItem(CACHE_PROFILE_KEY) || localStorage.getItem("imlaa_user_profile");
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (parsed && (!userId || parsed.id === userId)) return parsed;
