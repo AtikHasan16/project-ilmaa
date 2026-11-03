@@ -13,6 +13,7 @@ import {
 } from "react-icons/hi2";
 import { speakWithMicrosoftTTS } from "../utils/speechTts";
 import MinimalFooter from "../components/MinimalFooter";
+import { showErrorAlert } from "../utils/sweetalert";
 
 export default function LandingPage() {
   // Modes: 'signin' | 'signup' | 'otp' | 'forgot' | 'reset_password'
@@ -86,6 +87,10 @@ export default function LandingPage() {
   const strength = getPasswordStrength(password);
   const resetStrength = getPasswordStrength(newPassword);
 
+  // Email Domain Validator
+  const cleanEmail = email.trim().toLowerCase();
+  const isGmail = cleanEmail.endsWith("@gmail.com");
+
   // Handle Google 1-Click Login
   const handleGoogleLogin = async () => {
     setErrorMessage("");
@@ -128,6 +133,15 @@ export default function LandingPage() {
 
     if (!cleanEmail || !cleanEmail.includes("@")) {
       setErrorMessage("Please enter a valid email address.");
+      return;
+    }
+
+    // Form Submit Guard: Restrict Signup to official Gmail accounts
+    if (authMode === "signup" && !isGmail) {
+      showErrorAlert(
+        "Gmail Account Required",
+        "Registration is restricted to official Google Mail (@gmail.com) accounts to prevent spam and protect platform capacity."
+      );
       return;
     }
 
@@ -547,14 +561,49 @@ export default function LandingPage() {
                   <div className="relative">
                     <input
                       type="email"
-                      placeholder="candidate@university.edu"
+                      placeholder={
+                        authMode === "signup"
+                          ? "candidate@gmail.com"
+                          : "candidate@gmail.com"
+                      }
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="imlaa-input py-3 pl-10 pr-3.5 text-base"
+                      className={`imlaa-input py-3 pl-10 pr-3.5 text-base transition-colors ${
+                        authMode === "signup" && cleanEmail
+                          ? isGmail
+                            ? "border-emerald-400 focus:border-emerald-600"
+                            : "border-amber-400 focus:border-amber-600"
+                          : ""
+                      }`}
                       required
                     />
                     <HiEnvelope className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-label" />
                   </div>
+
+                  {/* UI Showcase (Live Indicator Pill & Helper Text) */}
+                  {authMode === "signup" && (
+                    <div className="mt-2 text-xs">
+                      {!cleanEmail ? (
+                        <div className="flex items-center space-x-1.5 text-muted-label">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-plum/5 text-plum border border-plum/15 font-medium">
+                            <span className="mr-1">ℹ️</span> Only @gmail.com accounts accepted
+                          </span>
+                        </div>
+                      ) : isGmail ? (
+                        <div className="flex items-center space-x-1.5 animate-slide-up">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold shadow-xs">
+                            <span className="mr-1 font-bold">✓</span> Verified Google Mail address
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center space-x-1.5 animate-slide-up">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200 font-semibold shadow-xs">
+                            <span className="mr-1">⚠️</span> Only @gmail.com is supported
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
