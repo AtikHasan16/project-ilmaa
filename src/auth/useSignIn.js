@@ -83,6 +83,13 @@ export function useSignIn({ setError, setUser, setRole, syncProfile }) {
     setError(null);
     const cleanEmail = String(email || "").trim().toLowerCase();
     const cleanName = String(fullName || "").trim();
+
+    if (!cleanEmail.endsWith("@gmail.com")) {
+      const msg =
+        "Registration is restricted to official Google Mail (@gmail.com) accounts to prevent spam and protect platform capacity.";
+      setError(msg);
+      return { success: false, message: msg };
+    }
     const existing = await checkEmailAuthProvider(cleanEmail);
     if (existing) {
       if (existing.auth_provider === "google") {
