@@ -5,7 +5,7 @@ import { HiArrowLeft, HiPaperAirplane, HiCheckCircle } from "react-icons/hi2";
 import { showErrorAlert, showSuccessToast } from "../utils/sweetalert";
 import MinimalFooter from "../components/MinimalFooter";
 
-const TARGET_GMAIL = "Spellycraft@gmail.com";
+const TARGET_GMAIL = "info@spellycraft.com";
 
 export default function ContactPage() {
   const [name, setName] = useState("");
