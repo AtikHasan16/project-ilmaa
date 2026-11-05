@@ -57,12 +57,14 @@ export const showSuccessToast = (title, text = "") => {
   });
 };
 
-export const showErrorAlert = (title, text = "") => {
+export const showErrorAlert = (title, textOrHtml = "", options = {}) => {
+  const isHtml = typeof textOrHtml === "string" && textOrHtml.includes("<");
   return SpellyCraftSwal.fire({
     icon: "error",
     title,
-    text,
+    ...(isHtml ? { html: textOrHtml } : { text: textOrHtml }),
     confirmButtonText: "Understood",
+    ...options,
   });
 };
 

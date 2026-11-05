@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import apiClient from "../services/apiClient";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -7,9 +7,14 @@ import {
   HiCheckCircle,
   HiShieldCheck,
   HiLockClosed,
+  HiQuestionMarkCircle,
+  HiExclamationTriangle,
 } from "react-icons/hi2";
 import { showConfirmModal, showSuccessToast, showErrorAlert } from "../utils/sweetalert";
 import { parseDelimitedText } from "../utils/csvParser";
+import { escapeHtml } from "../utils/escapeHtml";
+import { extractErrorDetails } from "../utils/errorParser";
+import UploadGuideModal from "../components/UploadGuideModal";
 
 export default function UploadStudyPage() {
   const { user } = useAuth();
@@ -27,8 +32,37 @@ export default function UploadStudyPage() {
   const [previewItems, setPreviewItems] = useState([]);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
+  const [uploadError, setUploadError] = useState(null);
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
 
   const fileInputRef = useRef(null);
+
+  // Pre-validate internal duplicates within user input batch
+  const internalBatchDuplicates = useMemo(() => {
+    const counts = new Map();
+    previewItems.forEach((it) => {
+      const normalized = (it.word || "").trim().toLowerCase();
+      if (normalized) {
+        counts.set(normalized, (counts.get(normalized) || 0) + 1);
+      }
+    });
+    return Array.from(counts.entries())
+      .filter(([, count]) => count > 1)
+      .map(([word]) => word);
+  }, [previewItems]);
+
+  // Apply sample example text from guide modal
+  const handleApplyExample = (exampleText) => {
+    setRawText(exampleText);
+    const parsed = parseDelimitedText(exampleText, bulkTopic);
+    setPreviewItems(parsed);
+    setImportResult(null);
+    setUploadError(null);
+    showSuccessToast(
+      "Example Loaded",
+      `Loaded ${parsed.length} sample words into editor.`,
+    );
+  };
 
   // Parse raw text whenever user pastes or edits textarea
   const handleTextChange = (e) => {
@@ -37,6 +71,7 @@ export default function UploadStudyPage() {
     const parsed = parseDelimitedText(text, bulkTopic);
     setPreviewItems(parsed);
     setImportResult(null);
+    setUploadError(null);
   };
 
   // File upload trigger (.csv or .tsv)
@@ -51,6 +86,8 @@ export default function UploadStudyPage() {
         setRawText(content);
         const parsed = parseDelimitedText(content, bulkTopic);
         setPreviewItems(parsed);
+        setImportResult(null);
+        setUploadError(null);
         showSuccessToast(
           "File Loaded",
           `Parsed ${parsed.length} entries from "${file.name}".`,
@@ -87,6 +124,7 @@ export default function UploadStudyPage() {
 
     setImporting(true);
     setImportResult(null);
+    setUploadError(null);
 
     try {
       const res = await apiClient.post("/vocabulary/bulk", {
@@ -100,9 +138,100 @@ export default function UploadStudyPage() {
         showSuccessToast("Import Complete", res.data.message);
         setRawText("");
         setPreviewItems([]);
+        setUploadError(null);
       }
     } catch (err) {
-      showErrorAlert("Bulk Import Error", err.response?.data?.message || err.message);
+      console.error("Bulk Import Error caught:", err);
+
+      const parsedError = extractErrorDetails(err);
+      const {
+        code,
+        details,
+        message,
+        hint,
+        isDuplicate,
+        conflictingWord,
+      } = parsedError;
+      const conflictingTopic = parsedError.conflictingTopic || bulkTopic;
+
+      setUploadError({
+        code,
+        details,
+        message,
+        hint,
+        conflictingWord,
+        conflictingTopic,
+      });
+
+      if (isDuplicate) {
+        const swalHtml = `
+          <div style="text-align: left; font-size: 0.95rem; line-height: 1.5; color: #374151;">
+            <div style="background-color: #fffbeb; border: 1px solid #fde68a; padding: 12px 14px; border-radius: 10px; margin-bottom: 12px; color: #92400e;">
+              <div style="font-weight: 700; font-size: 1rem; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+                <span>⚠️</span> Duplicate Vocabulary Conflict
+              </div>
+              <div>
+                ${
+                  conflictingWord
+                    ? `The word <strong style="color: #6d4e56; font-size: 1.05rem;">"${escapeHtml(conflictingWord)}"</strong>`
+                    : "A vocabulary item"
+                } already exists under topic <strong style="color: #6d4e56;">"${escapeHtml(conflictingTopic)}"</strong>.
+              </div>
+            </div>
+
+            <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px; font-size: 0.82rem; color: #4b5563;">
+              <div style="font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.72rem; color: #6b7280; margin-bottom: 6px;">
+                Database Conflict Details
+              </div>
+              ${
+                details
+                  ? `<div style="margin-bottom: 6px;"><strong style="color: #1f2937;">Details:</strong> <span style="font-family: monospace; color: #6d4e56; font-weight: 600;">${escapeHtml(details)}</span></div>`
+                  : ""
+              }
+              <div style="margin-bottom: 6px;"><strong style="color: #1f2937;">Message:</strong> <span style="font-family: monospace; color: #4b5563;">${escapeHtml(message)}</span></div>
+              ${
+                code
+                  ? `<div><strong style="color: #1f2937;">Error Code:</strong> <span style="font-family: monospace; background-color: #e5e7eb; padding: 2px 6px; border-radius: 4px; font-weight: 700; color: #1f2937;">${escapeHtml(code)}</span></div>`
+                  : ""
+              }
+              ${
+                hint
+                  ? `<div style="margin-top: 6px;"><strong style="color: #1f2937;">Hint:</strong> <span>${escapeHtml(hint)}</span></div>`
+                  : ""
+              }
+            </div>
+
+            <p style="margin-top: 12px; font-size: 0.8rem; color: #6b7280;">
+              💡 <em>To resolve: Remove or edit <strong>"${escapeHtml(conflictingWord || "the duplicate word")}"</strong> in your list, or change the topic category.</em>
+            </p>
+          </div>
+        `;
+
+        showErrorAlert("Duplicate Entry Detected", swalHtml);
+      } else {
+        const swalHtml = `
+          <div style="text-align: left; font-size: 0.95rem; line-height: 1.5; color: #374151;">
+            <p style="margin-bottom: 10px; font-weight: 600; color: #1f2937;">${escapeHtml(message)}</p>
+            ${
+              details
+                ? `<div style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px; font-size: 0.82rem; font-family: monospace; color: #6d4e56; margin-bottom: 8px;"><strong>Details:</strong> ${escapeHtml(details)}</div>`
+                : ""
+            }
+            ${
+              hint
+                ? `<div style="font-size: 0.8rem; color: #6b7280; margin-bottom: 6px;"><strong>Hint:</strong> ${escapeHtml(hint)}</div>`
+                : ""
+            }
+            ${
+              code
+                ? `<div style="font-size: 0.75rem; color: #9ca3af; font-family: monospace;">Code: ${escapeHtml(code)}</div>`
+                : ""
+            }
+          </div>
+        `;
+
+        showErrorAlert("Bulk Import Error", swalHtml);
+      }
     } finally {
       setImporting(false);
     }
@@ -111,7 +240,7 @@ export default function UploadStudyPage() {
   return (
     <div className="w-full max-w-4xl mx-auto flex flex-col space-y-8 animate-slide-up">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between  pb-4 border-b border-plum/15">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-plum/15">
         <div>
           <h2 className="text-3xl font-black text-body-dark tracking-tight">
             Upload to Study
@@ -120,6 +249,15 @@ export default function UploadStudyPage() {
             Bulk import vocabulary from Google Sheets, CSV, or TSV files.
           </p>
         </div>
+
+        <button
+          type="button"
+          onClick={() => setIsGuideOpen(true)}
+          className="imlaa-btn-secondary py-2.5 px-4 text-sm font-bold flex items-center space-x-2 shrink-0 cursor-pointer self-start sm:self-auto"
+        >
+          <HiQuestionMarkCircle className="w-5 h-5 text-plum" />
+          <span>Upload Guide & Examples</span>
+        </button>
       </div>
 
       {/* ==================================================== */}
@@ -128,9 +266,19 @@ export default function UploadStudyPage() {
       <div className="flex flex-col space-y-6">
         {/* Instructions Box */}
         <div className="imlaa-card p-5 border border-plum/20 bg-plum/5">
-          <h4 className="text-base font-bold text-plum uppercase tracking-wider mb-2">
-            Expected Column Order (Database Standard)
-          </h4>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+            <h4 className="text-base font-bold text-plum uppercase tracking-wider">
+              Expected Column Order (Database Standard)
+            </h4>
+            <button
+              type="button"
+              onClick={() => setIsGuideOpen(true)}
+              className="text-xs font-bold text-plum hover:underline cursor-pointer flex items-center space-x-1"
+            >
+              <span>View full guide & sample data →</span>
+            </button>
+          </div>
+
           <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm font-mono text-body-dark">
             <span className="p-2 rounded bg-white border border-plum/15 font-bold">
               1. Word
@@ -165,7 +313,17 @@ export default function UploadStudyPage() {
               </span>
             </div>
 
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2 sm:space-x-3 flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setIsGuideOpen(true)}
+                className="imlaa-btn-secondary py-2 px-3 text-sm space-x-1.5 cursor-pointer"
+                title="Open upload guide and sample data"
+              >
+                <HiQuestionMarkCircle className="w-4 h-4 text-plum" />
+                <span>Guide</span>
+              </button>
+
               <input
                 type="file"
                 ref={fileInputRef}
@@ -176,7 +334,7 @@ export default function UploadStudyPage() {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="imlaa-btn-secondary py-2 px-4 text-base space-x-2"
+                className="imlaa-btn-secondary py-2 px-4 text-base space-x-2 cursor-pointer"
               >
                 <HiDocumentArrowUp className="w-5 h-5" />
                 <span>Upload .CSV File</span>
@@ -366,6 +524,7 @@ export default function UploadStudyPage() {
                   onClick={() => {
                     setRawText("");
                     setPreviewItems([]);
+                    setUploadError(null);
                   }}
                   className="imlaa-btn-secondary py-3 px-5 text-base"
                 >
@@ -386,6 +545,86 @@ export default function UploadStudyPage() {
             </div>
           </div>
         </div>
+
+        {/* Duplicate / Import Error Alert Box */}
+        {uploadError && (
+          <div className="p-4 sm:p-5 rounded-xl border border-rose-300 bg-rose-50 text-rose-900 space-y-3 animate-slide-up shadow-xs">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center space-x-2">
+                <HiExclamationTriangle className="w-6 h-6 text-rose-600 shrink-0" />
+                <h4 className="text-base font-bold text-rose-900">
+                  {uploadError.conflictingWord || uploadError.code === "23505"
+                    ? "Duplicate Vocabulary Conflict Detected"
+                    : "Bulk Import Error"}
+                </h4>
+              </div>
+              <button
+                type="button"
+                onClick={() => setUploadError(null)}
+                className="text-xs font-bold text-rose-700 hover:text-rose-900 hover:underline cursor-pointer"
+              >
+                Dismiss
+              </button>
+            </div>
+
+            {uploadError.conflictingWord && (
+              <div className="p-3 bg-white/90 rounded-lg border border-rose-200 text-sm text-body-dark">
+                The word{" "}
+                <strong className="text-plum font-mono text-base font-bold">
+                  "{uploadError.conflictingWord}"
+                </strong>{" "}
+                already exists in the database under topic{" "}
+                <strong className="text-plum font-semibold">
+                  "{uploadError.conflictingTopic}"
+                </strong>
+                . Please remove or update this term in your input before retrying.
+              </div>
+            )}
+
+            <div className="text-xs font-mono bg-white/80 p-3 rounded-lg border border-rose-200 space-y-1.5 text-rose-950">
+              <div>
+                <span className="font-bold text-body-dark">Message:</span>{" "}
+                {uploadError.message}
+              </div>
+              {uploadError.details && (
+                <div>
+                  <span className="font-bold text-body-dark">Details:</span>{" "}
+                  <span className="text-plum font-semibold">{uploadError.details}</span>
+                </div>
+              )}
+              {uploadError.code && (
+                <div>
+                  <span className="font-bold text-body-dark">Code:</span>{" "}
+                  <span className="bg-rose-200/70 px-1.5 py-0.5 rounded font-bold">
+                    {uploadError.code}
+                  </span>
+                </div>
+              )}
+              {uploadError.hint && (
+                <div>
+                  <span className="font-bold text-body-dark">Hint:</span>{" "}
+                  {uploadError.hint}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Notice for duplicate words inside the same batch */}
+        {internalBatchDuplicates.length > 0 && (
+          <div className="p-3.5 rounded-xl border border-amber-300 bg-amber-50 text-amber-900 text-sm flex items-start space-x-2.5 animate-slide-up shadow-xs">
+            <HiExclamationTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <span className="font-bold">Batch Duplicate Warning:</span> You have{" "}
+              {internalBatchDuplicates.length} repeated word(s) in this batch (
+              <span className="font-mono font-bold text-plum">
+                {internalBatchDuplicates.slice(0, 5).map((w) => `"${w}"`).join(", ")}
+                {internalBatchDuplicates.length > 5 ? "..." : ""}
+              </span>
+              ). Each word within the same topic must be unique.
+            </div>
+          </div>
+        )}
 
         {/* Import Result Notification */}
         {importResult && (
@@ -424,35 +663,73 @@ export default function UploadStudyPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-plum/10">
-                  {previewItems.map((item, idx) => (
-                    <tr key={idx} className="hover:bg-plum/5">
-                      <td className="py-2.5 px-3 font-mono font-bold text-muted-label">
-                        {idx + 1}
-                      </td>
-                      <td className="py-2.5 px-3 font-bold text-body-dark">
-                        {item.word}
-                      </td>
-                      <td className="py-2.5 px-3 italic text-plum">{item.pos}</td>
-                      <td className="py-2.5 px-3 font-medium text-body-dark">
-                        {item.banglaMeaning}
-                      </td>
-                      <td className="py-2.5 px-3 text-muted-label">
-                        {item.synonyms?.join(", ") || "—"}
-                      </td>
-                      <td className="py-2.5 px-3 text-muted-label truncate max-w-xs italic">
-                        {item.exampleUsage || "—"}
-                      </td>
-                      <td className="py-2.5 px-3 font-mono text-xs text-plum font-semibold">
-                        {item.topic}
-                      </td>
-                    </tr>
-                  ))}
+                  {previewItems.map((item, idx) => {
+                    const isDbConflict =
+                      uploadError?.conflictingWord &&
+                      item.word?.trim().toLowerCase() ===
+                        uploadError.conflictingWord.trim().toLowerCase();
+                    const isBatchDuplicate = internalBatchDuplicates.includes(
+                      (item.word || "").trim().toLowerCase(),
+                    );
+
+                    return (
+                      <tr
+                        key={idx}
+                        className={
+                          isDbConflict
+                            ? "bg-rose-100/80 border-2 border-rose-400 font-medium"
+                            : isBatchDuplicate
+                              ? "bg-amber-50/70 hover:bg-amber-100/60"
+                              : "hover:bg-plum/5"
+                        }
+                      >
+                        <td className="py-2.5 px-3 font-mono font-bold text-muted-label">
+                          {idx + 1}
+                        </td>
+                        <td className="py-2.5 px-3 font-bold text-body-dark">
+                          <div className="flex items-center space-x-1.5 flex-wrap gap-1">
+                            <span>{item.word}</span>
+                            {isDbConflict && (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] bg-rose-600 text-white font-bold uppercase tracking-wider shadow-xs">
+                                Conflicting Item
+                              </span>
+                            )}
+                            {!isDbConflict && isBatchDuplicate && (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] bg-amber-500 text-white font-bold uppercase tracking-wider shadow-xs">
+                                Duplicate in Batch
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-2.5 px-3 italic text-plum">{item.pos}</td>
+                        <td className="py-2.5 px-3 font-medium text-body-dark">
+                          {item.banglaMeaning}
+                        </td>
+                        <td className="py-2.5 px-3 text-muted-label">
+                          {item.synonyms?.join(", ") || "—"}
+                        </td>
+                        <td className="py-2.5 px-3 text-muted-label truncate max-w-xs italic">
+                          {item.exampleUsage || "—"}
+                        </td>
+                        <td className="py-2.5 px-3 font-mono text-xs text-plum font-semibold">
+                          {item.topic}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           </div>
         )}
       </div>
+
+      {/* Bulk Upload Format & Copy-Paste Guide Modal */}
+      <UploadGuideModal
+        isOpen={isGuideOpen}
+        onClose={() => setIsGuideOpen(false)}
+        onApplyExample={handleApplyExample}
+      />
     </div>
   );
 }
