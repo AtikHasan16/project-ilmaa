@@ -7,6 +7,13 @@ import { useAuth } from "../context/AuthContext";
 import { speakWithMicrosoftTTS, stopAudioPlayback } from "../utils/speechTts";
 import { showErrorAlert } from "../utils/sweetalert";
 import { secureShuffle } from "../utils/cryptoRandom";
+import {
+  getFlashcardMasterySummary,
+  getFlashcardMistakes,
+  loadFlashcardMastery,
+  recordFlashcardAttempt,
+  saveFlashcardMastery,
+} from "../utils/flashcardMastery";
 import AudioEqualizer from "../components/AudioEqualizer";
 import {
   HiSpeakerWave,
@@ -23,7 +30,7 @@ import {
 } from "react-icons/hi2";
 
 // Corpus groups matching design
-const PARTS = ["All Active", "Listening Vocabs", "Uploaded"];
+const PARTS = ["All Active", "Listening Vocabs", "Uploaded", "Mistakes"];
 
 // Multi-language translation dictionary for common academic roots (Item 3)
 const LANGUAGE_TRANSLATIONS = {
@@ -63,7 +70,9 @@ export default function FlashcardPage() {
 
   // Persistent Progress Data from DB
   const [vocabStats, setVocabStats] = useState(null);
-  const [userProgress, setUserProgress] = useState(null);
+  const [cloudProgressByTopic, setCloudProgressByTopic] = useState({});
+  const [masteryRecords, setMasteryRecords] = useState({});
+  const [isSavingQuizAnswer, setIsSavingQuizAnswer] = useState(false);
   const sessionStartTimeRef = useRef(null);
   const isMountedRef = useRef(true);
   const loadWordsRequestId = useRef(0);
@@ -74,6 +83,19 @@ export default function FlashcardPage() {
       isMountedRef.current = false;
     };
   }, []);
+
+  useEffect(() => {
+    try {
+      setMasteryRecords(loadFlashcardMastery(user?.id));
+    } catch (error) {
+      console.error("Could not load saved flashcard mastery:", error);
+      showErrorAlert(
+        "Mastery Could Not Be Loaded",
+        "Saved flashcard progress is unavailable in this browser.",
+      );
+      setMasteryRecords({});
+    }
+  }, [user?.id]);
 
   // Practice Mistakes Mode
   const [mistakesOnly, setMistakesOnly] = useState(false);
@@ -117,12 +139,16 @@ export default function FlashcardPage() {
   const fetchProgress = useCallback(async () => {
     const targetId = user?.id;
     if (!targetId) return;
+    const topic = selectedGroup?.title || "Academic Word List: Sublist A";
     try {
       const res = await apiClient.get("/flashcard/progress", {
-        params: { userId: targetId, topic: selectedGroup?.title || "Academic Word List: Sublist A" },
+        params: { userId: targetId, topic },
       });
       if (isMountedRef.current && res.data?.success && res.data.data) {
-        setUserProgress(res.data.data);
+        setCloudProgressByTopic((previous) => ({
+          ...previous,
+          [topic]: res.data.data,
+        }));
       }
     } catch (err) {
       if (isMountedRef.current) {
@@ -136,6 +162,44 @@ export default function FlashcardPage() {
     fetchProgress();
   }, [fetchStats, fetchProgress]);
 
+  const fetchVocabularyCorpus = useCallback(async (params = {}) => {
+    const pageSize = 500;
+    const corpus = [];
+    let page = 1;
+    let totalCount = Infinity;
+
+    while (corpus.length < totalCount) {
+      const res = await apiClient.get("/vocabulary", {
+        params: { ...params, page, pageSize },
+      });
+      const pageData = res.data?.data;
+      if (!Array.isArray(pageData)) {
+        throw new Error("Vocabulary response did not contain a word list.");
+      }
+
+      corpus.push(...pageData);
+      totalCount = Number.isFinite(res.data?.totalCount)
+        ? res.data.totalCount
+          : corpus.length;
+      if (pageData.length < pageSize || pageData.length === 0) break;
+      page += 1;
+    }
+
+    return corpus;
+  }, []);
+
+  const getTopicMistakeCount = (topic) => {
+    const localRecords = masteryRecords[topic] || {};
+    const remoteProgress = cloudProgressByTopic[topic];
+    const localMistakes = getFlashcardMistakes(masteryRecords, topic);
+    const localWordKeys = new Set(Object.keys(localRecords));
+    const remoteMistakes = [
+      ...(remoteProgress?.unknownWords || []),
+      ...(remoteProgress?.forgotWords || []),
+    ].filter((word) => !localWordKeys.has(word.toLocaleLowerCase()));
+    return localMistakes.length + new Set(remoteMistakes).size;
+  };
+
   // Compute dynamic groups
   const dynamicGroups = [];
 
@@ -144,9 +208,11 @@ export default function FlashcardPage() {
   if (activeList.length > 0) {
     activeList.forEach((act, idx) => {
       const totalWords = act.count ?? 0;
-      const known = userProgress?.knownWords?.length || 0;
+      const summary = getFlashcardMasterySummary(masteryRecords, act.title);
+      const legacyKnownCount = cloudProgressByTopic[act.title]?.knownWords?.length || 0;
+      const known = Math.max(summary.knew, legacyKnownCount);
       const percent = totalWords > 0 ? Math.min(100, Math.round((known / totalWords) * 100)) : 0;
-      const mistakesCount = (userProgress?.unknownWords?.length || 0) + (userProgress?.forgotWords?.length || 0);
+      const mistakesCount = getTopicMistakeCount(act.title);
 
       dynamicGroups.push({
         id: `active-${idx}-${act.title}`,
@@ -174,10 +240,12 @@ export default function FlashcardPage() {
         title: lis.title,
         description: `IELTS listening module vocabulary (${lis.count} lexemes).`,
         wordsCount: lis.count,
-        knownCount: 0,
-        mistakesCount: 0,
-        percent: 0,
-        hasMistakes: false,
+        knownCount: getFlashcardMasterySummary(masteryRecords, lis.title).knew,
+        mistakesCount: getTopicMistakeCount(lis.title),
+        percent: lis.count > 0
+          ? Math.min(100, Math.round((getFlashcardMasterySummary(masteryRecords, lis.title).knew / lis.count) * 100))
+          : 0,
+        hasMistakes: getTopicMistakeCount(lis.title) > 0,
       });
     });
   }
@@ -193,11 +261,43 @@ export default function FlashcardPage() {
         description: `Custom uploaded corpus category with ${up.count} terms.`,
         wordsCount: up.count,
         uploaderName: up.uploaderName || (isAdmin ? "Admin" : (user?.name || "You")),
-        knownCount: 0,
-        mistakesCount: 0,
-        percent: 0,
-        hasMistakes: false,
+        knownCount: getFlashcardMasterySummary(masteryRecords, up.title).knew,
+        mistakesCount: getTopicMistakeCount(up.title),
+        percent: up.count > 0
+          ? Math.min(100, Math.round((getFlashcardMasterySummary(masteryRecords, up.title).knew / up.count) * 100))
+          : 0,
+        hasMistakes: getTopicMistakeCount(up.title) > 0,
       });
+    });
+  }
+
+  const mistakeGroups = new Map();
+  for (const mistake of getFlashcardMistakes(masteryRecords)) {
+    const current = mistakeGroups.get(mistake.topic) || [];
+    current.push(mistake);
+    mistakeGroups.set(mistake.topic, current);
+  }
+  for (const [topic, progress] of Object.entries(cloudProgressByTopic)) {
+    if (
+      (progress.unknownWords?.length || 0) + (progress.forgotWords?.length || 0) > 0 &&
+      !mistakeGroups.has(topic)
+    ) {
+      mistakeGroups.set(topic, []);
+    }
+  }
+  for (const [topic] of mistakeGroups) {
+    const mistakesCount = getTopicMistakeCount(topic);
+    if (mistakesCount === 0) continue;
+    dynamicGroups.push({
+      id: `mistakes-${topic}`,
+      part: "Mistakes",
+      title: topic,
+      description: `${mistakesCount} words need another review.`,
+      wordsCount: mistakesCount,
+      knownCount: getFlashcardMasterySummary(masteryRecords, topic).knew,
+      mistakesCount,
+      percent: 0,
+      hasMistakes: mistakesCount > 0,
     });
   }
 
@@ -208,36 +308,52 @@ export default function FlashcardPage() {
     setIsFlipped(false);
     setHasAnsweredCurrent(false);
     try {
-      const res = await apiClient.get("/vocabulary", {
-        params: {
-          topic: group.title,
-          userId: user?.id,
-          userRole: user?.role || "general",
-          userName: user?.name,
-        },
+      const loaded = await fetchVocabularyCorpus({
+        topic: group.title,
+        userId: user?.id,
+        userRole: user?.role || "general",
+        userName: user?.name,
       });
-      let loaded = res.data?.data || [];
-      if (loaded.length === 0) {
-        const fb = await apiClient.get("/vocabulary", {
-          params: {
-            userId: user?.id,
-            userRole: user?.role || "general",
-            userName: user?.name,
-          },
+      let remoteProgress = null;
+      if (onlyMistakes && user?.id) {
+        const progressRes = await apiClient.get("/flashcard/progress", {
+          params: { userId: user.id, topic: group.title },
         });
-        loaded = fb.data?.data || [];
+        remoteProgress = progressRes.data?.data;
       }
 
       if (loadWordsRequestId.current !== requestId || !isMountedRef.current) return;
 
       if (onlyMistakes) {
-        const mistakeSet = new Set([
-          ...(userProgress?.unknownWords || []),
-          ...(userProgress?.forgotWords || []),
+        const remoteMistakes = new Map([
+          ...(remoteProgress?.unknownWords || []).map((word) => [word, "unknown"]),
+          ...(remoteProgress?.forgotWords || []).map((word) => [word, "forgot"]),
         ]);
-        const filtered = loaded.filter((w) => mistakeSet.has(w.word));
+        let updatedMastery = masteryRecords;
+        const filtered = loaded.filter((word) => {
+          const localRecord =
+            updatedMastery[group.title]?.[word.word.toLocaleLowerCase()];
+          if (localRecord) {
+            return localRecord.status === "unknown" || localRecord.status === "forgot";
+          }
+          const remoteStatus = remoteMistakes.get(word.word);
+          if (remoteStatus) {
+            updatedMastery = recordFlashcardAttempt(
+              updatedMastery,
+              group.title,
+              word,
+              remoteStatus,
+            );
+            return true;
+          }
+          return false;
+        });
+        if (updatedMastery !== masteryRecords) {
+          saveFlashcardMastery(user?.id, updatedMastery);
+          setMasteryRecords(updatedMastery);
+        }
         setMistakesList(filtered);
-        setWords(filtered.length > 0 ? filtered : loaded);
+        setWords(loaded);
       } else {
         setWords(loaded);
       }
@@ -245,13 +361,14 @@ export default function FlashcardPage() {
     } catch (err) {
       if (loadWordsRequestId.current === requestId && isMountedRef.current) {
         console.error("Failed to load flashcard words:", err);
+        showErrorAlert("Flashcards Could Not Be Loaded", err.message || "Please try again.");
       }
     } finally {
       if (loadWordsRequestId.current === requestId && isMountedRef.current) {
         setLoading(false);
       }
     }
-  }, [userProgress, user]);
+  }, [fetchVocabularyCorpus, masteryRecords, user]);
 
   // Start Flashcard Practice
   const handleStartDrill = (group, isMistakes = false) => {
@@ -285,6 +402,46 @@ export default function FlashcardPage() {
   const activeWords = mistakesOnly ? mistakesList : words;
   const currentWord = activeWords[currentIndex] || null;
 
+  const persistFlashcardAttempt = useCallback(async (word, status, lastIndex) => {
+    let updatedMastery;
+    try {
+      updatedMastery = recordFlashcardAttempt(
+        masteryRecords,
+        selectedGroup?.title || "Academic Word List: Sublist A",
+        word,
+        status,
+      );
+      saveFlashcardMastery(user?.id, updatedMastery);
+      setMasteryRecords(updatedMastery);
+    } catch (error) {
+      console.error("Could not save local flashcard mastery:", error);
+      showErrorAlert(
+        "Progress Not Saved",
+        "Your answer could not be saved in this browser. Check storage availability and try again.",
+      );
+      return false;
+    }
+
+    if (user?.id) {
+      try {
+        await apiClient.post("/flashcard/progress", {
+          userId: user.id,
+          topic: selectedGroup?.title || "Academic Word List: Sublist A",
+          word: word.word,
+          status,
+          lastIndex,
+        });
+      } catch (error) {
+        console.error("Could not sync flashcard progress:", error);
+        showErrorAlert(
+          "Cloud Sync Failed",
+          "Your answer is saved on this device, but could not be synced to your account.",
+        );
+      }
+    }
+    return true;
+  }, [masteryRecords, selectedGroup, user]);
+
   // Christopher Neural Audio Speech
   const speakCurrentWord = useCallback((overrideWord) => {
     const text = overrideWord || currentWord?.word;
@@ -311,25 +468,10 @@ export default function FlashcardPage() {
     setHasAnsweredCurrent(true);
 
     const wordText = currentWord.word;
-    const targetUserId = user?.id;
-    if (targetUserId) {
-      try {
-        await apiClient.post("/flashcard/progress", {
-          userId: targetUserId,
-          topic: selectedGroup?.title || "Academic Word List: Sublist A",
-          word: wordText,
-          status,
-          lastIndex: currentIndex,
-        });
-      } catch (error) {
-        console.error("Could not save flashcard progress:", error);
-        setHasAnsweredCurrent(false);
-        showErrorAlert(
-          "Progress Not Saved",
-          "Your answer was not saved. Check your connection and try again.",
-        );
-        return;
-      }
+    const saved = await persistFlashcardAttempt(currentWord, status, currentIndex);
+    if (!saved) {
+      setHasAnsweredCurrent(false);
+      return;
     }
 
     if (status === "knew") {
@@ -352,7 +494,7 @@ export default function FlashcardPage() {
         setViewMode("finished");
       }
     }, 450);
-  }, [currentWord, hasAnsweredCurrent, user, selectedGroup, currentIndex, activeWords.length]);
+  }, [currentWord, hasAnsweredCurrent, persistFlashcardAttempt, currentIndex, activeWords.length]);
 
   // Keyboard Navigation & Anti-Holding optimization (Item 2)
   useEffect(() => {
@@ -433,20 +575,23 @@ export default function FlashcardPage() {
     setQuizModalOpen(false);
     setLoading(true);
     try {
-      const res = await apiClient.get("/vocabulary", {
-        params: { topic: selectedGroup?.title },
+      const corpus = await fetchVocabularyCorpus({
+        topic: selectedGroup?.title,
       });
-      const corpus = res.data?.data || [];
-      if (corpus.length === 0) return;
+      const quizCorpus = corpus.filter((item) => item.word && item.banglaMeaning);
+      if (quizCorpus.length === 0) {
+        showErrorAlert("No Quiz Words Available", "This vocabulary set has no words with saved meanings.");
+        return;
+      }
 
       // Shuffle corpus & pick quantity
-      const shuffled = secureShuffle(corpus);
+      const shuffled = secureShuffle(quizCorpus);
       const selected = shuffled.slice(0, Math.min(quizQuantity, shuffled.length));
 
       // Generate 4-option multiple choice for each question
       const generated = selected.map((item) => {
         const distractors = secureShuffle(
-          corpus.filter((c) => c.word !== item.word && c.banglaMeaning)
+          quizCorpus.filter((c) => c.word !== item.word)
         )
           .slice(0, 3)
           .map((c) => c.banglaMeaning);
@@ -454,6 +599,7 @@ export default function FlashcardPage() {
         const options = secureShuffle([...distractors, item.banglaMeaning]);
 
         return {
+          vocabulary: item,
           word: item.word,
           pos: item.pos,
           correctAnswer: item.banglaMeaning,
@@ -469,14 +615,29 @@ export default function FlashcardPage() {
 
       setViewMode("quiz");
       startQuizTimer(quizTimerMinutes);
+    } catch (error) {
+      console.error("Could not start flashcard quiz:", error);
+      showErrorAlert("Quiz Could Not Be Started", error.message || "Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleQuizAnswer = (chosen) => {
+  const handleQuizAnswer = async (chosen) => {
+    if (isSavingQuizAnswer || quizFinished) return;
     const q = quizQuestions[quizIndex];
+    if (!q) return;
+    setIsSavingQuizAnswer(true);
     const isCorrect = chosen === q.correctAnswer;
+    const saved = await persistFlashcardAttempt(
+      q.vocabulary,
+      isCorrect ? "knew" : "unknown",
+      quizIndex,
+    );
+    if (!saved) {
+      setIsSavingQuizAnswer(false);
+      return;
+    }
     if (isCorrect) setQuizScore((prev) => prev + 1);
 
     setQuizUserAnswers((prev) => [
@@ -490,6 +651,7 @@ export default function FlashcardPage() {
       stopQuizTimer();
       setQuizFinished(true);
     }
+    setIsSavingQuizAnswer(false);
   };
 
   // Format Timer mm:ss
@@ -558,7 +720,9 @@ export default function FlashcardPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredGroups.length === 0 ? (
               <p className="imlaa-card md:col-span-2 lg:col-span-3 p-6 text-center text-muted-label">
-                No vocabulary sets are available in this tab yet.
+                {activePart === "Mistakes"
+                  ? "No words need review right now. Incorrect and forgotten answers will appear here."
+                  : "No vocabulary sets are available in this tab yet."}
               </p>
             ) : filteredGroups.map((group) => (
               <div
@@ -588,6 +752,11 @@ export default function FlashcardPage() {
                         <HiUser className="w-3.5 h-3.5 text-plum" />
                         <span>Uploaded by {group.uploaderName || user?.name || "You"}</span>
                       </span>
+                    ) : group.part === "Mistakes" ? (
+                      <span className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-md bg-rose-50 text-rose-700 text-xs font-semibold border border-rose-200">
+                        <HiXCircle className="w-3.5 h-3.5" />
+                        <span>Needs Review</span>
+                      </span>
                     ) : (
                       <span className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-md bg-stone-100 text-stone-700 text-xs font-semibold border border-stone-200">
                         <HiAcademicCap className="w-3.5 h-3.5 text-plum" />
@@ -614,6 +783,11 @@ export default function FlashcardPage() {
                         style={{ width: `${group.percent}%` }}
                       />
                     </div>
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-[11px] font-medium text-muted-label">
+                      <span>Know: {getFlashcardMasterySummary(masteryRecords, group.title).knew}</span>
+                      <span>Do Not Know: {getFlashcardMasterySummary(masteryRecords, group.title).unknown}</span>
+                      <span>Forgot: {getFlashcardMasterySummary(masteryRecords, group.title).forgot}</span>
+                    </div>
                   </div>
 
                   {/* Actions */}
@@ -636,14 +810,16 @@ export default function FlashcardPage() {
                       </button>
                     )}
 
-                    <button
-                      type="button"
-                      disabled={!group.wordsCount || group.wordsCount === 0}
-                      onClick={() => handleStartDrill(group, false)}
-                      className="imlaa-btn-primary py-2 px-4 text-sm font-semibold"
-                    >
-                      Study Flashcards
-                    </button>
+                    {group.part !== "Mistakes" && (
+                      <button
+                        type="button"
+                        disabled={!group.wordsCount || group.wordsCount === 0}
+                        onClick={() => handleStartDrill(group, false)}
+                        className="imlaa-btn-primary py-2 px-4 text-sm font-semibold"
+                      >
+                        Study Flashcards
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -915,7 +1091,7 @@ export default function FlashcardPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    if (!hasAnsweredCurrent && !isFlipped) {
+                    if (!hasAnsweredCurrent) {
                       setIsFlipped(true);
                       return;
                     }
@@ -928,6 +1104,7 @@ export default function FlashcardPage() {
                       setViewMode("finished");
                     }
                   }}
+                  disabled={!hasAnsweredCurrent}
                   className="imlaa-btn-primary py-2.5 sm:py-3 px-4 sm:px-5 text-sm sm:text-base flex items-center justify-center space-x-2 w-full sm:w-auto min-h-11"
                 >
                   <span>{currentIndex === activeWords.length - 1 ? "Finish Drill" : "Next Word"}</span>
@@ -1096,8 +1273,9 @@ export default function FlashcardPage() {
                     key={idx}
                     type="button"
                     onClick={() => handleQuizAnswer(opt)}
-                    className="p-4 rounded-xl border border-plum/20 hover:border-plum hover:bg-plum/5 text-left font-semibold text-body-dark transition cursor-pointer"
-                  >
+                  disabled={isSavingQuizAnswer}
+                  className="p-4 rounded-xl border border-plum/20 hover:border-plum hover:bg-plum/5 text-left font-semibold text-body-dark transition cursor-pointer"
+                >
                     {opt}
                   </button>
                 ))}
@@ -1147,6 +1325,15 @@ export default function FlashcardPage() {
                 >
                   Try Again
                 </button>
+                {getTopicMistakeCount(selectedGroup?.title) > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => handleStartDrill(selectedGroup, true)}
+                    className="imlaa-btn-secondary py-3 px-6 text-base text-rose-700"
+                  >
+                    Review Mistakes ({getTopicMistakeCount(selectedGroup?.title)})
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setViewMode("sets")}

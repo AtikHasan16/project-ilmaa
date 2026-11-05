@@ -7,17 +7,20 @@ export function secureShuffle(array) {
   if (!Array.isArray(array) || array.length <= 1) return array ? [...array] : [];
   const arr = [...array];
   const cryptoObj = typeof window !== "undefined" ? window.crypto : globalThis.crypto;
+  if (!cryptoObj?.getRandomValues) {
+    throw new Error("Secure randomization is not available in this environment.");
+  }
 
+  const buffer = new Uint32Array(1);
   for (let i = arr.length - 1; i > 0; i--) {
-    let j;
-    if (cryptoObj?.getRandomValues) {
-      const buffer = new Uint32Array(1);
+    const range = i + 1;
+    const maxUnbiasedValue = Math.floor(0x100000000 / range) * range;
+    let value;
+    do {
       cryptoObj.getRandomValues(buffer);
-      j = buffer[0] % (i + 1);
-    } else {
-      // Safe fallback if crypto is not supported in test harness
-      j = Math.floor((cryptoObj?.randomUUID ? parseInt(cryptoObj.randomUUID().replace(/\D/g, "").slice(0, 4), 10) : Date.now()) % (i + 1));
-    }
+      value = buffer[0];
+    } while (value >= maxUnbiasedValue);
+    const j = value % range;
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
   return arr;
