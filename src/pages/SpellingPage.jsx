@@ -57,6 +57,7 @@ export default function SpellingPage() {
   // Mistakes Only Mode
   const [mistakesOnly, setMistakesOnly] = useState(false);
   const [mistakesList, setMistakesList] = useState([]);
+  const [drillRequest, setDrillRequest] = useState(null);
 
   // DB Progress
   const [vocabStats, setVocabStats] = useState(null);
@@ -77,6 +78,7 @@ export default function SpellingPage() {
 
   // Random Quiz (Item 5)
   const [quizModalOpen, setQuizModalOpen] = useState(false);
+  const [quizTopic, setQuizTopic] = useState(null);
   const [quizQuantity, setQuizQuantity] = useState(10);
   const [quizTimerMinutes, setQuizTimerMinutes] = useState(0); // 0 = untimed
   const [quizQuestions, setQuizQuestions] = useState([]);
@@ -363,15 +365,21 @@ export default function SpellingPage() {
     }
   }, [user]);
 
-  const handleStartDrill = (group, isMistakes = false) => {
+  const handleStartDrill = useCallback((group, isMistakes = false) => {
     setSelectedGroup(group);
     setMistakesOnly(isMistakes);
     setViewMode("drill");
     setSessionCorrect([]);
     setSessionMisspelled([]);
-    sessionStartTimeRef.current = Date.now();
-    loadWordsForDrill(group, isMistakes);
-  };
+    setDrillRequest({ group, isMistakes });
+  }, []);
+
+  useEffect(() => {
+    if (drillRequest) {
+      sessionStartTimeRef.current = Date.now();
+      loadWordsForDrill(drillRequest.group, drillRequest.isMistakes);
+    }
+  }, [drillRequest, loadWordsForDrill]);
 
   const handleReturnToSets = () => {
     if (sessionStartTimeRef.current && user?.id) {
@@ -551,9 +559,8 @@ export default function SpellingPage() {
   // RANDOM SPELLING QUIZ (Item 5)
   // ==========================================================
   const startRandomQuiz = (group) => {
-    const targetGroup = group || dynamicGroups[0];
-    if (!targetGroup) return;
-    setSelectedGroup(targetGroup);
+    setSelectedGroup(group || null);
+    setQuizTopic(group?.title || null);
     setQuizModalOpen(true);
   };
 
@@ -564,7 +571,7 @@ export default function SpellingPage() {
       const pageSize = 500;
       const firstPage = await apiClient.get("/vocabulary", {
         params: {
-          topic: selectedGroup?.title,
+          topic: quizTopic || undefined,
           page: 1,
           pageSize,
         },
@@ -575,7 +582,7 @@ export default function SpellingPage() {
       for (let page = 2; page <= pageCount; page += 1) {
         const pageResult = await apiClient.get("/vocabulary", {
           params: {
-            topic: selectedGroup?.title,
+            topic: quizTopic || undefined,
             page,
             pageSize,
           },
@@ -584,7 +591,13 @@ export default function SpellingPage() {
         if (pageWords.length === 0) break;
         corpus.push(...pageWords);
       }
-      if (corpus.length === 0) return;
+      if (corpus.length === 0) {
+        showErrorAlert(
+          "No Quiz Words Available",
+          "There are no vocabulary words available for a quiz right now.",
+        );
+        return;
+      }
 
       const shuffled = secureShuffle(corpus);
       const selected = shuffled.slice(0, Math.min(quizQuantity, shuffled.length));
@@ -611,6 +624,9 @@ export default function SpellingPage() {
       }
 
       startQuizTimer(quizTimerMinutes);
+    } catch (error) {
+      console.error("Could not start spelling quiz:", error);
+      showErrorAlert("Quiz Could Not Be Started", error.message || "Please try again.");
     } finally {
       setLoading(false);
     }
@@ -624,7 +640,7 @@ export default function SpellingPage() {
     if (!q) return;
     const isCorrect = quizInput.trim().toLowerCase() === q.word.trim().toLowerCase();
     const outcome = isCorrect ? "know" : "doNotKnow";
-    const topic = selectedGroup?.title || "Academic Word List: Sublist A";
+    const topic = q.topic || quizTopic || "Academic Word List: Sublist A";
     setQuizSubmitting(true);
     try {
       const saved = await saveSpellingResult(q, outcome, topic, quizIndex);
@@ -672,6 +688,19 @@ export default function SpellingPage() {
   const filteredGroups = dynamicGroups.filter((g) => g.part === activePart);
   const activeTopic = selectedGroup?.title || "Academic Word List: Sublist A";
   const corpusMastery = getSpellingMasterySummary(visibleMastery, activeTopic);
+  const quizMastery = quizTopic
+    ? getSpellingMasterySummary(visibleMastery, quizTopic)
+    : Object.values(visibleMastery).reduce(
+        (total, records) => {
+          const summary = getSpellingMasterySummary({ current: records }, "current");
+          return {
+            know: total.know + summary.know,
+            doNotKnow: total.doNotKnow + summary.doNotKnow,
+            forgot: total.forgot + summary.forgot,
+          };
+        },
+        { know: 0, doNotKnow: 0, forgot: 0 },
+      );
   const topicMistakes = getSpellingMistakes(visibleMastery, activeTopic);
 
   return (
@@ -694,8 +723,8 @@ export default function SpellingPage() {
 
         <button
           type="button"
-          onClick={() => startRandomQuiz(filteredGroups[0])}
-          disabled={filteredGroups.length === 0}
+          onClick={() => startRandomQuiz()}
+          disabled={loading}
           className="imlaa-btn-secondary text-xs sm:text-sm py-2 px-3 sm:px-4 flex items-center space-x-2 self-start sm:self-auto min-h-11"
         >
           <HiSparkles className="w-4 h-4 text-plum shrink-0" />
@@ -1325,19 +1354,19 @@ export default function SpellingPage() {
                 <div className="mt-3 grid grid-cols-3 gap-2 text-center">
                   <div className="rounded-xl bg-emerald-50 p-3">
                     <div className="text-2xl font-black text-emerald-700">
-                      {corpusMastery.know}
+                      {quizMastery.know}
                     </div>
                     <div className="text-xs font-bold text-emerald-800">Know</div>
                   </div>
                   <div className="rounded-xl bg-rose-50 p-3">
                     <div className="text-2xl font-black text-rose-700">
-                      {corpusMastery.doNotKnow}
+                      {quizMastery.doNotKnow}
                     </div>
                     <div className="text-xs font-bold text-rose-800">Do Not Know</div>
                   </div>
                   <div className="rounded-xl bg-amber-50 p-3">
                     <div className="text-2xl font-black text-amber-700">
-                      {corpusMastery.forgot}
+                      {quizMastery.forgot}
                     </div>
                     <div className="text-xs font-bold text-amber-800">Forgot</div>
                   </div>
@@ -1370,13 +1399,13 @@ export default function SpellingPage() {
                 >
                   Try Again
                 </button>
-                {topicMistakes.length > 0 && (
+                {quizTopic && getSpellingMistakes(visibleMastery, quizTopic).length > 0 && (
                   <button
                     type="button"
                     onClick={() => handleStartDrill(selectedGroup, true)}
                     className="imlaa-btn-secondary py-3 px-6 text-base text-rose-700"
                   >
-                    Practice Mistakes ({topicMistakes.length})
+                    Practice Mistakes ({getSpellingMistakes(visibleMastery, quizTopic).length})
                   </button>
                 )}
                 <button
