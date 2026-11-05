@@ -76,6 +76,8 @@ export default function FlashcardPage() {
   const sessionStartTimeRef = useRef(null);
   const isMountedRef = useRef(true);
   const loadWordsRequestId = useRef(0);
+  const handledDrillRequestIdRef = useRef(null);
+  const [drillRequest, setDrillRequest] = useState(null);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -100,7 +102,6 @@ export default function FlashcardPage() {
   // Practice Mistakes Mode
   const [mistakesOnly, setMistakesOnly] = useState(false);
   const [mistakesList, setMistakesList] = useState([]);
-  const [drillRequest, setDrillRequest] = useState(null);
 
   // Random Quiz States (Item 5)
   const [quizModalOpen, setQuizModalOpen] = useState(false);
@@ -372,6 +373,11 @@ export default function FlashcardPage() {
     }
   }, [fetchVocabularyCorpus, masteryRecords, user]);
 
+  const loadWordsForDrillRef = useRef(loadWordsForDrill);
+  useEffect(() => {
+    loadWordsForDrillRef.current = loadWordsForDrill;
+  }, [loadWordsForDrill]);
+
   // Start Flashcard Practice
   const handleStartDrill = useCallback((group, isMistakes = false) => {
     setSelectedGroup(group);
@@ -380,15 +386,20 @@ export default function FlashcardPage() {
     setSessionKnew([]);
     setSessionUnknown([]);
     setSessionForgot([]);
-    setDrillRequest({ group, isMistakes });
+    setDrillRequest((previous) => ({
+      id: (previous?.id || 0) + 1,
+      group,
+      isMistakes,
+    }));
   }, []);
 
   useEffect(() => {
-    if (drillRequest) {
-      sessionStartTimeRef.current = Date.now();
-      loadWordsForDrill(drillRequest.group, drillRequest.isMistakes);
-    }
-  }, [drillRequest, loadWordsForDrill]);
+    if (!drillRequest || handledDrillRequestIdRef.current === drillRequest.id) return;
+
+    handledDrillRequestIdRef.current = drillRequest.id;
+    sessionStartTimeRef.current = Date.now();
+    loadWordsForDrillRef.current(drillRequest.group, drillRequest.isMistakes);
+  }, [drillRequest]);
 
   // Return to Corpus Sets
   const handleReturnToSets = () => {
@@ -446,6 +457,24 @@ export default function FlashcardPage() {
           "Cloud Sync Failed",
           "Your answer is saved on this device, but could not be synced to your account.",
         );
+      }
+
+      if (status === "knew") {
+        try {
+          await apiClient.post("/spelling/progress", {
+            userId: user.id,
+            topic,
+            word: word.word,
+            isCorrect: true,
+            lastIndex,
+          });
+        } catch (error) {
+          console.error("Could not clear the spelling mistake after flashcard practice:", error);
+          showErrorAlert(
+            "Mistake Sync Incomplete",
+            "Your flashcard result is saved, but an older spelling mistake could not be cleared from your account.",
+          );
+        }
       }
     }
     return true;

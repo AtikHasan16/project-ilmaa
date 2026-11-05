@@ -154,6 +154,24 @@ export default function SpellingPage() {
           "Your result is saved on this browser, but could not be synced to your account.",
         );
       }
+
+      if (outcome === "know") {
+        try {
+          await apiClient.post("/flashcard/progress", {
+            userId: user.id,
+            topic,
+            word: word.word,
+            status: "knew",
+            lastIndex: currentIndex,
+          });
+        } catch (error) {
+          console.error("Could not clear the flashcard mistake after spelling practice:", error);
+          showErrorAlert(
+            "Mistake Sync Incomplete",
+            "Your spelling result is saved, but an older flashcard mistake could not be cleared from your account.",
+          );
+        }
+      }
     }
     return true;
   };

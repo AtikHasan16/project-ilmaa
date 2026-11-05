@@ -1,9 +1,12 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { useNavigate, Link } from "react-router";
+import { useNavigate, Link, useLocation } from "react-router";
 import { useAuth } from "../context/AuthContext";
 import apiClient from "../services/apiClient";
 import { supabase } from "../services/supabaseClient";
 import { toCamel } from "../services/dataMappers";
+import { loadSpellingMastery } from "../utils/spellingMastery";
+import { loadFlashcardMastery } from "../utils/flashcardMastery";
+import { reconcileDashboardProgress } from "../utils/dashboardProgress";
 import { exportStudyCertificatePDF } from "../utils/exportCertificatePdf";
 import { fetchUserBadges, evaluateAndUnlockBadges } from "../services/badgeService";
 import { getDailyGrammarRule } from "../data/grammarLessonsData";
@@ -45,6 +48,7 @@ import {
 export default function DashboardPage() {
   const { user, role, isAdmin } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -113,9 +117,9 @@ export default function DashboardPage() {
 
       // 2. Fetch user progress across spelling, flashcard, grammar
       const [
-        { data: rawSpellingRows },
-        { data: rawFlashcardRows },
-        { data: rawGrammarData },
+        spellingResult,
+        flashcardResult,
+        grammarResult,
         initialBadges,
       ] = await Promise.all([
         supabase.from("spelling_progress").select("*").eq("user_id", user.id),
@@ -127,26 +131,42 @@ export default function DashboardPage() {
           .maybeSingle(),
         fetchUserBadges(user.id),
       ]);
+      if (spellingResult.error) throw spellingResult.error;
+      if (flashcardResult.error) throw flashcardResult.error;
+      if (grammarResult.error) throw grammarResult.error;
 
-      const spellingRows = toCamel(rawSpellingRows || []);
-      const flashcardRows = toCamel(rawFlashcardRows || []);
+      const rawSpellingRows = spellingResult.data;
+      const rawFlashcardRows = flashcardResult.data;
+      const rawGrammarData = grammarResult.data;
+
+      let localSpellingMastery = {};
+      let localFlashcardMastery = {};
+      try {
+        localSpellingMastery = loadSpellingMastery(user.id);
+        localFlashcardMastery = loadFlashcardMastery(user.id);
+      } catch (error) {
+        console.warn("Could not reconcile local mastery on dashboard:", error);
+      }
+
+      const { spellingByTopic, flashcardByTopic } = reconcileDashboardProgress(
+        toCamel(rawSpellingRows || []),
+        toCamel(rawFlashcardRows || []),
+        localSpellingMastery,
+        localFlashcardMastery,
+      );
       const grammarData = toCamel(rawGrammarData);
 
       // Maps of progress by topic
-      const spellingByTopic = {};
       const uniqueSpellingMastered = new Set();
       const uniqueSpellingIncorrect = new Set();
-      (spellingRows || []).forEach((row) => {
-        spellingByTopic[row.topic] = row;
+      Object.values(spellingByTopic).forEach((row) => {
         (row.masteredWords || []).forEach((w) => uniqueSpellingMastered.add(w));
         (row.incorrectWords || []).forEach((w) => uniqueSpellingIncorrect.add(w));
       });
 
-      const flashcardByTopic = {};
       const uniqueFlashcardKnown = new Set();
       const uniqueFlashcardMistakes = new Set();
-      (flashcardRows || []).forEach((row) => {
-        flashcardByTopic[row.topic] = row;
+      Object.values(flashcardByTopic).forEach((row) => {
         (row.knownWords || []).forEach((w) => uniqueFlashcardKnown.add(w));
         (row.unknownWords || []).forEach((w) => uniqueFlashcardMistakes.add(w));
         (row.forgotWords || []).forEach((w) => uniqueFlashcardMistakes.add(w));
@@ -269,8 +289,8 @@ export default function DashboardPage() {
       });
 
       const totalPractices =
-        (spellingRows?.length || 0) +
-        (flashcardRows?.length || 0) +
+        Object.keys(spellingByTopic).length +
+        Object.keys(flashcardByTopic).length +
         (grammarData?.testsTaken || (grammarData?.highestScore ? 1 : 0));
 
       const totalStudySeconds = allMastered.size * 35 + allMistakes.size * 25;
@@ -329,6 +349,14 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchDashboardData();
+  }, [fetchDashboardData, location.pathname]);
+
+  useEffect(() => {
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") fetchDashboardData();
+    };
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => document.removeEventListener("visibilitychange", refreshWhenVisible);
   }, [fetchDashboardData]);
 
   const handleRefresh = () => {
