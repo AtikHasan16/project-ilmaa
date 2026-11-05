@@ -100,9 +100,11 @@ export default function FlashcardPage() {
   // Practice Mistakes Mode
   const [mistakesOnly, setMistakesOnly] = useState(false);
   const [mistakesList, setMistakesList] = useState([]);
+  const [drillRequest, setDrillRequest] = useState(null);
 
   // Random Quiz States (Item 5)
   const [quizModalOpen, setQuizModalOpen] = useState(false);
+  const [quizTopic, setQuizTopic] = useState(null);
   const [quizQuantity, setQuizQuantity] = useState(10); // 10 | 20 | 50
   const [quizTimerMinutes, setQuizTimerMinutes] = useState(0); // 0 (untimed) | 1 | 2 | 5 | 10
   const [quizQuestions, setQuizQuestions] = useState([]);
@@ -371,16 +373,22 @@ export default function FlashcardPage() {
   }, [fetchVocabularyCorpus, masteryRecords, user]);
 
   // Start Flashcard Practice
-  const handleStartDrill = (group, isMistakes = false) => {
+  const handleStartDrill = useCallback((group, isMistakes = false) => {
     setSelectedGroup(group);
     setMistakesOnly(isMistakes);
     setViewMode("drill");
     setSessionKnew([]);
     setSessionUnknown([]);
     setSessionForgot([]);
-    sessionStartTimeRef.current = Date.now();
-    loadWordsForDrill(group, isMistakes);
-  };
+    setDrillRequest({ group, isMistakes });
+  }, []);
+
+  useEffect(() => {
+    if (drillRequest) {
+      sessionStartTimeRef.current = Date.now();
+      loadWordsForDrill(drillRequest.group, drillRequest.isMistakes);
+    }
+  }, [drillRequest, loadWordsForDrill]);
 
   // Return to Corpus Sets
   const handleReturnToSets = () => {
@@ -402,12 +410,13 @@ export default function FlashcardPage() {
   const activeWords = mistakesOnly ? mistakesList : words;
   const currentWord = activeWords[currentIndex] || null;
 
-  const persistFlashcardAttempt = useCallback(async (word, status, lastIndex) => {
+  const persistFlashcardAttempt = useCallback(async (word, status, lastIndex, topicOverride) => {
+    const topic = topicOverride || selectedGroup?.title || "Academic Word List: Sublist A";
     let updatedMastery;
     try {
       updatedMastery = recordFlashcardAttempt(
         masteryRecords,
-        selectedGroup?.title || "Academic Word List: Sublist A",
+        topic,
         word,
         status,
       );
@@ -426,7 +435,7 @@ export default function FlashcardPage() {
       try {
         await apiClient.post("/flashcard/progress", {
           userId: user.id,
-          topic: selectedGroup?.title || "Academic Word List: Sublist A",
+          topic,
           word: word.word,
           status,
           lastIndex,
@@ -565,9 +574,8 @@ export default function FlashcardPage() {
   // RANDOM QUIZ ENGINE (Item 5)
   // ==========================================================
   const startRandomQuiz = (group) => {
-    const targetGroup = group || dynamicGroups[0];
-    if (!targetGroup) return;
-    setSelectedGroup(targetGroup);
+    setSelectedGroup(group || null);
+    setQuizTopic(group?.title || null);
     setQuizModalOpen(true);
   };
 
@@ -576,7 +584,7 @@ export default function FlashcardPage() {
     setLoading(true);
     try {
       const corpus = await fetchVocabularyCorpus({
-        topic: selectedGroup?.title,
+        topic: quizTopic || undefined,
       });
       const quizCorpus = corpus.filter((item) => item.word && item.banglaMeaning);
       if (quizCorpus.length === 0) {
@@ -633,6 +641,7 @@ export default function FlashcardPage() {
       q.vocabulary,
       isCorrect ? "knew" : "unknown",
       quizIndex,
+      q.vocabulary.topic || quizTopic,
     );
     if (!saved) {
       setIsSavingQuizAnswer(false);
@@ -685,8 +694,8 @@ export default function FlashcardPage() {
         <div className="flex items-center space-x-3 self-start sm:self-auto">
           <button
             type="button"
-            onClick={() => startRandomQuiz(filteredGroups[0])}
-            disabled={filteredGroups.length === 0}
+            onClick={() => startRandomQuiz()}
+            disabled={loading}
             className="imlaa-btn-secondary text-xs sm:text-sm py-2 px-3 sm:px-4 flex items-center space-x-2 min-h-11"
           >
             <HiSparkles className="w-4 h-4 text-plum shrink-0" />
@@ -1325,13 +1334,13 @@ export default function FlashcardPage() {
                 >
                   Try Again
                 </button>
-                {getTopicMistakeCount(selectedGroup?.title) > 0 && (
+                {selectedGroup && getTopicMistakeCount(selectedGroup.title) > 0 && (
                   <button
                     type="button"
                     onClick={() => handleStartDrill(selectedGroup, true)}
                     className="imlaa-btn-secondary py-3 px-6 text-base text-rose-700"
                   >
-                    Review Mistakes ({getTopicMistakeCount(selectedGroup?.title)})
+                    Review Mistakes ({getTopicMistakeCount(selectedGroup.title)})
                   </button>
                 )}
                 <button
