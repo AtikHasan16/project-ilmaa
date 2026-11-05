@@ -45,7 +45,7 @@ const GRAMMAR_TOPICS = [
   {
     id: "singular-plural-nouns",
     category: "morphology",
-    title: "500 Singular & Plural Nouns",
+    title: "Singular & Plural Nouns",
     description: "Irregular plurals, Latin/Greek derivations, and uncountable noun rules.",
   },
   {

@@ -576,6 +576,7 @@ export default function ProfilePage() {
                       <img
                         src={avatarPreview}
                         alt="Avatar Preview"
+                        referrerPolicy="no-referrer"
                         className="w-20 h-20 rounded-2xl border-2 border-plum object-cover shadow-sm shrink-0"
                       />
                     ) : (

@@ -8,11 +8,7 @@ import {
   HiShieldCheck,
   HiLockClosed,
 } from "react-icons/hi2";
-import {
-  showConfirmModal,
-  showSuccessToast,
-  showErrorAlert,
-} from "../utils/sweetalert";
+import { showConfirmModal, showSuccessToast, showErrorAlert } from "../utils/sweetalert";
 import { parseDelimitedText } from "../utils/csvParser";
 
 export default function UploadStudyPage() {
@@ -78,7 +74,8 @@ export default function UploadStudyPage() {
       return;
     }
 
-    const destLabel = targetDestination === "active" ? "All Active Corpus" : "Uploaded Corpus";
+    const destLabel =
+      targetDestination === "active" ? "All Active Corpus" : "Uploaded Corpus";
     const confirmRes = await showConfirmModal({
       title: "Confirm Bulk Import?",
       text: `Upload ${previewItems.length} vocabulary entries into [${destLabel}] under "${bulkTopic}"?`,
@@ -105,10 +102,7 @@ export default function UploadStudyPage() {
         setPreviewItems([]);
       }
     } catch (err) {
-      showErrorAlert(
-        "Bulk Import Error",
-        err.response?.data?.message || err.message,
-      );
+      showErrorAlert("Bulk Import Error", err.response?.data?.message || err.message);
     } finally {
       setImporting(false);
     }
@@ -137,25 +131,20 @@ export default function UploadStudyPage() {
           <h4 className="text-base font-bold text-plum uppercase tracking-wider mb-2">
             Expected Column Order (Database Standard)
           </h4>
-          <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 text-sm font-mono text-body-dark">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm font-mono text-body-dark">
             <span className="p-2 rounded bg-white border border-plum/15 font-bold">
-              1. Word *
+              1. Word
             </span>
             <span className="p-2 rounded bg-white border border-plum/15 font-bold">
-              2. POS
+              2. Grammar Type
             </span>
             <span className="p-2 rounded bg-white border border-plum/15 font-bold">
-              3. Meaning *
+              3. Meaning
             </span>
             <span className="p-2 rounded bg-white border border-plum/15">
               4. Synonyms
             </span>
-            <span className="p-2 rounded bg-white border border-plum/15">
-              5. Example
-            </span>
-            <span className="p-2 rounded bg-white border border-plum/15">
-              6. Topic
-            </span>
+            <span className="p-2 rounded bg-white border border-plum/15">5. Example</span>
           </div>
           <p className="text-sm text-muted-label mt-2">
             Tip: In Google Sheets or Excel, select your cells and press{" "}
@@ -171,8 +160,8 @@ export default function UploadStudyPage() {
                 Paste TSV Data or Upload CSV File
               </label>
               <span className="text-sm text-muted-label">
-                Supports Tab-Separated Values (Google Docs/Sheets) and
-                comma-separated CSV.
+                Supports Tab-Separated Values (Google Docs/Sheets) and comma-separated
+                CSV.
               </span>
             </div>
 
@@ -199,7 +188,9 @@ export default function UploadStudyPage() {
           <div className="p-4 rounded-xl bg-plum/5 border border-plum/15 flex flex-col gap-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center space-x-2">
-                <HiShieldCheck className={`w-5 h-5 ${isAdmin ? "text-plum" : "text-muted-label"}`} />
+                <HiShieldCheck
+                  className={`w-5 h-5 ${isAdmin ? "text-plum" : "text-muted-label"}`}
+                />
                 <span className="text-base font-bold text-body-dark">
                   Target Corpus Destination:
                 </span>
@@ -218,11 +209,9 @@ export default function UploadStudyPage() {
                   onClick={() => {
                     if (!isAdmin) return;
                     setTargetDestination("active");
-                    setBulkTopic("Academic Word List: Sublist A");
+                    setBulkTopic("Example Topic");
                     if (rawText) {
-                      setPreviewItems(
-                        parseDelimitedText(rawText, "Academic Word List: Sublist A"),
-                      );
+                      setPreviewItems(parseDelimitedText(rawText, "Example Topic"));
                     }
                   }}
                   title={!isAdmin ? "Admin only" : undefined}
@@ -245,11 +234,9 @@ export default function UploadStudyPage() {
                   onClick={() => {
                     if (!isAdmin) return;
                     setTargetDestination("listening");
-                    setBulkTopic("Studying university/college");
+                    setBulkTopic("Test Topic");
                     if (rawText) {
-                      setPreviewItems(
-                        parseDelimitedText(rawText, "Studying university/college"),
-                      );
+                      setPreviewItems(parseDelimitedText(rawText, "Test Topic"));
                     }
                   }}
                   title={!isAdmin ? "Admin only" : undefined}
@@ -332,7 +319,12 @@ export default function UploadStudyPage() {
             {targetDestination === "listening" && (
               <div className="flex items-center gap-2 text-xs text-muted-label pt-1 pl-1 flex-wrap">
                 <span className="font-medium">Quick 1200 Lexicon Suggestions:</span>
-                {["Studying university/college", "Subjects", "Finance & Banking", "Accommodation"].map((sug) => (
+                {[
+                  "Studying university/college",
+                  "Subjects",
+                  "Finance & Banking",
+                  "Accommodation",
+                ].map((sug) => (
                   <button
                     key={sug}
                     type="button"
@@ -388,9 +380,7 @@ export default function UploadStudyPage() {
               >
                 <HiCloudArrowUp className="w-5 h-5" />
                 <span>
-                  {importing
-                    ? "Importing..."
-                    : `Import ${previewItems.length} Words`}
+                  {importing ? "Importing..." : `Import ${previewItems.length} Words`}
                 </span>
               </button>
             </div>
@@ -402,8 +392,8 @@ export default function UploadStudyPage() {
           <div className="p-4 rounded-xl border border-emerald-600/30 bg-emerald-50 text-emerald-800 text-base font-medium flex items-center space-x-2 animate-slide-up">
             <HiCheckCircle className="w-6 h-6 shrink-0 text-emerald-600" />
             <span>
-              {importResult.message} ({importResult.insertedCount} words
-              inserted, {importResult.skippedCount} skipped).
+              {importResult.message} ({importResult.insertedCount} words inserted,{" "}
+              {importResult.skippedCount} skipped).
             </span>
           </div>
         )}
@@ -442,9 +432,7 @@ export default function UploadStudyPage() {
                       <td className="py-2.5 px-3 font-bold text-body-dark">
                         {item.word}
                       </td>
-                      <td className="py-2.5 px-3 italic text-plum">
-                        {item.pos}
-                      </td>
+                      <td className="py-2.5 px-3 italic text-plum">{item.pos}</td>
                       <td className="py-2.5 px-3 font-medium text-body-dark">
                         {item.banglaMeaning}
                       </td>
