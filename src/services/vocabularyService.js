@@ -159,6 +159,7 @@ export async function getVocabulary(params = {}) {
   const page = Math.max(1, parseInt(params.page, 10) || 1);
   const pageSize = Math.max(0, parseInt(params.pageSize || params.limit, 10) || 0);
   if (pageSize > 0) {
+    query = query.order("id", { ascending: true });
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
     query = query.range(from, to);
