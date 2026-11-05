@@ -5,7 +5,7 @@ import { HiArrowLeft, HiPaperAirplane, HiCheckCircle } from "react-icons/hi2";
 import { showErrorAlert, showSuccessToast } from "../utils/sweetalert";
 import MinimalFooter from "../components/MinimalFooter";
 
-const TARGET_GMAIL = "akhasannaeem@gmail.com";
+const TARGET_GMAIL = "Spellycraft@gmail.com";
 
 export default function ContactPage() {
   const [name, setName] = useState("");
@@ -18,12 +18,12 @@ export default function ContactPage() {
   const [submitted, setSubmitted] = useState(false);
 
   const categoryLabels = {
-    "general": "General Inquiry or Feedback",
-    "account": "Account & Authentication Support",
+    general: "General Inquiry or Feedback",
+    account: "Account & Authentication Support",
     "vocab-grammar": "Feedback on Vocabulary or Grammar Question",
-    "technical": "Technical Support or Bug Report",
-    "curriculum": "Curriculum or Corpus Suggestion",
-    "other": "Other Inquiry",
+    technical: "Technical Support or Bug Report",
+    curriculum: "Curriculum or Corpus Suggestion",
+    other: "Other Inquiry",
   };
 
   const handleSubmit = async (e) => {
@@ -39,34 +39,43 @@ export default function ContactPage() {
     // 2. Anti-Raid Rate Limiter: Minimum 60s cooldown between submissions
     const lastSubmitTime = localStorage.getItem("spellycraft_contact_last_ts");
     if (lastSubmitTime && Date.now() - Number(lastSubmitTime) < 60000) {
-      const waitSeconds = Math.ceil((60000 - (Date.now() - Number(lastSubmitTime))) / 1000);
+      const waitSeconds = Math.ceil(
+        (60000 - (Date.now() - Number(lastSubmitTime))) / 1000,
+      );
       showErrorAlert(
         "Anti-Spam Cooldown",
-        `Please wait ${waitSeconds} seconds before submitting another inquiry to prevent spamming.`
+        `Please wait ${waitSeconds} seconds before submitting another inquiry to prevent spamming.`,
       );
       return;
     }
 
     if (!name.trim()) {
-      showErrorAlert("Missing Name", "Please provide your full name so we can address your inquiry.");
+      showErrorAlert(
+        "Missing Name",
+        "Please provide your full name so we can address your inquiry.",
+      );
       return;
     }
 
     if (!message.trim()) {
-      showErrorAlert("Missing Message", "Please write a brief description of your request.");
+      showErrorAlert(
+        "Missing Message",
+        "Please write a brief description of your request.",
+      );
       return;
     }
 
     setSending(true);
 
     const serviceId = import.meta.env?.VITE_EMAILJS_SERVICE_ID || "service_spellycraft";
-    const templateId = import.meta.env?.VITE_EMAILJS_TEMPLATE_ID || "template_spellycraft";
+    const templateId =
+      import.meta.env?.VITE_EMAILJS_TEMPLATE_ID || "template_spellycraft";
     const publicKey = import.meta.env?.VITE_EMAILJS_PUBLIC_KEY;
 
     // Structured template parameters sent to EmailJS
     const templateParams = {
       to_email: TARGET_GMAIL,
-      recipient_name: "Atik Hasan Naeem",
+      recipient_name: "Hasan MD Atik",
       from_name: name.trim(),
       from_email: email.trim() || "Not provided (Anonymous)",
       context_note: contextNote.trim() || "Not provided",
@@ -82,40 +91,53 @@ export default function ContactPage() {
         // Direct EmailJS send via API
         await emailjs.send(serviceId, templateId, templateParams, publicKey);
         localStorage.setItem("spellycraft_contact_last_ts", Date.now().toString());
-        showSuccessToast("Message Delivered", `Your inquiry was delivered directly to ${TARGET_GMAIL}.`);
+        showSuccessToast(
+          "Message Delivered",
+          `Your inquiry was delivered directly to ${TARGET_GMAIL}.`,
+        );
         setSubmitted(true);
       } else {
         // Fallback: If EmailJS API keys aren't set yet, open structured pre-formatted mail client
-        const subject = encodeURIComponent(`[SpellyCraft Support: ${categoryLabels[category]}] from ${name.trim()}`);
+        const subject = encodeURIComponent(
+          `[SpellyCraft Support: ${categoryLabels[category]}] from ${name.trim()}`,
+        );
         const formattedBody = encodeURIComponent(
           `Recipient: ${TARGET_GMAIL}\n` +
-          `----------------------------------------\n` +
-          `Candidate Name : ${name.trim()}\n` +
-          `Candidate Email: ${email.trim() || "Not provided"}\n` +
-          `Context / Topic: ${contextNote.trim() || "Not provided"}\n` +
-          `Reason/Category: ${categoryLabels[category]}\n` +
-          `Timestamp      : ${new Date().toLocaleString()}\n` +
-          `----------------------------------------\n\n` +
-          `Message Details:\n${message.trim()}\n`
+            `----------------------------------------\n` +
+            `Candidate Name : ${name.trim()}\n` +
+            `Candidate Email: ${email.trim() || "Not provided"}\n` +
+            `Context / Topic: ${contextNote.trim() || "Not provided"}\n` +
+            `Reason/Category: ${categoryLabels[category]}\n` +
+            `Timestamp      : ${new Date().toLocaleString()}\n` +
+            `----------------------------------------\n\n` +
+            `Message Details:\n${message.trim()}\n`,
         );
         localStorage.setItem("spellycraft_contact_last_ts", Date.now().toString());
         window.location.href = `mailto:${TARGET_GMAIL}?subject=${subject}&body=${formattedBody}`;
-        showSuccessToast("Email Formatted", "Your email client was opened with your structured message.");
+        showSuccessToast(
+          "Email Formatted",
+          "Your email client was opened with your structured message.",
+        );
         setSubmitted(true);
       }
     } catch (err) {
       console.error("EmailJS dispatch failed:", err);
       // Seamless failover to direct mailto so message is never lost
-      const subject = encodeURIComponent(`[SpellyCraft Support: ${categoryLabels[category]}] from ${name.trim()}`);
+      const subject = encodeURIComponent(
+        `[SpellyCraft Support: ${categoryLabels[category]}] from ${name.trim()}`,
+      );
       const fallbackBody = encodeURIComponent(
         `Candidate Name : ${name.trim()}\n` +
-        `Candidate Email: ${email.trim() || "Not provided"}\n` +
-        `Context / Topic: ${contextNote.trim() || "Not provided"}\n` +
-        `Inquiry Type   : ${categoryLabels[category]}\n\n` +
-        `Message:\n${message.trim()}`
+          `Candidate Email: ${email.trim() || "Not provided"}\n` +
+          `Context / Topic: ${contextNote.trim() || "Not provided"}\n` +
+          `Inquiry Type   : ${categoryLabels[category]}\n\n` +
+          `Message:\n${message.trim()}`,
       );
       window.location.href = `mailto:${TARGET_GMAIL}?subject=${subject}&body=${fallbackBody}`;
-      showSuccessToast("Dispatched via Email Client", `Connecting you directly to ${TARGET_GMAIL}.`);
+      showSuccessToast(
+        "Dispatched via Email Client",
+        `Connecting you directly to ${TARGET_GMAIL}.`,
+      );
       setSubmitted(true);
     } finally {
       setSending(false);
@@ -145,7 +167,8 @@ export default function ContactPage() {
             Contact Support & Access
           </h1>
           <p className="text-base sm:text-lg text-muted-label">
-            Direct dispatch to administrator (<span className="text-plum font-semibold">{TARGET_GMAIL}</span>)
+            Direct dispatch to administrator (
+            <span className="text-plum font-semibold">{TARGET_GMAIL}</span>)
           </p>
         </div>
 
@@ -155,7 +178,9 @@ export default function ContactPage() {
               <HiCheckCircle className="w-14 h-14 text-emerald-600 mx-auto" />
               <h2 className="text-2xl font-bold text-body-dark">Inquiry Dispatched</h2>
               <p className="text-base text-muted-label max-w-md mx-auto">
-                Your message has been sent to <span className="font-semibold text-body-dark">{TARGET_GMAIL}</span>. You will receive a response shortly.
+                Your message has been sent to{" "}
+                <span className="font-semibold text-body-dark">{TARGET_GMAIL}</span>. You
+                will receive a response shortly.
               </p>
               <div className="pt-4 flex justify-center space-x-3">
                 <button
@@ -205,7 +230,10 @@ export default function ContactPage() {
               {/* Email (Optional for reply) */}
               <div>
                 <label className="block text-sm font-bold text-body-dark uppercase tracking-wider mb-2">
-                  Your Email Address <span className="text-xs text-muted-label font-normal">(for admin reply)</span>
+                  Your Email Address{" "}
+                  <span className="text-xs text-muted-label font-normal">
+                    (for admin reply)
+                  </span>
                 </label>
                 <input
                   type="email"
@@ -228,7 +256,9 @@ export default function ContactPage() {
                 >
                   <option value="general">General Inquiry or Feedback</option>
                   <option value="account">Account & Authentication Support</option>
-                  <option value="vocab-grammar">Feedback on Vocabulary or Grammar Question</option>
+                  <option value="vocab-grammar">
+                    Feedback on Vocabulary or Grammar Question
+                  </option>
                   <option value="technical">Technical Support or Bug Report</option>
                   <option value="curriculum">Curriculum or Corpus Suggestion</option>
                   <option value="other">Other Inquiry</option>
@@ -238,7 +268,8 @@ export default function ContactPage() {
               {/* Context Note (Optional) */}
               <div>
                 <label className="block text-sm font-bold text-body-dark uppercase tracking-wider mb-2">
-                  Relevant Topic or Word <span className="text-xs text-muted-label font-normal">(Optional)</span>
+                  Relevant Topic or Word{" "}
+                  <span className="text-xs text-muted-label font-normal">(Optional)</span>
                 </label>
                 <input
                   type="text"
@@ -269,8 +300,12 @@ export default function ContactPage() {
                 disabled={sending}
                 className="imlaa-btn-primary w-full py-3.5 text-base sm:text-lg flex items-center justify-center space-x-2"
               >
-                <span>{sending ? "Dispatching..." : "Send Message to Administrator"}</span>
-                <HiPaperAirplane className={`w-5 h-5 rotate-45 ${sending ? "animate-pulse" : ""}`} />
+                <span>
+                  {sending ? "Dispatching..." : "Send Message to Administrator"}
+                </span>
+                <HiPaperAirplane
+                  className={`w-5 h-5 rotate-45 ${sending ? "animate-pulse" : ""}`}
+                />
               </button>
             </form>
           )}

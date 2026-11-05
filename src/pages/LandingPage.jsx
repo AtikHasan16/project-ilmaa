@@ -339,7 +339,7 @@ export default function LandingPage() {
               <span className="text-plum/40 hidden sm:inline">•</span>
               <span className="text-body-dark font-sans font-medium text-sm sm:text-lg">
                 Noun —{" "}
-                <span className="italic">Focused Orthography & Lexical Mastery</span>
+                <span className="italic">Lexical Resource, Vocabulary & Spelling Mastery</span>
               </span>
             </div>
 

@@ -57,8 +57,8 @@ export default function AboutPage() {
             About SpellyCraft
           </h1>
           <p className="text-lg text-muted-label max-w-2xl mx-auto">
-            A focused orthographic and grammar training workspace engineered for
-            academic IELTS preparation.
+            SpellyCraft is a lexical resource, vocabulary, and spelling mastery
+            platform designed for IELTS candidates and English learners.
           </p>
         </div>
 
