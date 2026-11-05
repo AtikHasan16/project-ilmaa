@@ -13,6 +13,7 @@ import {
 } from "react-icons/hi2";
 import { showConfirmModal } from "../utils/sweetalert";
 import { getAvatarColor, getInitials } from "../utils/avatarColors";
+import logo from "../assets/logo.png";
 
 /**
  * Universal Floating Navigation Dock
@@ -98,7 +99,9 @@ export default function NavigationDock() {
   // Active module lookup for the badge header
   const activeItem =
     navItems.find((item) => location.pathname.startsWith(item.to)) ||
-    (location.pathname.includes("profile") ? { label: "Profile" } : { label: "SpellyCraft" });
+    (location.pathname.includes("profile")
+      ? { label: "Profile" }
+      : { label: "SpellyCraft" });
 
   const avatarColor = getAvatarColor(user?.name);
   const initials = getInitials(user?.name);
@@ -123,9 +126,23 @@ export default function NavigationDock() {
 
         <div className="imlaa-card p-3 flex flex-col items-center space-y-3 shadow-lg border border-plum/20 bg-white rounded-2xl">
           {/* Brand Mark (Mini) */}
-          <div className="w-12 h-12 rounded-xl bg-plum/10 border border-plum/20 flex items-center justify-center text-plum font-black text-xs select-none tracking-tight">
-            SC<span className="text-plum">.</span>
-          </div>
+          <NavLink
+            to="/workspace/dashboard"
+            aria-label="SpellyCraft Dashboard"
+            title="SpellyCraft"
+            className="relative group w-12 h-12 rounded-xl overflow-hidden border border-plum/20 shadow-xs flex items-center justify-center bg-[#E1DDC7] transition-all duration-150 hover:scale-105 hover:ring-2 hover:ring-plum/30 active:scale-95 focus-visible:ring-2 focus-visible:ring-plum focus-visible:outline-none shrink-0 cursor-pointer"
+          >
+            <img
+              src={logo}
+              alt="SpellyCraft"
+              className="w-full h-full object-cover select-none pointer-events-none"
+              draggable="false"
+            />
+            {/* Hover Tooltip */}
+            <span className="absolute left-16 px-3 py-1.5 rounded-lg bg-body-dark text-white text-xs font-semibold whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-150 shadow-md z-50">
+              SpellyCraft
+            </span>
+          </NavLink>
 
           <div className="w-8 h-px bg-plum/15 my-1" />
 

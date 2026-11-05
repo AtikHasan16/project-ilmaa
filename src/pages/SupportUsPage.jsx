@@ -19,24 +19,24 @@ export default function SupportUsPage() {
     {
       id: "bkash",
       name: "bKash",
-      number: "01789123456",
-      type: "Personal (Send Money)",
+      number: "0000000000",
+      type: "Send Money",
       note: "Use 'SpellyCraft' in reference",
       tagColor: "bg-pink-50 text-pink-700 border-pink-200",
     },
     {
       id: "nagad",
       name: "Nagad",
-      number: "01889123456",
-      type: "Personal (Send Money)",
+      number: "0000000000",
+      type: "Send Money",
       note: "Use 'SpellyCraft' in reference",
       tagColor: "bg-amber-50 text-amber-700 border-amber-200",
     },
     {
       id: "rocket",
       name: "Rocket",
-      number: "01989123456-7",
-      type: "Personal",
+      number: "0000000000-0",
+      type: "Send Money",
       note: "Use *322# or app",
       tagColor: "bg-purple-50 text-purple-700 border-purple-200",
     },
@@ -94,7 +94,8 @@ export default function SupportUsPage() {
             Help Keep SpellyCraft Free
           </h1>
           <p className="text-sm sm:text-base text-muted-label">
-            Your contributions directly support cloud servers and Neural TTS voice synthesis for IELTS candidates.
+            Your contributions directly support cloud servers and Neural TTS voice
+            synthesis for English learners.
           </p>
         </div>
 
@@ -104,7 +105,9 @@ export default function SupportUsPage() {
           <div className="imlaa-card p-4 sm:p-6 border border-plum/20 bg-white space-y-4 sm:space-y-5">
             <div className="flex items-center space-x-2 pb-2 border-b border-plum/10">
               <HiSparkles className="w-4 h-4 text-plum" />
-              <h2 className="text-base sm:text-lg font-bold text-body-dark">International</h2>
+              <h2 className="text-base sm:text-lg font-bold text-body-dark">
+                International
+              </h2>
             </div>
 
             <div className="space-y-3">
@@ -119,8 +122,12 @@ export default function SupportUsPage() {
                     <SiBuymeacoffee className="w-5 h-5" />
                   </div>
                   <div>
-                    <div className="font-bold text-sm text-stone-900">Buy Me a Coffee</div>
-                    <div className="text-xs text-stone-600">Card, Apple Pay, Google Pay</div>
+                    <div className="font-bold text-sm text-stone-900">
+                      Buy Me a Coffee
+                    </div>
+                    <div className="text-xs text-stone-600">
+                      Card, Apple Pay, Google Pay
+                    </div>
                   </div>
                 </div>
                 <span className="text-xs font-bold text-amber-800 group-hover:translate-x-0.5 transition shrink-0 ml-2">
@@ -140,7 +147,9 @@ export default function SupportUsPage() {
                   </div>
                   <div>
                     <div className="font-bold text-sm text-stone-900">PayPal</div>
-                    <div className="text-xs text-stone-600">Direct wallet / card payment</div>
+                    <div className="text-xs text-stone-600">
+                      Direct wallet / card payment
+                    </div>
                   </div>
                 </div>
                 <span className="text-xs font-bold text-sky-800 group-hover:translate-x-0.5 transition shrink-0 ml-2">
@@ -154,7 +163,9 @@ export default function SupportUsPage() {
           <div className="imlaa-card p-4 sm:p-6 border border-plum/20 bg-white space-y-4 sm:space-y-5">
             <div className="flex items-center space-x-2 pb-2 border-b border-plum/10">
               <span className="text-sm">🇧🇩</span>
-              <h2 className="text-base sm:text-lg font-bold text-body-dark">Mobile Banking (Bangladesh)</h2>
+              <h2 className="text-base sm:text-lg font-bold text-body-dark">
+                Mobile Banking (Bangladesh)
+              </h2>
             </div>
 
             <div className="space-y-2.5">
@@ -166,7 +177,9 @@ export default function SupportUsPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center space-x-2">
                       <span className="font-bold text-sm text-body-dark">{m.name}</span>
-                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${m.tagColor}`}>
+                      <span
+                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${m.tagColor}`}
+                      >
                         {m.type}
                       </span>
                     </div>
@@ -201,7 +214,8 @@ export default function SupportUsPage() {
 
         {/* Small note */}
         <p className="text-xs text-muted-label text-center px-2">
-          Any amount helps maintain database servers and voice generation for students in need.
+          Any amount helps maintain database servers and voice generation for students in
+          need.
         </p>
       </main>
 

@@ -204,7 +204,7 @@ export function exportAuditReportPDF({ users, logs, stats }) {
         </table>
 
         <div class="footer">
-          <span>SpellyCraft Linguistic Mastery Platform — Device-Locked Orthography Workspace</span>
+          <span>SpellyCraft — Lexical Resource, Vocabulary & Spelling Mastery Platform</span>
           <span>Page 1 of 1 • System Report</span>
         </div>
 
