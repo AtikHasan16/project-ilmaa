@@ -7,9 +7,11 @@ import {
   HiCheckCircle,
   HiShieldCheck,
   HiLockClosed,
+  HiQuestionMarkCircle,
 } from "react-icons/hi2";
 import { showConfirmModal, showSuccessToast, showErrorAlert } from "../utils/sweetalert";
 import { parseDelimitedText } from "../utils/csvParser";
+import UploadGuideModal from "../components/UploadGuideModal";
 
 export default function UploadStudyPage() {
   const { user } = useAuth();
@@ -27,8 +29,21 @@ export default function UploadStudyPage() {
   const [previewItems, setPreviewItems] = useState([]);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
 
   const fileInputRef = useRef(null);
+
+  // Apply sample example text from guide modal
+  const handleApplyExample = (exampleText) => {
+    setRawText(exampleText);
+    const parsed = parseDelimitedText(exampleText, bulkTopic);
+    setPreviewItems(parsed);
+    setImportResult(null);
+    showSuccessToast(
+      "Example Loaded",
+      `Loaded ${parsed.length} sample words into editor.`,
+    );
+  };
 
   // Parse raw text whenever user pastes or edits textarea
   const handleTextChange = (e) => {
@@ -111,7 +126,7 @@ export default function UploadStudyPage() {
   return (
     <div className="w-full max-w-4xl mx-auto flex flex-col space-y-8 animate-slide-up">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between  pb-4 border-b border-plum/15">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-plum/15">
         <div>
           <h2 className="text-3xl font-black text-body-dark tracking-tight">
             Upload to Study
@@ -120,6 +135,15 @@ export default function UploadStudyPage() {
             Bulk import vocabulary from Google Sheets, CSV, or TSV files.
           </p>
         </div>
+
+        <button
+          type="button"
+          onClick={() => setIsGuideOpen(true)}
+          className="imlaa-btn-secondary py-2.5 px-4 text-sm font-bold flex items-center space-x-2 shrink-0 cursor-pointer self-start sm:self-auto"
+        >
+          <HiQuestionMarkCircle className="w-5 h-5 text-plum" />
+          <span>Upload Guide & Examples</span>
+        </button>
       </div>
 
       {/* ==================================================== */}
@@ -128,9 +152,19 @@ export default function UploadStudyPage() {
       <div className="flex flex-col space-y-6">
         {/* Instructions Box */}
         <div className="imlaa-card p-5 border border-plum/20 bg-plum/5">
-          <h4 className="text-base font-bold text-plum uppercase tracking-wider mb-2">
-            Expected Column Order (Database Standard)
-          </h4>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+            <h4 className="text-base font-bold text-plum uppercase tracking-wider">
+              Expected Column Order (Database Standard)
+            </h4>
+            <button
+              type="button"
+              onClick={() => setIsGuideOpen(true)}
+              className="text-xs font-bold text-plum hover:underline cursor-pointer flex items-center space-x-1"
+            >
+              <span>View full guide & sample data →</span>
+            </button>
+          </div>
+
           <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm font-mono text-body-dark">
             <span className="p-2 rounded bg-white border border-plum/15 font-bold">
               1. Word
@@ -165,7 +199,17 @@ export default function UploadStudyPage() {
               </span>
             </div>
 
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2 sm:space-x-3 flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setIsGuideOpen(true)}
+                className="imlaa-btn-secondary py-2 px-3 text-sm space-x-1.5 cursor-pointer"
+                title="Open upload guide and sample data"
+              >
+                <HiQuestionMarkCircle className="w-4 h-4 text-plum" />
+                <span>Guide</span>
+              </button>
+
               <input
                 type="file"
                 ref={fileInputRef}
@@ -176,7 +220,7 @@ export default function UploadStudyPage() {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="imlaa-btn-secondary py-2 px-4 text-base space-x-2"
+                className="imlaa-btn-secondary py-2 px-4 text-base space-x-2 cursor-pointer"
               >
                 <HiDocumentArrowUp className="w-5 h-5" />
                 <span>Upload .CSV File</span>
@@ -453,6 +497,13 @@ export default function UploadStudyPage() {
           </div>
         )}
       </div>
+
+      {/* Bulk Upload Format & Copy-Paste Guide Modal */}
+      <UploadGuideModal
+        isOpen={isGuideOpen}
+        onClose={() => setIsGuideOpen(false)}
+        onApplyExample={handleApplyExample}
+      />
     </div>
   );
 }
